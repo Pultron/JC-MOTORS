@@ -96,32 +96,36 @@ export function HomePage() {
           </Link>
         </div>
 
-        <label className="relative mt-4 block">
-          <span className="sr-only">Buscar cotizaciones por folio o cliente</span>
-          <Search size={17} aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            className="form-input pl-10"
-            value={search}
-            onChange={(event) => applyFilter({ search: event.target.value })}
-            placeholder="Buscar por folio o cliente..."
-          />
-        </label>
+        <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+          <label className="relative block min-w-0 flex-1">
+            <span className="sr-only">Buscar cotizaciones por folio o cliente</span>
+            <Search size={17} aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              className="form-input pl-10"
+              value={search}
+              onChange={(event) => applyFilter({ search: event.target.value })}
+              placeholder="Buscar por folio o cliente..."
+            />
+          </label>
 
-        <div role="group" aria-label="Filtrar cotizaciones por estado" className="mt-4 flex gap-6 border-b border-slate-100 sm:gap-7">
-          {STATUS_TABS.map((tab) => {
-            const isActive = tab.value === status;
-            return (
-              <button
-                key={tab.value}
-                type="button"
-                aria-pressed={isActive}
-                onClick={() => applyFilter({ status: tab.value })}
-                className={`-mb-px border-b-2 pb-2.5 text-sm font-semibold transition ${isActive ? 'border-orange-500 text-orange-600' : 'border-transparent text-slate-600 hover:text-navy-950'}`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
+          <div role="group" aria-label="Filtrar cotizaciones por estado" className="flex shrink-0 flex-wrap items-center gap-2">
+            {STATUS_TABS.map((tab) => {
+              const isActive = tab.value === status;
+              const dotColor = tab.value === 'Pendiente' ? 'bg-amber-500' : tab.value === 'Aprobada' ? 'bg-emerald-500' : tab.value === 'Cancelada' ? 'bg-rose-500' : '';
+              return (
+                <button
+                  key={tab.value}
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={() => applyFilter({ status: tab.value })}
+                  className={`inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-xs font-semibold transition ${isActive ? 'border-orange-500 bg-orange-50/50 text-orange-600' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-navy-950'}`}
+                >
+                  {dotColor && <span aria-hidden="true" className={`size-1.5 rounded-full ${dotColor}`} />}
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {isLoading

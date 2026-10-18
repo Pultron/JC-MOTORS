@@ -201,7 +201,7 @@ function drawInfoCard(
   doc.roundedRect(x, y, width, height, 2, 2, 'F');
   doc.setFillColor(COLORS.orange);
   doc.roundedRect(x + 3, y + 3, 9, 9, 1.5, 1.5, 'F');
-  drawIcon(doc, icon, x + 5, y + 4.4, 5, '#ffffff');
+  drawIcon(doc, icon, x + 4.5, y + 4.5, 6, '#ffffff');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(COLORS.dark);
@@ -209,7 +209,7 @@ function drawInfoCard(
 
   let rowY = y + 18;
   rows.forEach((row, index) => {
-    drawIcon(doc, row.icon, x + 5, rowY - 3.5, 5, COLORS.text);
+    drawIcon(doc, row.icon, x + 4.5, rowY - 4, 6, COLORS.text);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.9);
     doc.setTextColor(COLORS.text);
@@ -509,29 +509,57 @@ function stampFooters(doc: jsPDF): void {
 }
 
 function drawIcon(doc: jsPDF, name: IconName, x: number, y: number, size: number, color: string): void {
+  // Mantener todo el trazo dentro de la caja evita que los iconos pequeños se recorten.
+  doc.saveGraphicsState();
+  x += size * 0.1;
+  y += size * 0.1;
+  size *= 0.8;
   doc.setDrawColor(color);
-  doc.setLineWidth(0.42);
+  doc.setLineWidth(0.35);
+  doc.setLineCap('round');
+  doc.setLineJoin('round');
   const cx = x + size / 2;
   switch (name) {
     case 'person':
       doc.circle(cx, y + size * 0.28, size * 0.16, 'S');
-      doc.roundedRect(x + size * 0.16, y + size * 0.53, size * 0.68, size * 0.37, 0.8, 0.8, 'S');
+      doc.lines([
+        [size * 0.18, 0],
+        [0, -size * 0.22, size * 0.14, -size * 0.35, size * 0.32, -size * 0.35],
+        [size * 0.18, 0, size * 0.32, size * 0.13, size * 0.32, size * 0.35],
+      ], x + size * 0.18, y + size * 0.9, [1, 1], 'S');
       break;
     case 'car':
-      doc.line(x + size * 0.2, y + size * 0.43, x + size * 0.34, y + size * 0.2);
-      doc.line(x + size * 0.34, y + size * 0.2, x + size * 0.7, y + size * 0.2);
-      doc.line(x + size * 0.7, y + size * 0.2, x + size * 0.84, y + size * 0.43);
-      doc.roundedRect(x + size * 0.12, y + size * 0.42, size * 0.76, size * 0.38, 0.7, 0.7, 'S');
-      doc.circle(x + size * 0.28, y + size * 0.81, size * 0.07, 'S');
-      doc.circle(x + size * 0.72, y + size * 0.81, size * 0.07, 'S');
+      doc.lines([
+        [size * 0.04, -size * 0.16],
+        [size * 0.15, -size * 0.02],
+        [size * 0.12, -size * 0.24],
+        [size * 0.28, 0],
+        [size * 0.13, size * 0.24],
+        [size * 0.12, size * 0.02],
+        [size * 0.03, size * 0.16],
+        [-size * 0.87, 0],
+      ], x + size * 0.08, y + size * 0.62, [1, 1], 'S', true);
+      doc.lines([
+        [size * 0.09, -size * 0.18],
+        [size * 0.25, 0],
+        [size * 0.1, size * 0.18],
+      ], x + size * 0.31, y + size * 0.42, [1, 1], 'S');
+      doc.circle(x + size * 0.29, y + size * 0.69, size * 0.1, 'S');
+      doc.circle(x + size * 0.72, y + size * 0.69, size * 0.1, 'S');
       break;
     case 'phone':
-      doc.line(x + size * 0.2, y + size * 0.12, x + size * 0.36, y + size * 0.29);
-      doc.line(x + size * 0.36, y + size * 0.29, x + size * 0.28, y + size * 0.43);
-      doc.line(x + size * 0.28, y + size * 0.43, x + size * 0.61, y + size * 0.76);
-      doc.line(x + size * 0.61, y + size * 0.76, x + size * 0.75, y + size * 0.65);
-      doc.line(x + size * 0.75, y + size * 0.65, x + size * 0.91, y + size * 0.82);
-      doc.line(x + size * 0.91, y + size * 0.82, x + size * 0.77, y + size * 0.94);
+      doc.setFillColor(color);
+      doc.lines([
+        [size * 0.07, size * 0.07, size * 0.13, size * 0.13, size * 0.19, size * 0.19],
+        [-size * 0.1, size * 0.13],
+        [size * 0.28, size * 0.48, size * 0.4, size * 0.61, size * 0.31, size * 0.33],
+        [size * 0.13, -size * 0.12],
+        [size * 0.19, size * 0.19],
+        [-size * 0.13, size * 0.13],
+        [-size * 0.11, size * 0.1, -size * 0.24, size * 0.04, -size * 0.38, -size * 0.08],
+        [-size * 0.17, -size * 0.13, -size * 0.33, -size * 0.35, -size * 0.36, -size * 0.54],
+        [-size * 0.01, -size * 0.12, size * 0.06, -size * 0.21, size * 0.15, -size * 0.23],
+      ], x + size * 0.2, y + size * 0.08, [1, 1], 'F', true);
       break;
     case 'mail':
       doc.roundedRect(x + size * 0.08, y + size * 0.19, size * 0.84, size * 0.62, 0.5, 0.5, 'S');
@@ -550,12 +578,16 @@ function drawIcon(doc: jsPDF, name: IconName, x: number, y: number, size: number
       doc.line(x + size * 0.59, y + size * 0.5, x + size * 0.76, y + size * 0.5);
       break;
     case 'pin':
-      doc.circle(cx, y + size * 0.36, size * 0.28, 'S');
-      doc.circle(cx, y + size * 0.36, size * 0.08, 'S');
-      doc.line(x + size * 0.28, y + size * 0.53, cx, y + size * 0.95);
-      doc.line(cx, y + size * 0.95, x + size * 0.72, y + size * 0.53);
+      doc.lines([
+        [-size * 0.14, -size * 0.18, -size * 0.32, -size * 0.38, -size * 0.32, -size * 0.58],
+        [0, -size * 0.18, size * 0.14, -size * 0.3, size * 0.32, -size * 0.3],
+        [size * 0.18, 0, size * 0.32, size * 0.12, size * 0.32, size * 0.3],
+        [0, size * 0.2, -size * 0.18, size * 0.4, -size * 0.32, size * 0.58],
+      ], cx, y + size * 0.96, [1, 1], 'S', true);
+      doc.circle(cx, y + size * 0.38, size * 0.1, 'S');
       break;
   }
+  doc.restoreGraphicsState();
 }
 
 let logoPromise: Promise<QuotationLogo | undefined> | undefined;

@@ -15,10 +15,9 @@ const navigation = [
 export function AppLayout() {
   const location = useLocation();
   const isNewQuotation = location.pathname === '/nueva-cotizacion';
+  const isHistory = location.pathname === '/historial';
   const { notice, clearNotice } = useQuotations();
-  const pageTitle = location.pathname === '/'
-    ? 'Gestión de cotizaciones'
-    : navigation.find((item) => item.end ? location.pathname === item.to : location.pathname.startsWith(item.to))?.label ?? 'Detalle de cotización';
+
 
   useEffect(() => {
     if (!notice) return;
@@ -45,11 +44,7 @@ export function AppLayout() {
       </aside>
 
       <div className="min-w-0 flex-1 lg:ml-[258px]">
-        <header className="sticky top-0 z-10 flex h-[70px] items-center justify-between border-b border-slate-200/80 bg-white/90 px-5 backdrop-blur sm:px-8">
-          <p className="text-sm font-semibold text-slate-600">{pageTitle}</p>
-          <div className="flex items-center gap-3"><span className="hidden text-xs text-slate-500 sm:block">Taller automotriz</span><span className="flex size-9 items-center justify-center rounded-full bg-navy-100 text-xs font-bold text-navy-800">JC</span></div>
-        </header>
-        <main className={`mx-auto w-full max-w-[1440px] p-5 sm:p-8 xl:px-10 ${isNewQuotation ? 'new-quotation-main' : ''}`}><Outlet /></main>
+        <main className={`mx-auto w-full p-5 sm:p-8 ${isHistory ? 'max-w-[1600px] xl:px-6' : 'max-w-[1440px] xl:px-10'} ${isNewQuotation ? 'new-quotation-main' : ''}`}><Outlet /></main>
       </div>
 
       {notice && <div role="status" className="fixed bottom-5 right-5 z-30 flex max-w-sm items-start gap-3 rounded-xl bg-navy-950 px-4 py-3.5 text-sm text-white shadow-xl"><span className="mt-0.5 size-2 shrink-0 rounded-full bg-emerald-400" />{notice}<button onClick={clearNotice} className="ml-2 text-slate-400 hover:text-white" aria-label="Cerrar notificación">×</button></div>}

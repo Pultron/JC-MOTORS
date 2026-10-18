@@ -36,7 +36,7 @@ export function HistoryPage() {
   return (
     <>
       <PageHeader eyebrow="Cotizaciones" title="Historial" description="Busca, revisa y duplica cotizaciones anteriores." actions={<Button variant="primary" icon={<Copy size={16} />} onClick={() => navigate('/nueva-cotizacion')}>Nueva cotización</Button>} />
-      <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card sm:p-6">
+      <section className="min-h-[calc(100vh-160px)] rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card sm:p-6">
         <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
           <label className="relative min-w-0 flex-1"><span className="sr-only">Buscar por folio o nombre del cliente</span><Search size={17} aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" /><input className="form-input pl-10" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por folio o nombre del cliente" /></label>
           <div className="flex flex-wrap gap-3">

@@ -1,4 +1,3 @@
-import { ChevronDown } from 'lucide-react';
 import type { QuotationStatus } from '../models/quotation';
 
 const statusStyles: Record<QuotationStatus, string> = {
@@ -9,19 +8,13 @@ const statusStyles: Record<QuotationStatus, string> = {
 
 interface StatusBadgeProps {
   status: QuotationStatus;
-  /** El chevron es decorativo: el estado no se edita en línea, se cambia desde el detalle. */
-  showChevron?: boolean;
 }
 
-export function StatusBadge({ status, showChevron = false }: StatusBadgeProps) {
+export function StatusBadge({ status }: StatusBadgeProps) {
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusStyles[status]}`}
-      title={showChevron ? 'El estado se cambia desde el detalle de la cotización' : undefined}
-    >
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusStyles[status]}`}>
       <span className="size-1.5 rounded-full bg-current" />
       {status}
-      {showChevron && <ChevronDown size={13} strokeWidth={2.5} aria-hidden="true" />}
     </span>
   );
 }

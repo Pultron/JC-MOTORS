@@ -22,6 +22,8 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
   const [logo, setLogo] = useState<QuotationLogo | null | undefined>();
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState('');
+  const [downloadedTo, setDownloadedTo] = useState('');
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -81,15 +83,34 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
     }
   }
 
-  function handleDownload() {
-    if (!file) return;
+  async function handleDownload() {
+    if (!file || isDownloading) return;
     setError('');
-    const objectUrl = URL.createObjectURL(file);
-    const anchor = document.createElement('a');
-    anchor.href = objectUrl;
-    anchor.download = file.name;
-    anchor.click();
-    URL.revokeObjectURL(objectUrl);
+    setDownloadedTo('');
+    setIsDownloading(true);
+    try {
+      const tauriInvoke = window.__TAURI__?.core.invoke;
+      if (tauriInvoke) {
+        const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
+        const path = await tauriInvoke<string>('save_quotation_pdf', { folio: quotation?.folio ?? '', bytes });
+        setDownloadedTo(`PDF guardado en ${path}`);
+      } else {
+        const objectUrl = URL.createObjectURL(file);
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = file.name;
+        anchor.style.display = 'none';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        // El navegador necesita tiempo para leer el blob después del clic.
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+      }
+    } catch (cause) {
+      setError(`No se pudo guardar el PDF: ${String(cause)}`);
+    } finally {
+      setIsDownloading(false);
+    }
   }
 
   return (
@@ -125,6 +146,7 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
       </div>
 
       {error && <p role="alert" className="border-t border-slate-100 bg-rose-50 px-5 py-2.5 text-sm text-rose-700">{error}</p>}
+      {downloadedTo && <p role="status" className="border-t border-slate-100 bg-green-50 px-5 py-2.5 text-sm text-green-800">{downloadedTo}</p>}
 
       <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-5 py-4">
         <Button
@@ -136,7 +158,7 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
         >
           Compartir
         </Button>
-        <Button variant="secondary" disabled={!file} icon={<Download size={16} />} onClick={handleDownload}>Descargar PDF</Button>
+        <Button variant="secondary" disabled={!file || isDownloading} icon={<Download size={16} />} onClick={() => void handleDownload()}>{isDownloading ? 'Guardando…' : 'Descargar PDF'}</Button>
         <Button variant="primary" disabled={!preview} icon={<Printer size={16} />} onClick={handlePrint}>Imprimir</Button>
       </div>
     </dialog>
