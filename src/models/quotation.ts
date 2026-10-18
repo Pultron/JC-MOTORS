@@ -1,10 +1,10 @@
-export type QuotationStatus = 'Pendiente' | 'Vencida' | 'Aprobada' | 'En proceso' | 'Terminada' | 'Entregada' | 'Cancelada';
+export type QuotationStatus = 'Pendiente' | 'Aprobada' | 'Cancelada';
 
 /** Transiciones de estado permitidas. Aprobar bloquea la cotización: ya no admite cambios posteriores. */
-export const TERMINAL_STATUSES: readonly QuotationStatus[] = ['Vencida', 'Entregada', 'Cancelada'];
-export const APPROVED_STATUSES: readonly QuotationStatus[] = ['Aprobada', 'En proceso', 'Terminada', 'Entregada'];
+export const TERMINAL_STATUSES: readonly QuotationStatus[] = ['Aprobada', 'Cancelada'];
 export type QuotationItemType = 'labor' | 'part';
 export type DiscountType = 'percentage' | 'fixed';
+export type InternalStatus = 'pending_capture' | 'complete';
 export type PaymentStatus = 'pending' | 'partial' | 'paid';
 export type PaymentMethod = 'cash' | 'transfer' | 'card' | 'other';
 
@@ -56,8 +56,6 @@ export interface Quotation {
   customerNotes?: string;
   status: QuotationStatus;
   approvedAt?: string;
-  cancelledAt?: string;
-  statusUpdatedAt?: string;
 }
 
 export interface CreateQuotationInput {
@@ -72,6 +70,28 @@ export interface CreateQuotationInput {
   validityDays: number;
   publicNotes: string;
   customerNotes?: string;
+}
+
+export interface InternalPartCost {
+  quotationItemId: string;
+  supplierUnitCost: number;
+  supplierDiscountType: DiscountType;
+  supplierDiscountValue: number;
+}
+
+export interface InternalControlRecord {
+  id: string;
+  quotationId: string;
+  partCosts: InternalPartCost[];
+  internalStatus: InternalStatus;
+  paymentStatus: PaymentStatus;
+  paymentMethod: PaymentMethod | '';
+  amountReceived: number;
+  paymentDate: string;
+  paymentReference: string;
+  internalNotes: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /** A strict allowlist of data that may appear in the customer's printable quotation. */

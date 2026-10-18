@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { FolderOpen, Pencil, RotateCcw, Trash2 } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router';
+import { FolderOpen, RotateCcw, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router';
 import { ClientVehicleSection, PublicNotesSection, QuoteItemsSection } from '../components/newQuote/QuoteFormSections';
 import { QuoteSummary } from '../components/newQuote/QuoteSummary';
 import type { QuoteDraft, QuoteDraftItem, QuoteFormData } from '../models/quoteDraft';
-import type { CreateQuotationInput, Quotation } from '../models/quotation';
+import type { CreateQuotationInput } from '../models/quotation';
 import { frequentConcepts } from '../repositories/serviceFixtures';
 import { quoteDraftService } from '../services/quoteDraftService';
 import type { TemporaryQuoteDraft } from '../services/quoteDraftService';
@@ -26,44 +26,14 @@ function emptyForm(): QuoteFormData {
   };
 }
 
-function formFromQuotation(quotation: Quotation): QuoteFormData {
-  const parts = quotation.items.filter((item) => item.type === 'part');
-  const laborAmount = quotation.items.filter((item) => item.type === 'labor')
-    .reduce((sum, item) => sum + item.quantity * item.saleUnitPrice, 0);
-  return {
-    customerId: quotation.customerId ?? '',
-    customerName: quotation.customer.name,
-    phone: quotation.customer.phone,
-    email: quotation.customer.email ?? '',
-    make: quotation.vehicle.make,
-    model: quotation.vehicle.model,
-    year: quotation.vehicle.year?.toString() ?? '',
-    plates: quotation.vehicle.plates,
-    items: parts.length ? parts.map((item) => ({
-      id: item.id, type: 'part', description: item.description,
-      quantity: String(item.quantity), unitPrice: String(item.saleUnitPrice),
-    })) : [blankItem()],
-    laborAmount: String(laborAmount),
-    laborDiscountType: quotation.laborDiscountType,
-    laborDiscountValue: String(quotation.laborDiscountValue),
-    ivaEnabled: quotation.includeVat,
-    validityDays: String(quotation.validityDays),
-    publicNotes: quotation.publicNotes,
-    customerNotes: quotation.customerNotes ?? '',
-  };
-}
-
 function normalize(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('es-MX');
 }
 
 export function NewQuotationPage() {
   const navigate = useNavigate();
-  const { id: editId } = useParams();
   const { customers, createCustomer } = useCustomers();
-  const { quotations, getQuotation, createQuotation, updateQuotation } = useQuotations();
-  const [editingQuote, setEditingQuote] = useState<Quotation | null>(null);
-  const [loadingEdit, setLoadingEdit] = useState(Boolean(editId));
+  const { quotations, createQuotation } = useQuotations();
   const [form, setForm] = useState<QuoteFormData>(emptyForm);
   const [drafts, setDrafts] = useState<QuoteDraft[]>(() => quoteDraftService.list());
   const [activeDraft, setActiveDraft] = useState<QuoteDraft | null>(null);
@@ -75,23 +45,6 @@ export function NewQuotationPage() {
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [dirty, setDirty] = useState(false);
   const autosaveTimer = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!editId) return;
-    let active = true;
-    getQuotation(editId).then((quotation) => {
-      if (!active) return;
-      if (!quotation || quotation.status !== 'Pendiente') {
-        navigate(`/cotizaciones/${editId}`, { replace: true });
-        return;
-      }
-      setEditingQuote(quotation);
-      setForm(formFromQuotation(quotation));
-      setRecovery(null);
-      setLoadingEdit(false);
-    });
-    return () => { active = false; };
-  }, [editId, getQuotation, navigate]);
 
   const totals = useMemo(() => {
     const labor = Math.max(0, Number(form.laborAmount) || 0);
@@ -110,7 +63,7 @@ export function NewQuotationPage() {
   ])).sort((a, b) => a.localeCompare(b, 'es-MX')), [quotations]);
 
   useEffect(() => {
-    if (!dirty || recovery || editId) return;
+    if (!dirty || recovery) return;
     setSaveState('saving');
     autosaveTimer.current = window.setTimeout(() => {
       try {
@@ -194,34 +147,29 @@ export function NewQuotationPage() {
     if (!validate()) return;
     const labor = Math.max(0, Number(form.laborAmount) || 0);
     const input: CreateQuotationInput = {
-      ...(!editId && activeDraft ? { preferredFolio: activeDraft.folio } : {}),
+      ...(activeDraft ? { preferredFolio: activeDraft.folio } : {}),
       ...(form.customerId ? { customerId: form.customerId } : {}),
       customer: { name: form.customerName.trim(), phone: form.phone.trim(), ...(form.email.trim() ? { email: form.email.trim() } : {}) },
       vehicle: { make: form.make.trim(), model: form.model.trim(), ...(form.year ? { year: Number(form.year) } : {}), plates: form.plates.trim().toUpperCase() },
       items: [
         ...form.items.filter((item) => item.description.trim() || String(item.unitPrice).trim()).map((item) => ({ id: item.id, type: item.type, description: item.description.trim(), quantity: Number(item.quantity), saleUnitPrice: Number(item.unitPrice) })),
-        ...(labor > 0 ? editingQuote && labor === editingQuote.items.filter((item) => item.type === 'labor').reduce((sum, item) => sum + item.quantity * item.saleUnitPrice, 0)
-          ? editingQuote.items.filter((item) => item.type === 'labor').map(({ id, type, description, quantity, saleUnitPrice }) => ({ id, type, description, quantity, saleUnitPrice }))
-          : [{ id: createId(), type: 'labor' as const, description: 'Mano de obra', quantity: 1, saleUnitPrice: labor }] : []),
+        ...(labor > 0 ? [{ id: createId(), type: 'labor' as const, description: 'Mano de obra', quantity: 1, saleUnitPrice: labor }] : []),
       ],
       laborDiscountType: form.laborDiscountType, laborDiscountValue: Number(form.laborDiscountValue), includeVat: form.ivaEnabled,
       validityDays: Number(form.validityDays), publicNotes: form.publicNotes.trim(), customerNotes: form.customerNotes.trim(),
     };
     setBusy(true);
     try {
-      const quote = editingQuote ? await updateQuotation(editingQuote.id, input) : await createQuotation(input);
-      if (!quote) throw new Error('La cotización ya no está pendiente.');
+      const quote = await createQuotation(input);
       if (!form.customerId && !customers.some((customer) => normalize(customer.name) === normalize(form.customerName))) {
         createCustomer({ name: form.customerName.trim(), phone: form.phone.trim(), ...(form.email.trim() ? { email: form.email.trim() } : {}), aliases: [] });
       }
-      if (!editId) {
-        if (activeDraft) quoteDraftService.delete(activeDraft.id);
-        quoteDraftService.deleteTemporary();
-      }
+      if (activeDraft) quoteDraftService.delete(activeDraft.id);
+      quoteDraftService.deleteTemporary();
       setDirty(false);
       navigate(`/cotizaciones/${quote.id}`);
-    } catch (cause) {
-      setSubmitError(cause instanceof Error ? cause.message : 'No se pudo guardar la cotización.');
+    } catch {
+      setSubmitError('No se pudo guardar la cotización. Inténtalo de nuevo.');
     } finally {
       setBusy(false);
     }
@@ -269,22 +217,19 @@ export function NewQuotationPage() {
     setMessage(`Borrador ${draft.folio} eliminado.`);
   }
 
-  if (loadingEdit) return <p className="py-16 text-center text-sm text-slate-500">Cargando cotización…</p>;
-
   return <div className="new-quotation-page">
-    {!editId && <span role="status" className="sr-only">{saveState === 'saving' ? 'Guardando…' : saveState === 'saved' ? 'Guardado automáticamente' : 'Guardado automático'}</span>}
-    {editingQuote && <p className="mb-5 flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm font-semibold text-blue-900"><Pencil size={17} />Editando {editingQuote.folio}. Los cambios conservarán este folio.</p>}
-    {!editId && recovery && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900"><span>Hay un formulario guardado automáticamente. ¿Deseas recuperarlo?</span><div className="flex gap-2"><button type="button" className="rounded-lg bg-blue-700 px-3 py-2 font-semibold text-white hover:bg-blue-800" onClick={() => { setForm({ ...recovery.data, laborAmount: recovery.data.laborAmount ?? '0', customerNotes: recovery.data.customerNotes ?? '' }); setActiveDraft(drafts.find((draft) => draft.id === recovery.draftId) ?? null); setRecovery(null); setDirty(false); setSaveState('saved'); }}>Recuperar</button><button type="button" className="rounded-lg border border-blue-200 px-3 py-2 font-semibold hover:bg-white" onClick={() => { quoteDraftService.deleteTemporary(); setRecovery(null); }}>Descartar</button></div></div>}
+    <span role="status" className="sr-only">{saveState === 'saving' ? 'Guardando…' : saveState === 'saved' ? 'Guardado automáticamente' : 'Guardado automático'}</span>
+    {recovery && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900"><span>Hay un formulario guardado automáticamente. ¿Deseas recuperarlo?</span><div className="flex gap-2"><button type="button" className="rounded-lg bg-blue-700 px-3 py-2 font-semibold text-white hover:bg-blue-800" onClick={() => { setForm({ ...recovery.data, laborAmount: recovery.data.laborAmount ?? '0', customerNotes: recovery.data.customerNotes ?? '' }); setActiveDraft(drafts.find((draft) => draft.id === recovery.draftId) ?? null); setRecovery(null); setDirty(false); setSaveState('saved'); }}>Recuperar</button><button type="button" className="rounded-lg border border-blue-200 px-3 py-2 font-semibold hover:bg-white" onClick={() => { quoteDraftService.deleteTemporary(); setRecovery(null); }}>Descartar</button></div></div>}
     {message && <p role="status" className="mb-5 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</p>}
-    {!editId && drafts.length > 0 && <section className="mb-5 rounded-xl border border-slate-200 bg-white px-4 py-3"><h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-navy-950"><FolderOpen size={17} />Borradores guardados</h2><div className="flex flex-wrap gap-2">{drafts.map((draft) => <div key={draft.id} className="flex items-center gap-1 rounded-lg border border-slate-200 pl-3 text-xs"><button type="button" className="py-2 font-semibold text-blue-700 hover:underline" onClick={() => openDraft(draft)}>{draft.folio} · {draft.data.customerName || 'Sin cliente'}</button><button type="button" className="rounded-lg p-2 text-slate-400 hover:text-rose-600" aria-label={`Eliminar borrador ${draft.folio}`} onClick={() => deleteDraft(draft)}><Trash2 size={14} /></button></div>)}</div></section>}
+    {drafts.length > 0 && <section className="mb-5 rounded-xl border border-slate-200 bg-white px-4 py-3"><h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-navy-950"><FolderOpen size={17} />Borradores guardados</h2><div className="flex flex-wrap gap-2">{drafts.map((draft) => <div key={draft.id} className="flex items-center gap-1 rounded-lg border border-slate-200 pl-3 text-xs"><button type="button" className="py-2 font-semibold text-blue-700 hover:underline" onClick={() => openDraft(draft)}>{draft.folio} · {draft.data.customerName || 'Sin cliente'}</button><button type="button" className="rounded-lg p-2 text-slate-400 hover:text-rose-600" aria-label={`Eliminar borrador ${draft.folio}`} onClick={() => deleteDraft(draft)}><Trash2 size={14} /></button></div>)}</div></section>}
     <form onSubmit={handleSubmit} noValidate className="quote-form-grid">
       <div className="quote-form-sections">
-        {!editId && activeDraft && <p className="flex items-center gap-2 text-xs font-medium text-blue-700"><RotateCcw size={14} />Editando borrador {activeDraft.folio}</p>}
+        {activeDraft && <p className="flex items-center gap-2 text-xs font-medium text-blue-700"><RotateCcw size={14} />Editando borrador {activeDraft.folio}</p>}
         <ClientVehicleSection form={form} errors={errors} customers={customers} onChange={updateField} onCustomerChange={updateCustomer} onSelectCustomer={selectCustomer} />
         <QuoteItemsSection form={form} errors={errors} suggestions={suggestions} onAdd={addItem} onUpdate={updateItem} onDelete={deleteItem} />
         <PublicNotesSection form={form} errors={errors} onChange={updateField} />
       </div>
-      <QuoteSummary editing={Boolean(editId)} form={form} totals={totals} errors={errors} busy={busy} submitError={submitError} onChange={updateField} onSaveDraft={saveDraft} onClear={editId ? () => navigate(`/cotizaciones/${editId}`) : clearForm} />
+      <QuoteSummary form={form} totals={totals} errors={errors} busy={busy} submitError={submitError} onChange={updateField} onSaveDraft={saveDraft} onClear={clearForm} />
     </form>
   </div>;
 }

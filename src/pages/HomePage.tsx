@@ -8,7 +8,6 @@ import { useQuotationActions } from '../hooks/useQuotationActions';
 import type { PublicQuotation, Quotation, QuotationStatus } from '../models/quotation';
 import { useQuotations } from '../store/QuotationContext';
 import { toPublicQuotation } from '../utils/quotation';
-import { matchesQuotationSearch } from '../utils/quotationSearch';
 
 const homeArtwork = new URL('../../diseño inicio.png', import.meta.url).href;
 
@@ -17,11 +16,7 @@ const PAGE_SIZE = 5;
 const STATUS_TABS: ReadonlyArray<{ value: 'Todas' | QuotationStatus; label: string }> = [
   { value: 'Todas', label: 'Todas' },
   { value: 'Pendiente', label: 'Pendientes' },
-  { value: 'Vencida', label: 'Vencidas' },
   { value: 'Aprobada', label: 'Aprobadas' },
-  { value: 'En proceso', label: 'En proceso' },
-  { value: 'Terminada', label: 'Terminadas' },
-  { value: 'Entregada', label: 'Entregadas' },
   { value: 'Cancelada', label: 'Canceladas' },
 ];
 
@@ -34,11 +29,12 @@ export function HomePage() {
   const [pdfTarget, setPdfTarget] = useState<PublicQuotation | null>(null);
 
   const filteredQuotations = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase('es-MX');
     return [...quotations]
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .filter((quotation) => {
         const matchesStatus = status === 'Todas' || quotation.status === status;
-        const matchesQuery = matchesQuotationSearch(quotation, search);
+        const matchesQuery = !query || `${quotation.folio} ${quotation.customer.name}`.toLocaleLowerCase('es-MX').includes(query);
         return matchesStatus && matchesQuery;
       });
   }, [quotations, search, status]);
@@ -100,25 +96,22 @@ export function HomePage() {
           </Link>
         </div>
 
-        <div className="mt-4 flex flex-col gap-3 xl:flex-row xl:items-center">
+        <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
           <label className="relative block min-w-0 flex-1">
-            <span className="sr-only">Buscar cotizaciones por folio, cliente, vehículo o placas</span>
+            <span className="sr-only">Buscar cotizaciones por folio o cliente</span>
             <Search size={17} aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               className="form-input pl-10"
               value={search}
               onChange={(event) => applyFilter({ search: event.target.value })}
-              placeholder="Buscar por folio, cliente, vehículo o placas..."
+              placeholder="Buscar por folio o cliente..."
             />
           </label>
 
           <div role="group" aria-label="Filtrar cotizaciones por estado" className="flex shrink-0 flex-wrap items-center gap-2">
             {STATUS_TABS.map((tab) => {
               const isActive = tab.value === status;
-              const dotColor = tab.value === 'Pendiente' || tab.value === 'Vencida' ? 'bg-amber-500'
-                : tab.value === 'Aprobada' || tab.value === 'Entregada' ? 'bg-emerald-500'
-                  : tab.value === 'En proceso' || tab.value === 'Terminada' ? 'bg-blue-500'
-                    : tab.value === 'Cancelada' ? 'bg-rose-500' : '';
+              const dotColor = tab.value === 'Pendiente' ? 'bg-amber-500' : tab.value === 'Aprobada' ? 'bg-emerald-500' : tab.value === 'Cancelada' ? 'bg-rose-500' : '';
               return (
                 <button
                   key={tab.value}

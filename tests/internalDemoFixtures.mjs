@@ -8,6 +8,6 @@ export function internalDemoFixtures() {
     items: [{ id: `part-${i}-1`, type: 'part', description: 'Balatas delanteras', quantity: 1, saleUnitPrice: 1200, amount: 1200 }, { id: `part-${i}-2`, type: 'part', description: 'Aceite sintético', quantity: 1, saleUnitPrice: 850, amount: 850 }, { id: `part-${i}-3`, type: 'part', description: 'Filtro de aceite', quantity: 1, saleUnitPrice: 300, amount: 300 }, { id: `labor-${i}`, type: 'labor', description: 'Mano de obra', quantity: 1, saleUnitPrice: sold - 2350, amount: sold - 2350 }],
     laborDiscountType: 'fixed', laborDiscountValue: 0, includeVat: true, validityDays: 15, publicNotes: '',
   }));
-  const records = quotations.slice(0, 3).map((q, i) => ({ id: `cost-${i}`, quoteId: q.id, itemCosts: q.items.filter(item => item.type === 'part').map((item, j) => ({ quoteItemId: item.id, actualUnitCostCents: i === 1 && j === 2 ? null : [78000, 62000, 18000][j] })), payments: [], additionalExpenses: [{ id: `expense-${i}`, description: 'Envío / traslado', amountCents: 12000 }], createdAt: date(i), updatedAt: date(i) }));
+  const records = quotations.slice(0, 3).map((q, i) => ({ id: `cost-${i}`, quoteId: q.id, itemCosts: q.items.filter(item => item.type === 'part').map((item, j) => ({ quoteItemId: item.id, actualUnitCostCents: i === 1 && j === 2 ? null : [78000, 62000, 18000][j] })), additionalExpenses: [{ id: `expense-${i}`, description: 'Envío / traslado', amountCents: 12000 }], createdAt: date(i), updatedAt: date(i) }));
   return { quotations, records };
 }

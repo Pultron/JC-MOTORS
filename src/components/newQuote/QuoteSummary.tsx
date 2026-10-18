@@ -16,7 +16,6 @@ function loadPromotions(): Promotion[] {
 }
 
 interface Props {
-  editing?: boolean;
   form: QuoteFormData;
   totals: QuotationTotals;
   errors: Record<string, string>;
@@ -27,7 +26,7 @@ interface Props {
   onClear: () => void;
 }
 
-export function QuoteSummary({ editing = false, form, totals, errors, busy, submitError, onChange, onSaveDraft, onClear }: Props) {
+export function QuoteSummary({ form, totals, errors, busy, submitError, onChange, onSaveDraft, onClear }: Props) {
   const [promotions, setPromotions] = useState<Promotion[]>(loadPromotions);
   const [selectedPromotion, setSelectedPromotion] = useState('');
   const [creating, setCreating] = useState(false);
@@ -115,11 +114,11 @@ export function QuoteSummary({ editing = false, form, totals, errors, busy, subm
       </div>
       {submitError && <p role="alert" className="mt-4 flex items-center gap-2 text-sm text-rose-600"><CircleAlert size={16} />{submitError}</p>}
       <div className="quote-summary-actions">
-        {!editing && <Button type="button" variant="secondary" icon={<Save size={16} />} disabled={busy} onClick={onSaveDraft}>Guardar borrador</Button>}
-        <Button type="submit" variant="primary" disabled={busy} icon={<Save size={16} />}>{busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Guardar cotización'}</Button>
+        <Button type="button" variant="secondary" icon={<Save size={16} />} disabled={busy} onClick={onSaveDraft}>Guardar borrador</Button>
+        <Button type="submit" variant="primary" disabled={busy} icon={<Save size={16} />}>{busy ? 'Guardando…' : 'Guardar cotización'}</Button>
       </div>
     </section>
-    <button type="button" className="quote-clear" disabled={busy} onClick={onClear}><Trash2 size={15} />{editing ? 'Cancelar edición' : 'Limpiar formulario'}</button>
+    <button type="button" className="quote-clear" disabled={busy} onClick={onClear}><Trash2 size={15} />Limpiar formulario</button>
 
     <dialog ref={dialog} className="quote-promotion-dialog" aria-labelledby="promotion-dialog-title" onClose={() => setCreating(false)} onCancel={() => setCreating(false)} onKeyDown={(event) => { if (event.key === 'Enter' && event.target instanceof HTMLInputElement) { event.preventDefault(); savePromotion(); } }}>
       <div className="mb-4 flex items-center justify-between gap-3"><h2 id="promotion-dialog-title" className="text-lg font-bold text-navy-950">Crear promoción</h2><button type="button" className="icon-button" aria-label="Cerrar promoción" onClick={() => setCreating(false)}><X size={19} /></button></div>

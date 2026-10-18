@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Ban, Check, Copy, Download, Eye, LockKeyhole, MoreVertical, Pencil } from 'lucide-react';
+import { Ban, Check, Copy, Download, Eye, LockKeyhole, MoreVertical } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import type { LucideIcon } from 'lucide-react';
 import type { Quotation } from '../models/quotation';
@@ -110,7 +110,7 @@ export function QuotationActionsMenu({ quotation, onOpenPdf, onApprove, onCancel
               key={item.key}
               type="button"
               role="menuitem"
-              className={`flex h-9 w-full items-center gap-2.5 px-3.5 text-left text-sm font-medium transition ${item.tone === 'danger' ? 'text-rose-600 hover:bg-rose-50' : 'text-slate-700 hover:bg-slate-50 hover:text-navy-950'}`}
+              className={`flex w-full items-center gap-2.5 px-3.5 text-left text-sm font-medium transition ${item.tone === 'danger' ? 'text-rose-600 hover:bg-rose-50' : 'text-slate-700 hover:bg-slate-50 hover:text-navy-950'}`}
               onClick={() => {
                 setPosition(null);
                 item.onSelect();
@@ -143,12 +143,11 @@ function buildMenuItems({ quotation, navigate, onOpenPdf, onApprove, onCancel, o
   ];
 
   if (quotation.status === 'Pendiente') {
-    items.push({ key: 'edit', label: 'Editar', icon: Pencil, onSelect: () => navigate(`/cotizaciones/${quotation.id}/editar`) });
     if (onApprove) items.push({ key: 'approve', label: 'Aprobar cotización', icon: Check, onSelect: () => onApprove(quotation) });
     if (onCancel) items.push({ key: 'cancel', label: 'Cancelar cotización', icon: Ban, tone: 'danger', onSelect: () => onCancel(quotation) });
   }
 
-  if (quotation.status === 'Aprobada' || quotation.status === 'En proceso' || quotation.status === 'Terminada' || quotation.status === 'Entregada') {
+  if (quotation.status === 'Aprobada') {
     items.push({ key: 'internal', label: 'Ir a Control interno', icon: LockKeyhole, onSelect: () => navigate(`/control-interno/${quotation.id}`) });
   }
 

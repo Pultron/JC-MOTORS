@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Ban, CarFront, Check, Copy, FileText, Pencil, Printer, ReceiptText, UserRound } from 'lucide-react';
+import { ArrowLeft, Ban, CarFront, Check, Copy, FileText, Printer, ReceiptText, UserRound } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
 import { Button } from '../components/Button';
 import { PageHeader } from '../components/PageHeader';
-import { PaymentPanel } from '../components/PaymentPanel';
 import { QuotationPdfDialog } from '../components/QuotationPdfDialog';
 import { SectionCard } from '../components/SectionCard';
 import { StatusBadge } from '../components/StatusBadge';
@@ -11,19 +10,16 @@ import { useQuotationActions } from '../hooks/useQuotationActions';
 import type { Quotation } from '../models/quotation';
 import { useQuotations } from '../store/QuotationContext';
 import { formatCurrency, formatDate, toPublicQuotation } from '../utils/quotation';
-import { isApprovedStatus, nextProgressStatus } from '../utils/quotationStatus';
 
 export function QuotationDetailPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
-  const { getQuotation, duplicateQuotation, setProgress, quotations } = useQuotations();
+  const { getQuotation, duplicateQuotation, quotations } = useQuotations();
   const [quotation, setQuotation] = useState<Quotation | undefined>();
   const [isLoading, setIsLoading] = useState(true);
   const [isPdfOpen, setIsPdfOpen] = useState(false);
-  const [actionError, setActionError] = useState('');
   const { requestApprove, requestCancel, confirmDialog } = useQuotationActions(setQuotation);
   const publicQuotation = useMemo(() => quotation ? toPublicQuotation(quotation) : undefined, [quotation]);
-  const nextStatus = quotation ? nextProgressStatus(quotation.status) : null;
 
   useEffect(() => {
     let active = true;
@@ -42,25 +38,12 @@ export function QuotationDetailPage() {
     if (duplicated) navigate(`/cotizaciones/${duplicated.id}`);
   }
 
-  async function handleProgress() {
-    if (!quotation || !nextStatus) return;
-    setActionError('');
-    try {
-      const updated = await setProgress(quotation.id, nextStatus);
-      if (!updated) throw new Error('El estado cambió. Vuelve a abrir la cotización.');
-      setQuotation(updated);
-    } catch (cause) {
-      setActionError(cause instanceof Error ? cause.message : 'No se pudo actualizar el estado.');
-    }
-  }
-
   if (isLoading) return <p className="py-16 text-center text-sm text-slate-500">Cargando cotización…</p>;
   if (!quotation || !publicQuotation) return <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center"><p className="font-semibold text-navy-950">No encontramos esa cotización.</p><Button className="mt-4" icon={<ArrowLeft size={16} />} onClick={() => navigate('/historial')}>Regresar al historial</Button></div>;
 
   return (
     <div className="print-area">
-      {actionError && <p role="alert" className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{actionError}</p>}
-      <PageHeader eyebrow="Detalle de cotización" title={publicQuotation.folio} description={`Creada el ${formatDate(publicQuotation.createdAt)}`} actions={<div className="flex flex-wrap gap-2 print:hidden"><Button icon={<ArrowLeft size={16} />} onClick={() => navigate(-1)}>Regresar</Button><Button icon={<Copy size={16} />} onClick={() => void handleDuplicate()}>Duplicar</Button>{quotation.status === 'Pendiente' && <Button icon={<Pencil size={16} />} onClick={() => navigate(`/cotizaciones/${id}/editar`)}>Editar</Button>}{quotation.status === 'Pendiente' && <><Button variant="secondary" icon={<Check size={16} />} onClick={() => requestApprove(quotation)}>Aprobar cotización</Button><Button variant="danger" icon={<Ban size={16} />} onClick={() => requestCancel(quotation)}>Cancelar</Button></>}{nextStatus && <Button variant="secondary" onClick={() => void handleProgress()}>{nextStatus === 'En proceso' ? 'Iniciar trabajo' : nextStatus === 'Terminada' ? 'Marcar terminada' : 'Marcar entregada'}</Button>}<Button icon={<FileText size={16} />} onClick={() => setIsPdfOpen(true)}>Ver PDF</Button><Button variant="primary" icon={<Printer size={16} />} onClick={() => window.print()}>Imprimir</Button></div>} />
+      <PageHeader eyebrow="Detalle de cotización" title={publicQuotation.folio} description={`Creada el ${formatDate(publicQuotation.createdAt)}`} actions={<div className="flex flex-wrap gap-2 print:hidden"><Button icon={<ArrowLeft size={16} />} onClick={() => navigate(-1)}>Regresar</Button><Button icon={<Copy size={16} />} onClick={() => void handleDuplicate()}>Duplicar</Button>{quotation.status === 'Pendiente' && <><Button variant="secondary" icon={<Check size={16} />} onClick={() => requestApprove(quotation)}>Aprobar cotización</Button><Button variant="danger" icon={<Ban size={16} />} onClick={() => requestCancel(quotation)}>Cancelar</Button></>}<Button icon={<FileText size={16} />} onClick={() => setIsPdfOpen(true)}>Ver PDF</Button><Button variant="primary" icon={<Printer size={16} />} onClick={() => window.print()}>Imprimir</Button></div>} />
       <div className="mb-5 hidden items-center gap-4 border-b-2 border-orange-500 pb-4 print:flex">
         <img src="/jc-motors-logo.png" alt="" className="size-16 object-contain" />
         <div><p className="text-xl font-bold text-navy-950">{publicQuotation.businessName}</p>
@@ -98,7 +81,6 @@ export function QuotationDetailPage() {
         </aside>
       </div>
 
-      {isApprovedStatus(quotation.status) && <div className="mt-5"><PaymentPanel quotation={quotation} /></div>}
       {isPdfOpen && <QuotationPdfDialog quotation={publicQuotation} onClose={() => setIsPdfOpen(false)} />}
 
       {confirmDialog}
