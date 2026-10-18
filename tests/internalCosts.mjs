@@ -13,7 +13,7 @@ const quote = () => ({ id: 'q1', folio: 'JC-0042', createdAt: '2026-10-05T12:00:
   customer: { name: 'Carlos Méndez', phone: '6671234567' }, vehicle: { make: 'Nissan', model: 'Sentra', year: 2022, plates: 'ABC123' },
   items: [{ id: 'p1', type: 'part', description: 'Balatas', quantity: 2, saleUnitPrice: 1200.50, amount: 2401 }, { id: 'p2', type: 'part', description: 'Filtro', quantity: 1, saleUnitPrice: 300, amount: 300 }, { id: 'l1', type: 'labor', description: 'Instalación', quantity: 1, saleUnitPrice: 1000, amount: 1000 }],
   laborDiscountType: 'percentage', laborDiscountValue: 10, includeVat: true, publicNotes: '', validityDays: 15 });
-const record = () => ({ id: 'r1', quoteId: 'q1', itemCosts: [{ quoteItemId: 'p1', actualUnitCostCents: 78025 }, { quoteItemId: 'p2', actualUnitCostCents: 18000 }], additionalExpenses: [{ id: 'e1', description: 'Envío', amountCents: 12000 }], createdAt: '', updatedAt: '' });
+const record = () => ({ id: 'r1', quoteId: 'q1', itemCosts: [{ quoteItemId: 'p1', actualUnitCostCents: 78025 }, { quoteItemId: 'p2', actualUnitCostCents: 18000 }], payments: [], additionalExpenses: [{ id: 'e1', description: 'Envío', amountCents: 12000 }], createdAt: '', updatedAt: '' });
 
 test('centavos exactos, cantidad por unidad, descuento público y exclusión de IVA', () => {
   assert.equal(parseCents('1200.50'), 120050);
@@ -70,8 +70,10 @@ test('recupera costos anteriores y descuentos sin borrar pagos', async () => {
   const repo = new LocalStorageInternalCostsRepository();
   const [migrated] = await repo.list();
   assert.equal(migrated.itemCosts[0].actualUnitCostCents, 80000);
+  assert.equal(migrated.payments[0].amountCents, 50000);
   await repo.save({ ...migrated, itemCosts: [] });
   assert.equal((await repo.list())[0].itemCosts.length, 0);
+  assert.equal((await repo.list())[0].payments[0].amountCents, 50000);
   assert.equal(storage.get('jc-motors:internal-controls:v1'), legacy);
 });
 test('datos dañados y errores de escritura se notifican sin sobrescribir datos', async () => {

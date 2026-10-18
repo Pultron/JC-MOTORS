@@ -43,6 +43,7 @@ export function ProfitDetailPanel({ quote, record, onSaved, onClose, onDirty, on
     const parse = (value: string) => { try { return parseCents(value); } catch (e) { errors.push((e as Error).message); return null; } };
     const current: InternalCostRecord = {
       id: record?.id ?? quote.id, quoteId: quote.id, createdAt: record?.createdAt ?? '', updatedAt: record?.updatedAt ?? '',
+      payments: record?.payments ?? [],
       itemCosts: Object.entries(draft.costs).map(([quoteItemId, value]) => ({ quoteItemId, actualUnitCostCents: parse(value) })),
       additionalExpenses: draft.expenses.flatMap(e => {
         const amount = parse(e.amount);

@@ -8,6 +8,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { InternalControlPage } from './pages/InternalControlPage';
 import { InternalControlDetailPage } from './pages/InternalControlDetailPage';
+import { ReportsPage } from './pages/ReportsPage';
 
 export default function App() {
   return (
@@ -19,7 +20,9 @@ export default function App() {
         <Route path="clientes" element={<CustomersPage />} />
         <Route path="control-interno" element={<InternalControlPage />} />
         <Route path="control-interno/:quotationId" element={<InternalControlDetailPage />} />
+        <Route path="reportes" element={<ReportsPage />} />
         <Route path="cotizaciones/:id" element={<QuotationDetailPage />} />
+        <Route path="cotizaciones/:id/editar" element={<NewQuotationPage />} />
         <Route path="configuracion" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

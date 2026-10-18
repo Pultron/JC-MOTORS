@@ -1,4 +1,4 @@
-import { ChartNoAxesColumnIncreasing, FilePlus2, Gauge, History, Settings, UsersRound } from 'lucide-react';
+import { ChartNoAxesColumnIncreasing, FilePlus2, Gauge, History, Settings, UsersRound, ChartColumn } from 'lucide-react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { useEffect } from 'react';
 import { useQuotations } from '../store/QuotationContext';
@@ -8,13 +8,14 @@ const navigation = [
   { label: 'Nueva cotización', to: '/nueva-cotizacion', icon: FilePlus2 },
   { label: 'Historial', to: '/historial', icon: History },
   { label: 'Control interno', to: '/control-interno', icon: ChartNoAxesColumnIncreasing },
+  { label: 'Reportes', to: '/reportes', icon: ChartColumn },
   { label: 'Clientes', to: '/clientes', icon: UsersRound },
   { label: 'Configuración', to: '/configuracion', icon: Settings },
 ];
 
 export function AppLayout() {
   const location = useLocation();
-  const isNewQuotation = location.pathname === '/nueva-cotizacion';
+  const isNewQuotation = location.pathname === '/nueva-cotizacion' || /^\/cotizaciones\/[^/]+\/editar$/.test(location.pathname);
   const isHistory = location.pathname === '/historial';
   const { notice, clearNotice } = useQuotations();
 

@@ -10,6 +10,7 @@ import { calculateProfit } from '../services/profitCalculationService';
 import { useQuotations } from '../store/QuotationContext';
 import { isInRange, periodRange } from '../utils/dateRangeUtils';
 import type { DateRange, Period } from '../utils/dateRangeUtils';
+import { isApprovedStatus } from '../utils/quotationStatus';
 import './internalControl.css';
 
 export function InternalControlPage() {
@@ -80,7 +81,7 @@ export function InternalControlPage() {
     return periodRows.filter(({ quote, totals }) => (status === 'all' || totals.status === status)
       && normalize([quote.folio, quote.customer.name, quote.vehicle.make, quote.vehicle.model, quote.vehicle.year, quote.vehicle.plates].join(' ')).includes(term));
   }, [periodRows, search, status]);
-  const selected = quotations.find(q => q.id === selectedId && q.status === 'Aprobada');
+  const selected = quotations.find(q => q.id === selectedId && isApprovedStatus(q.status));
 
   const clearSelection = () => { setSelectedId(undefined); setDirty(false); };
   return <div className="profit-page">

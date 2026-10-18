@@ -1,6 +1,6 @@
 [package]
 name = "jc-motors-cotizador"
-version = "0.1.6"
+version = "0.1.7"
 description = "Aplicación de escritorio para cotizaciones de JC Motors"
 authors = ["JC Motors"]
 edition = "2021"

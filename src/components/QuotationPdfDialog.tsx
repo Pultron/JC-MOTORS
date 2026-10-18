@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Loader2, Printer, Share2, X } from 'lucide-react';
+import { Download, Loader2, Mail, MessageCircle, Printer, Share2, X } from 'lucide-react';
 import { Button } from './Button';
 import type { PublicQuotation } from '../models/quotation';
 import type { QuotationLogo } from '../utils/pdfQuotation';
@@ -23,6 +23,7 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState('');
   const [downloadedTo, setDownloadedTo] = useState('');
+  const [savedPath, setSavedPath] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
@@ -83,8 +84,9 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
     }
   }
 
-  async function handleDownload() {
-    if (!file || isDownloading) return;
+  async function savePdf(): Promise<string> {
+    if (!file || isDownloading) throw new Error('El PDF todavía no está listo.');
+    if (savedPath) return savedPath;
     setError('');
     setDownloadedTo('');
     setIsDownloading(true);
@@ -93,7 +95,9 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
       if (tauriInvoke) {
         const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
         const path = await tauriInvoke<string>('save_quotation_pdf', { folio: quotation?.folio ?? '', bytes });
+        setSavedPath(path);
         setDownloadedTo(`PDF guardado en ${path}`);
+        return path;
       } else {
         const objectUrl = URL.createObjectURL(file);
         const anchor = document.createElement('a');
@@ -105,11 +109,44 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
         anchor.remove();
         // El navegador necesita tiempo para leer el blob después del clic.
         window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+        setSavedPath('Descargas');
+        setDownloadedTo('PDF descargado. Adjúntalo al mensaje antes de enviarlo.');
+        return 'Descargas';
       }
     } catch (cause) {
       setError(`No se pudo guardar el PDF: ${String(cause)}`);
+      throw cause;
     } finally {
       setIsDownloading(false);
+    }
+  }
+
+  async function handleDownload() {
+    try { await savePdf(); } catch { /* the error is shown above the buttons */ }
+  }
+
+  async function handleShareTo(channel: 'whatsapp' | 'email') {
+    if (!quotation || !file) return;
+    const popup = !window.__TAURI__ && channel === 'whatsapp' ? window.open('about:blank', '_blank') : null;
+    try {
+      await savePdf();
+      const message = `Hola ${quotation.customer.name}, te comparto la cotización ${quotation.folio} de JC Motors en PDF.`;
+      const digits = quotation.customer.phone.replace(/\D/g, '');
+      const phone = digits.length === 10 ? `52${digits}` : digits;
+      const url = channel === 'whatsapp'
+        ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+        : `mailto:${encodeURIComponent(quotation.customer.email ?? '')}?subject=${encodeURIComponent(`Cotización ${quotation.folio} - JC Motors`)}&body=${encodeURIComponent(message)}`;
+      if (window.__TAURI__?.core.invoke) {
+        await window.__TAURI__.core.invoke('open_share_url', { url });
+      } else if (popup) {
+        popup.location.href = url;
+      } else {
+        window.location.href = url;
+      }
+      setDownloadedTo('PDF guardado en Descargas. Adjúntalo en el mensaje antes de enviarlo.');
+    } catch (cause) {
+      popup?.close();
+      setError(`No se pudo abrir ${channel === 'whatsapp' ? 'WhatsApp' : 'el correo'}: ${String(cause)}`);
     }
   }
 
@@ -149,15 +186,10 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
       {downloadedTo && <p role="status" className="border-t border-slate-100 bg-green-50 px-5 py-2.5 text-sm text-green-800">{downloadedTo}</p>}
 
       <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-5 py-4">
-        <Button
-          variant="secondary"
-          disabled={!canShare}
-          title={canShare ? undefined : 'Compartir archivos no está disponible en este equipo.'}
-          icon={<Share2 size={16} />}
-          onClick={() => void handleShare()}
-        >
-          Compartir
-        </Button>
+        <span className="mr-auto text-xs text-slate-500">WhatsApp y correo abren el mensaje; adjunta el PDF guardado en Descargas.</span>
+        <Button variant="secondary" disabled={!file || isDownloading} icon={<MessageCircle size={16} />} onClick={() => void handleShareTo('whatsapp')}>WhatsApp</Button>
+        <Button variant="secondary" disabled={!file || isDownloading} icon={<Mail size={16} />} onClick={() => void handleShareTo('email')}>Correo</Button>
+        {canShare && <Button variant="secondary" icon={<Share2 size={16} />} onClick={() => void handleShare()}>Compartir archivo</Button>}
         <Button variant="secondary" disabled={!file || isDownloading} icon={<Download size={16} />} onClick={() => void handleDownload()}>{isDownloading ? 'Guardando…' : 'Descargar PDF'}</Button>
         <Button variant="primary" disabled={!preview} icon={<Printer size={16} />} onClick={handlePrint}>Imprimir</Button>
       </div>

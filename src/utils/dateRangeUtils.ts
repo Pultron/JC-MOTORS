@@ -1,4 +1,5 @@
 import type { Quotation } from '../models/quotation';
+import { isApprovedStatus } from './quotationStatus';
 
 export type Period = 'today' | 'week' | 'month' | 'custom';
 export interface DateRange { start: string; end: string }
@@ -23,7 +24,7 @@ export function periodRange(period: Exclude<Period, 'custom'>, now = new Date())
 
 export function isInRange(quote: Quotation, range: DateRange): boolean {
   const date = localDate(new Date(quote.approvedAt ?? quote.createdAt));
-  return quote.status === 'Aprobada' && Boolean(range.start && range.end) && date >= range.start && date <= range.end;
+  return isApprovedStatus(quote.status) && Boolean(range.start && range.end) && date >= range.start && date <= range.end;
 }
 
 export function rangeLabel(range: DateRange): string {

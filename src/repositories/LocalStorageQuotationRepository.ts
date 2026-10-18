@@ -11,6 +11,7 @@ import { calculateQuotationTotals, createId, roundCurrency, validateDiscount } f
 import type { QuotationRepository } from './QuotationRepository';
 import { quotationFixtures } from './quotationFixtures';
 import { nextFolio, reservedDraftFolios } from '../services/folioService';
+import { expirationDate, nextProgressStatus } from '../utils/quotationStatus';
 
 const STORAGE_KEY = 'jc-motors:quotations:v1';
 
@@ -83,13 +84,41 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
     });
   }
 
+  async update(id: string, input: CreateQuotationInput): Promise<Quotation | undefined> {
+    const quotations = this.readAll();
+    const existing = quotations.find((entry) => entry.id === id);
+    if (!existing || existing.status !== 'Pendiente') return undefined;
+    const items = input.items.map((item) => ({ ...item, amount: roundCurrency(item.quantity * item.saleUnitPrice) }));
+    const totals = calculateQuotationTotals(items, input.laborDiscountType, input.laborDiscountValue, input.includeVat);
+    const discountError = validateDiscount(totals.subtotalManoObra, input.laborDiscountType, input.laborDiscountValue);
+    if (discountError) throw new Error(discountError);
+    const updated: Quotation = {
+      ...existing,
+      ...(input.customerId ? { customerId: input.customerId } : { customerId: undefined }),
+      customer: { ...input.customer },
+      vehicle: { ...input.vehicle },
+      items,
+      laborDiscountType: input.laborDiscountType,
+      laborDiscountValue: input.laborDiscountValue,
+      includeVat: input.includeVat,
+      subtotalNeto: totals.subtotalNeto,
+      ivaAmount: totals.ivaAmount,
+      total: totals.total,
+      validityDays: input.validityDays,
+      publicNotes: input.publicNotes,
+      customerNotes: input.customerNotes ?? '',
+    };
+    this.writeAll(quotations.map((entry) => entry.id === id ? updated : entry));
+    return cloneQuotation(updated);
+  }
+
   async approve(id: string): Promise<Quotation | undefined> {
     const quotations = this.readAll();
     const quotation = quotations.find((entry) => entry.id === id);
-    if (!quotation || quotation.status === 'Cancelada') return undefined;
-    if (quotation.status === 'Aprobada') return cloneQuotation(quotation);
+    if (!quotation || quotation.status !== 'Pendiente') return undefined;
 
-    const approved: Quotation = { ...quotation, status: 'Aprobada', approvedAt: new Date().toISOString() };
+    const approvedAt = new Date().toISOString();
+    const approved: Quotation = { ...quotation, status: 'Aprobada', approvedAt, statusUpdatedAt: approvedAt };
     this.writeAll(quotations.map((entry) => entry.id === id ? approved : entry));
     return cloneQuotation(approved);
   }
@@ -99,9 +128,19 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
     const quotation = quotations.find((entry) => entry.id === id);
     if (!quotation || quotation.status !== 'Pendiente') return undefined;
 
-    const cancelled: Quotation = { ...quotation, status: 'Cancelada' };
+    const cancelledAt = new Date().toISOString();
+    const cancelled: Quotation = { ...quotation, status: 'Cancelada', cancelledAt, statusUpdatedAt: cancelledAt };
     this.writeAll(quotations.map((entry) => entry.id === id ? cancelled : entry));
     return cloneQuotation(cancelled);
+  }
+
+  async setProgress(id: string, status: QuotationStatus): Promise<Quotation | undefined> {
+    const quotations = this.readAll();
+    const existing = quotations.find((entry) => entry.id === id);
+    if (!existing || nextProgressStatus(existing.status) !== status) return undefined;
+    const updated: Quotation = { ...existing, status, statusUpdatedAt: new Date().toISOString() };
+    this.writeAll(quotations.map((entry) => entry.id === id ? updated : entry));
+    return cloneQuotation(updated);
   }
 
   private readAll(): Quotation[] {
@@ -156,7 +195,7 @@ function normalizeQuotation(value: LegacyQuotation, index: number): Quotation {
     } satisfies QuotationItem;
   });
   const createdAt = typeof value.createdAt === 'string' ? value.createdAt : new Date().toISOString();
-  const status = normalizeStatus(value.status);
+  const status = normalizeStatus(value.status, createdAt, value.validityDays);
   const discountType: DiscountType = value.laborDiscountType === 'percentage' ? 'percentage' : 'fixed';
   const discountValue = Math.max(0, finiteNumber(value.laborDiscountValue));
   const includeVat = typeof value.includeVat === 'boolean' ? value.includeVat : value.ivaEnabled ?? true;
@@ -180,7 +219,11 @@ function normalizeQuotation(value: LegacyQuotation, index: number): Quotation {
     publicNotes: typeof value.publicNotes === 'string' ? value.publicNotes : '',
     customerNotes: typeof value.customerNotes === 'string' ? value.customerNotes : '',
     status,
-    ...(status === 'Aprobada' ? { approvedAt: value.approvedAt ?? createdAt } : {}),
+    ...(status === 'Vencida' ? { statusUpdatedAt: expirationDate({ createdAt, validityDays: Math.max(1, Math.floor(finiteNumber(value.validityDays, 15))) }).toISOString() } : {}),
+    ...(status === 'Cancelada' ? { cancelledAt: value.cancelledAt ?? createdAt } : {}),
+    ...(status === 'Aprobada' || status === 'En proceso' || status === 'Terminada' || status === 'Entregada'
+      ? { approvedAt: value.approvedAt ?? createdAt } : {}),
+    ...(status !== 'Vencida' && typeof value.statusUpdatedAt === 'string' ? { statusUpdatedAt: value.statusUpdatedAt } : {}),
   };
 }
 
@@ -189,9 +232,12 @@ function finiteNumber(value: unknown, fallback = 0): number {
 }
 
 /** 'Rechazada' era el nombre anterior de 'Cancelada': se migra para no perder el estado guardado. */
-function normalizeStatus(value: unknown): QuotationStatus {
-  if (value === 'Aprobada') return 'Aprobada';
+function normalizeStatus(value: unknown, createdAt: string, validityDays: unknown): QuotationStatus {
+  if (value === 'Aprobada' || value === 'En proceso' || value === 'Terminada' || value === 'Entregada') return value;
   if (value === 'Cancelada' || value === 'Rechazada') return 'Cancelada';
+  if (value === 'Vencida') return 'Vencida';
+  const validDays = Math.max(1, Math.floor(finiteNumber(validityDays, 15)));
+  if (expirationDate({ createdAt, validityDays: validDays }).getTime() <= Date.now()) return 'Vencida';
   return 'Pendiente';
 }
 
