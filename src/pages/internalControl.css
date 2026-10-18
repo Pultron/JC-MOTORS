@@ -101,7 +101,6 @@
 .profit-detail-empty { min-height: 370px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 14px; }
 .profit-detail-empty > p { max-width: 280px; color: var(--profit-muted); line-height: 1.7; }
 .profit-loading { display: flex; justify-content: center; align-items: center; gap: 12px; padding: 80px 20px; }
-.profit-toast { position: fixed; bottom: 24px; right: 24px; background: #163b2b; color: white; border-radius: 10px; padding: 16px 20px; box-shadow: 0 8px 25px #17364a26; z-index: 30; display: flex; align-items: center; gap: 20px; }
 /* Scope shell refinements to this screen so the other screens retain their layout. */
 body:has(.profit-page) #root > div { background: #f4f8fc; }
 body:has(.profit-page) main { max-width: 1800px; padding: 30px 26px 26px; }

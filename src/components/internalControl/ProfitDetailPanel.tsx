@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { FileText, LockKeyhole, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../Button';
 import { ConfirmDialog } from '../ConfirmDialog';
+import { useToast } from '../Toast';
 import type { Quotation } from '../../models/quotation';
 import type { InternalCostRecord } from '../../models/internalCosts';
 import { calculateProfit } from '../../services/profitCalculationService';
@@ -29,9 +30,9 @@ export function ProfitDetailPanel({ quote, record, onSaved, onClose, onDirty, on
   quote: Quotation; record?: InternalCostRecord; onSaved: (record: InternalCostRecord) => void;
   onClose: () => void; onDirty: (dirty: boolean) => void; onBusy: (busy: boolean) => void;
 }) {
+  const showToast = useToast();
   const [draft, setDraft] = useState(() => initialDraft(quote, record));
   const baseline = useRef(JSON.stringify(draft));
-  const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [deleting, setDeleting] = useState<string>();
@@ -60,12 +61,12 @@ export function ProfitDetailPanel({ quote, record, onSaved, onClose, onDirty, on
 
   async function save() {
     if (savingRef.current || preview.error) return;
-    savingRef.current = true; setSaving(true); onBusy(true); setError('');
+    savingRef.current = true; setSaving(true); onBusy(true);
     try {
       const saved = await internalCostsStorageService.save(preview.current);
       const next = initialDraft(quote, saved);
       baseline.current = JSON.stringify(next); setDraft(next); onDirty(false); onSaved(saved);
-    } catch (e) { setError(e instanceof Error ? e.message : 'No se pudieron guardar los gastos. Intenta de nuevo.'); }
+    } catch (e) { showToast({ type: 'error', title: 'Error al guardar gastos', message: e instanceof Error ? e.message : 'No se pudieron guardar los gastos. Intenta de nuevo.' }); }
     finally { savingRef.current = false; setSaving(false); onBusy(false); }
   }
 
@@ -86,7 +87,7 @@ export function ProfitDetailPanel({ quote, record, onSaved, onClose, onDirty, on
       <ProfitTotals totals={preview.totals} />
       <p className="profit-help">Importes antes de IVA.{preview.totals.status !== 'complete' ? ' La ganancia es provisional: faltan costos por capturar.' : ''}</p>
       {dirty && <p className="profit-unsaved" role="status">Cambios sin guardar</p>}
-      {(error || preview.error) && <p className="profit-error" role="alert">{error || preview.error}</p>}
+      {preview.error && <p className="profit-error" role="alert">{preview.error}</p>}
       <div className="profit-detail-actions"><Button type="submit" variant="primary" className="profit-primary" disabled={saving || Boolean(preview.error)}>{saving ? 'Guardando…' : 'Guardar gastos'}</Button><Button type="button" className="profit-outline" disabled={saving} onClick={onClose}>Cerrar</Button></div>
     </form>
     <ConfirmDialog isOpen={Boolean(deleting)} title="Eliminar gasto guardado" description="Se quitará este gasto del detalle. Guarda los cambios para confirmar la eliminación." confirmLabel="Eliminar gasto" tone="danger" onClose={() => setDeleting(undefined)} onConfirm={() => deleting && removeExpense(deleting)} />

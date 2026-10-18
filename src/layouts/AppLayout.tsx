@@ -1,7 +1,6 @@
 import { ChartNoAxesColumnIncreasing, FilePlus2, Gauge, History, UsersRound } from 'lucide-react';
 import { NavLink, Outlet, useLocation } from 'react-router';
-import { useEffect } from 'react';
-import { useQuotations } from '../store/QuotationContext';
+import { ToastViewport } from '../components/Toast';
 
 const navigation = [
   { label: 'Inicio', to: '/', icon: Gauge, end: true },
@@ -15,15 +14,6 @@ export function AppLayout() {
   const location = useLocation();
   const isNewQuotation = location.pathname === '/nueva-cotizacion';
   const isHistory = location.pathname === '/historial';
-  const { notice, clearNotice } = useQuotations();
-
-
-  useEffect(() => {
-    if (!notice) return;
-    const timer = window.setTimeout(clearNotice, 4200);
-    return () => window.clearTimeout(timer);
-  }, [notice, clearNotice]);
-
   return (
     <div className="min-h-screen bg-slate-50 lg:flex">
       <aside className="flex w-full shrink-0 flex-col bg-navy-950 text-white lg:fixed lg:inset-y-0 lg:w-[258px]">
@@ -43,10 +33,10 @@ export function AppLayout() {
       </aside>
 
       <div className="min-w-0 flex-1 lg:ml-[258px]">
+        <ToastViewport />
         <main className={`mx-auto w-full p-5 sm:p-8 ${isHistory ? 'max-w-[1600px] xl:px-6' : 'max-w-[1440px] xl:px-10'} ${isNewQuotation ? 'new-quotation-main' : ''}`}><Outlet /></main>
       </div>
 
-      {notice && <div role="status" className="fixed bottom-5 right-5 z-30 flex max-w-sm items-start gap-3 rounded-xl bg-navy-950 px-4 py-3.5 text-sm text-white shadow-xl"><span className="mt-0.5 size-2 shrink-0 rounded-full bg-emerald-400" />{notice}<button onClick={clearNotice} className="ml-2 text-slate-400 hover:text-white" aria-label="Cerrar notificación">×</button></div>}
     </div>
   );
 }

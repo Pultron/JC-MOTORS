@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Calculator, CircleAlert, Info, Plus, Save, Tag, Trash2, X } from 'lucide-react';
+import { Calculator, Info, Plus, Save, Tag, Trash2, X } from 'lucide-react';
 import { Button } from '../Button';
 import type { QuoteFormData } from '../../models/quoteDraft';
 import type { DiscountType } from '../../models/quotation';
@@ -20,14 +20,13 @@ interface Props {
   totals: QuotationTotals;
   errors: Record<string, string>;
   busy: boolean;
-  submitError: string;
   onChange: <K extends keyof QuoteFormData>(key: K, value: QuoteFormData[K]) => void;
   onSaveDraft?: () => void;
   onClear?: () => void;
   submitLabel?: string;
 }
 
-export function QuoteSummary({ form, totals, errors, busy, submitError, onChange, onSaveDraft, onClear, submitLabel = 'Guardar cotización' }: Props) {
+export function QuoteSummary({ form, totals, errors, busy, onChange, onSaveDraft, onClear, submitLabel = 'Guardar cotización' }: Props) {
   const [promotions, setPromotions] = useState<Promotion[]>(loadPromotions);
   const [selectedPromotion, setSelectedPromotion] = useState('');
   const [creating, setCreating] = useState(false);
@@ -85,7 +84,7 @@ export function QuoteSummary({ form, totals, errors, busy, submitError, onChange
             <label htmlFor="quote-labor">Mano de obra</label>
             <div className="quote-labor-input">
               <span aria-hidden="true">$</span>
-              <input id="quote-labor" aria-invalid={Boolean(errors.laborAmount)} type="number" min="0" step="0.01" value={form.laborAmount} placeholder="0.00" onChange={(event) => { onChange('laborAmount', event.target.value); if (!Number(event.target.value)) onChange('laborDiscountValue', '0'); }} />
+              <input id="quote-labor" aria-invalid={Boolean(errors.laborAmount)} type="number" min="0" step="0.01" value={form.laborAmount} onChange={(event) => { onChange('laborAmount', event.target.value); if (!Number(event.target.value)) onChange('laborDiscountValue', '0'); }} />
             </div>
           </div>
           {errors.laborAmount && <p role="alert" className="mt-1 text-right text-xs text-rose-600">{errors.laborAmount}</p>}
@@ -113,7 +112,6 @@ export function QuoteSummary({ form, totals, errors, busy, submitError, onChange
         <div className="quote-total"><span>Total</span><strong>{formatCurrency(totals.total)}</strong></div>
         <p className="quote-summary-info"><Info size={16} />Los costos y descuentos internos de las refacciones no se muestran al cliente.</p>
       </div>
-      {submitError && <p role="alert" className="mt-4 flex items-center gap-2 text-sm text-rose-600"><CircleAlert size={16} />{submitError}</p>}
       <div className="quote-summary-actions">
         {onSaveDraft && <Button type="button" variant="secondary" icon={<Save size={16} />} disabled={busy} onClick={onSaveDraft}>Guardar borrador</Button>}
         <Button type="submit" variant="primary" disabled={busy} icon={<Save size={16} />}>{busy ? 'Guardando…' : submitLabel}</Button>

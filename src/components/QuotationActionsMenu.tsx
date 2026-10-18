@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Ban, Check, Copy, Eye, FileText, LockKeyhole, MoreVertical, Pencil } from 'lucide-react';
+import { Ban, Check, Copy, Eye, FileText, LockKeyhole, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import type { LucideIcon } from 'lucide-react';
 import type { Quotation } from '../models/quotation';
@@ -15,6 +15,7 @@ interface QuotationActionsMenuProps {
   onApprove?: (quotation: Quotation) => void;
   onCancel?: (quotation: Quotation) => void;
   onDuplicate?: (quotation: Quotation) => void;
+  onDelete?: (quotation: Quotation) => void;
 }
 
 interface MenuItem {
@@ -29,7 +30,7 @@ interface MenuItem {
  * Se renderiza en un portal porque la celda vive dentro de un contenedor con
  * overflow: cualquier menú absoluto quedaría recortado por la tabla.
  */
-export function QuotationActionsMenu({ quotation, onOpenPdf, onApprove, onCancel, onDuplicate }: QuotationActionsMenuProps) {
+export function QuotationActionsMenu({ quotation, onOpenPdf, onApprove, onCancel, onDuplicate, onDelete }: QuotationActionsMenuProps) {
   const navigate = useNavigate();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -67,7 +68,7 @@ export function QuotationActionsMenu({ quotation, onOpenPdf, onApprove, onCancel
     };
   }, [isOpen]);
 
-  const items = buildMenuItems({ quotation, navigate, onOpenPdf, onApprove, onCancel, onDuplicate });
+  const items = buildMenuItems({ quotation, navigate, onOpenPdf, onApprove, onCancel, onDuplicate, onDelete });
 
   function handleToggle() {
     if (position) {
@@ -134,9 +135,10 @@ interface MenuItemsInput {
   onApprove?: (quotation: Quotation) => void;
   onCancel?: (quotation: Quotation) => void;
   onDuplicate?: (quotation: Quotation) => void;
+  onDelete?: (quotation: Quotation) => void;
 }
 
-function buildMenuItems({ quotation, navigate, onOpenPdf, onApprove, onCancel, onDuplicate }: MenuItemsInput): MenuItem[] {
+function buildMenuItems({ quotation, navigate, onOpenPdf, onApprove, onCancel, onDuplicate, onDelete }: MenuItemsInput): MenuItem[] {
   const items: MenuItem[] = [
     { key: 'view', label: 'Ver detalle', icon: Eye, onSelect: () => navigate(`/cotizaciones/${quotation.id}`) },
     { key: 'pdf', label: 'Ver cotización', icon: FileText, onSelect: () => onOpenPdf(quotation) },
@@ -150,6 +152,10 @@ function buildMenuItems({ quotation, navigate, onOpenPdf, onApprove, onCancel, o
 
   if (quotation.status === 'Aprobada') {
     items.push({ key: 'internal', label: 'Ir a Control interno', icon: LockKeyhole, onSelect: () => navigate(`/control-interno/${quotation.id}`) });
+  }
+
+  if (quotation.status === 'Cancelada' && onDelete) {
+    items.push({ key: 'delete', label: 'Eliminar permanentemente', icon: Trash2, tone: 'danger', onSelect: () => onDelete(quotation) });
   }
 
   if (onDuplicate) items.push({ key: 'duplicate', label: 'Duplicar', icon: Copy, onSelect: () => onDuplicate(quotation) });

@@ -9,9 +9,10 @@ interface QuotationTableProps {
   onApprove?: (quotation: Quotation) => void;
   onCancel?: (quotation: Quotation) => void;
   onDuplicate?: (quotation: Quotation) => void;
+  onDelete?: (quotation: Quotation) => void;
 }
 
-export function QuotationTable({ quotations, onOpenPdf, onApprove, onCancel, onDuplicate }: QuotationTableProps) {
+export function QuotationTable({ quotations, onOpenPdf, onApprove, onCancel, onDuplicate, onDelete }: QuotationTableProps) {
   if (quotations.length === 0) {
     return <div className="rounded-xl border border-dashed border-slate-300 px-6 py-12 text-center text-sm text-slate-500">No hay cotizaciones que coincidan con la búsqueda.</div>;
   }
@@ -51,7 +52,7 @@ export function QuotationTable({ quotations, onOpenPdf, onApprove, onCancel, onD
               <td className="whitespace-nowrap px-3 py-3 text-right font-semibold text-slate-800">{formatCurrency(totals.total)}</td>
               <td className="whitespace-nowrap px-3 py-3">
                 <div className="flex items-center justify-end gap-0.5">
-                  <QuotationActionsMenu quotation={quotation} onOpenPdf={onOpenPdf} onApprove={onApprove} onCancel={onCancel} onDuplicate={onDuplicate} />
+                  <QuotationActionsMenu quotation={quotation} onOpenPdf={onOpenPdf} onApprove={onApprove} onCancel={onCancel} onDuplicate={onDuplicate} onDelete={onDelete} />
                 </div>
               </td>
             </tr>;

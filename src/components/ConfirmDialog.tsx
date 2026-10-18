@@ -1,5 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
+import { CircleAlert, CircleCheck, X } from 'lucide-react';
 import { Button } from './Button';
+import './confirmDialog.css';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -25,6 +27,8 @@ export function ConfirmDialog({
   onClose,
 }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -33,20 +37,27 @@ export function ConfirmDialog({
     else if (!isOpen && dialog.open) dialog.close();
   }, [isOpen]);
 
+  const Icon = tone === 'danger' ? CircleAlert : CircleCheck;
+
   return (
     <dialog
       ref={dialogRef}
-      aria-labelledby="confirm-dialog-title"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
       onClose={onClose}
-      className="m-auto w-11/12 max-w-lg rounded-2xl border-0 bg-white p-0 text-slate-800 shadow-2xl backdrop:bg-navy-950/50"
+      className="confirm-dialog"
     >
-      <div className="p-6">
-        <h2 id="confirm-dialog-title" className="text-lg font-bold text-navy-950">{title}</h2>
-        <p className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
-        {error && <p role="alert" className="mt-3 text-sm font-medium text-rose-600">{error}</p>}
-        <div className="mt-6 flex justify-end gap-2">
+      <div className="confirm-dialog-body">
+        <button type="button" className="confirm-dialog-close" aria-label="Cerrar confirmación" disabled={isBusy} onClick={onClose}>
+          <X size={18} aria-hidden="true" />
+        </button>
+        <span className="confirm-dialog-icon" aria-hidden="true"><Icon size={28} strokeWidth={2} /></span>
+        <h2 id={titleId}>{title}</h2>
+        <p id={descriptionId} className="confirm-dialog-description">{description}</p>
+        {error && <p role="alert" className="confirm-dialog-error">{error}</p>}
+        <div className="confirm-dialog-actions">
           <Button variant="secondary" disabled={isBusy} onClick={onClose}>Cancelar</Button>
-          <Button variant={tone === 'danger' ? 'danger' : 'primary'} disabled={isBusy} onClick={onConfirm}>{isBusy ? 'Procesando…' : confirmLabel}</Button>
+          <Button variant="primary" disabled={isBusy} onClick={onConfirm}>{isBusy ? 'Procesando…' : confirmLabel}</Button>
         </div>
       </div>
     </dialog>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Loader2, Printer, Share2, X } from 'lucide-react';
 import { Button } from './Button';
+import { useToast } from './Toast';
 import type { PublicQuotation } from '../models/quotation';
 import type { QuotationLogo } from '../utils/pdfQuotation';
 
@@ -17,12 +18,11 @@ interface Preview {
 }
 
 export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogProps) {
+  const showToast = useToast();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [pdfModule, setPdfModule] = useState<PdfModule | null>(null);
   const [logo, setLogo] = useState<QuotationLogo | null | undefined>();
   const [preview, setPreview] = useState<Preview | null>(null);
-  const [error, setError] = useState('');
-  const [downloadedTo, setDownloadedTo] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
@@ -64,7 +64,7 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
     if (!preview) return;
     const printWindow = window.open(preview.url, '_blank');
     if (!printWindow) {
-      setError('El navegador bloqueó la ventana de impresión. Usa «Descargar PDF» y ábrelo con un lector.');
+      showToast({ type: 'error', title: 'No se pudo imprimir', message: 'El navegador bloqueó la ventana de impresión. Usa «Descargar PDF» y ábrelo con un lector.' });
       return;
     }
     printWindow.addEventListener('load', () => {
@@ -75,7 +75,6 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
 
   async function handleShare() {
     if (!file) return;
-    setError('');
     try {
       await navigator.share({ files: [file], title: `Cotización ${quotation?.folio ?? ''}` });
     } catch {
@@ -85,15 +84,13 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
 
   async function handleDownload() {
     if (!file || isDownloading) return;
-    setError('');
-    setDownloadedTo('');
     setIsDownloading(true);
     try {
       const tauriInvoke = window.__TAURI__?.core.invoke;
       if (tauriInvoke) {
         const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
         const path = await tauriInvoke<string | null>('save_quotation_pdf', { folio: quotation?.folio ?? '', bytes });
-        if (path) setDownloadedTo(`PDF guardado en ${path}`);
+        if (path) showToast({ type: 'success', title: 'PDF guardado', message: `PDF guardado en ${path}` });
       } else {
         const objectUrl = URL.createObjectURL(file);
         const anchor = document.createElement('a');
@@ -107,7 +104,7 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
         window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
       }
     } catch (cause) {
-      setError(`No se pudo guardar el PDF: ${String(cause)}`);
+      showToast({ type: 'error', title: 'No se pudo guardar el PDF', message: `No se pudo guardar el PDF: ${String(cause)}` });
     } finally {
       setIsDownloading(false);
     }
@@ -145,8 +142,6 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
         )}
       </div>
 
-      {error && <p role="alert" className="border-t border-slate-100 bg-rose-50 px-5 py-2.5 text-sm text-rose-700">{error}</p>}
-      {downloadedTo && <p role="status" className="border-t border-slate-100 bg-green-50 px-5 py-2.5 text-sm text-green-800">{downloadedTo}</p>}
 
       <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-5 py-4">
         <Button

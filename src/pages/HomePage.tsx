@@ -5,6 +5,7 @@ import { Pagination } from '../components/Pagination';
 import { QuotationPdfDialog } from '../components/QuotationPdfDialog';
 import { QuotationTable } from '../components/QuotationTable';
 import { useQuotationActions } from '../hooks/useQuotationActions';
+import { useCancelledQuotationDeletion } from '../hooks/useCancelledQuotationDeletion';
 import type { PublicQuotation, Quotation, QuotationStatus } from '../models/quotation';
 import { useQuotations } from '../store/QuotationContext';
 import { toPublicQuotation } from '../utils/quotation';
@@ -24,6 +25,7 @@ const STATUS_TABS: ReadonlyArray<{ value: 'Todas' | QuotationStatus; label: stri
 export function HomePage() {
   const { quotations, isLoading, duplicateQuotation } = useQuotations();
   const { requestApprove, requestCancel, confirmDialog } = useQuotationActions();
+  const { requestDelete, confirmDialog: deleteConfirmDialog } = useCancelledQuotationDeletion();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'Todas' | QuotationStatus>('Todas');
   const [page, setPage] = useState(1);
@@ -71,10 +73,9 @@ export function HomePage() {
             <FilePlus2 size={48} strokeWidth={1.8} aria-hidden="true" className="mt-1 shrink-0 text-orange-600 sm:mt-0 sm:size-14" />
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-navy-950 sm:text-[30px]">Crea una nueva cotización</h1>
-              <p className="mt-1 text-sm leading-6 text-blue-600 sm:text-base">Registra servicios, refacciones e IVA en pocos pasos.</p>
               <Link
                 to="/nueva-cotizacion"
-                className="mt-5 inline-flex h-11 items-center gap-2 rounded-lg bg-orange-500 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2"
+                className="mt-4 inline-flex h-11 items-center gap-2 rounded-lg bg-orange-500 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2"
               >
                 <FilePlus2 size={18} />
                 Nueva cotización
@@ -137,6 +138,7 @@ export function HomePage() {
             onApprove={requestApprove}
             onCancel={requestCancel}
             onDuplicate={(quotation) => void handleDuplicate(quotation)}
+            onDelete={requestDelete}
           />}
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
@@ -148,6 +150,7 @@ export function HomePage() {
       {pdfTarget && <QuotationPdfDialog quotation={pdfTarget} onClose={() => setPdfTarget(null)} />}
 
       {confirmDialog}
+      {deleteConfirmDialog}
     </>
   );
 }

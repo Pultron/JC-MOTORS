@@ -6,6 +6,7 @@ import { PageHeader } from '../components/PageHeader';
 import { QuotationPdfDialog } from '../components/QuotationPdfDialog';
 import { QuotationTable } from '../components/QuotationTable';
 import { useQuotationActions } from '../hooks/useQuotationActions';
+import { useCancelledQuotationDeletion } from '../hooks/useCancelledQuotationDeletion';
 import type { PublicQuotation, QuotationStatus } from '../models/quotation';
 import { useQuotations } from '../store/QuotationContext';
 import { getMonthKey, toPublicQuotation } from '../utils/quotation';
@@ -16,6 +17,7 @@ export function HistoryPage() {
   const navigate = useNavigate();
   const { quotations, duplicateQuotation, isLoading } = useQuotations();
   const { requestApprove, requestCancel, confirmDialog } = useQuotationActions();
+  const { requestDelete, confirmDialog: deleteConfirmDialog } = useCancelledQuotationDeletion();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'Todas' | QuotationStatus>('Todas');
   const [month, setMonth] = useState('');
@@ -51,12 +53,14 @@ export function HistoryPage() {
           onApprove={requestApprove}
           onCancel={requestCancel}
           onDuplicate={(quotation) => void handleDuplicate(quotation.id)}
+          onDelete={requestDelete}
         />}
       </section>
 
       {pdfTarget && <QuotationPdfDialog quotation={pdfTarget} onClose={() => setPdfTarget(null)} />}
 
       {confirmDialog}
+      {deleteConfirmDialog}
     </>
   );
 }

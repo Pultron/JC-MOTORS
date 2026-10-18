@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FileText, LoaderCircle, X } from 'lucide-react';
+import { FileText, LoaderCircle } from 'lucide-react';
 import { useParams } from 'react-router';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { useToast } from '../components/Toast';
 import { PeriodFilter, ProfitSummaryCards, QuoteProfitabilityTable } from '../components/internalControl/ProfitOverview';
 import { ProfitDetailPanel } from '../components/internalControl/ProfitDetailPanel';
 import type { InternalCostRecord } from '../models/internalCosts';
@@ -13,6 +14,7 @@ import type { DateRange, Period } from '../utils/dateRangeUtils';
 import './internalControl.css';
 
 export function InternalControlPage() {
+  const showToast = useToast();
   const { quotations, isLoading } = useQuotations();
   const { quotationId } = useParams();
   const [records, setRecords] = useState<InternalCostRecord[]>([]);
@@ -26,7 +28,6 @@ export function InternalControlPage() {
   const [selectedId, setSelectedId] = useState<string | undefined>(quotationId);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState('');
   const [confirming, setConfirming] = useState(false);
   const pendingAction = useRef<(() => void)>();
 
@@ -68,8 +69,6 @@ export function InternalControlPage() {
     return () => { window.removeEventListener('beforeunload', beforeUnload); window.removeEventListener('popstate', historyNavigation, true); document.removeEventListener('click', navigate, true); };
   }, [dirty, busy, guard]);
 
-  useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(''), 4500); return () => clearTimeout(timer); }, [notice]);
-
   const recordMap = useMemo(() => new Map(records.map(r => [r.quoteId, r])), [records]);
   const periodRows = useMemo(() => quotations.filter(q => isInRange(q, range))
     .sort((a, b) => (b.approvedAt ?? b.createdAt).localeCompare(a.approvedAt ?? a.createdAt))
@@ -91,10 +90,9 @@ export function InternalControlPage() {
       : error ? <div className="profit-card profit-empty" role="alert"><h2>No se pudo cargar el control interno</h2><p>{error}</p><button className="profit-outline" onClick={() => setRetry(r => r + 1)}>Reintentar</button></div>
       : <><ProfitSummaryCards rows={periodRows} /><div className="profit-workspace">
         <QuoteProfitabilityTable rows={rows} selectedId={selectedId} search={search} status={status} hasQuotes={periodRows.length > 0} onSearch={setSearch} onStatus={setStatus} onSelect={quote => { if (quote.id !== selectedId) guard(() => { setSelectedId(quote.id); setDirty(false); }); }} />
-        {selected ? <ProfitDetailPanel key={selected.id} quote={selected} record={recordMap.get(selected.id)} onDirty={setDirty} onBusy={setBusy} onClose={() => guard(clearSelection)} onSaved={saved => { setRecords(current => [...current.filter(r => r.quoteId !== saved.quoteId), saved]); setNotice('Gastos guardados correctamente'); }} />
+        {selected ? <ProfitDetailPanel key={selected.id} quote={selected} record={recordMap.get(selected.id)} onDirty={setDirty} onBusy={setBusy} onClose={() => guard(clearSelection)} onSaved={saved => { setRecords(current => [...current.filter(r => r.quoteId !== saved.quoteId), saved]); showToast({ type: 'success', title: 'Gastos guardados', message: 'Gastos guardados correctamente' }); }} />
           : <aside className="profit-card profit-detail profit-detail-empty"><span className="profit-icon"><FileText size={25} /></span><h2>Detalle de ganancia</h2><p>Selecciona una cotización para consultar su ganancia y registrar los costos reales.</p><p className="profit-help">La información se guarda únicamente en el control interno.</p></aside>}
       </div></>}
-    {notice && <div role="status" className="profit-toast">{notice}<button aria-label="Cerrar notificación" onClick={() => setNotice('')}><X size={17} /></button></div>}
     <ConfirmDialog isOpen={confirming} title="Cambios sin guardar" description="Hay gastos que todavía no has guardado. ¿Quieres descartarlos y continuar?" confirmLabel="Descartar cambios" tone="danger" onClose={() => { setConfirming(false); pendingAction.current = undefined; }} onConfirm={() => { const action = pendingAction.current; pendingAction.current = undefined; setConfirming(false); setDirty(false); action?.(); }} />
   </div>;
 }

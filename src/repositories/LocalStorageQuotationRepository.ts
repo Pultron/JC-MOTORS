@@ -9,7 +9,6 @@ import type {
 } from '../models/quotation';
 import { calculateQuotationTotals, createId, roundCurrency, validateDiscount } from '../utils/quotation';
 import type { QuotationRepository } from './QuotationRepository';
-import { quotationFixtures } from './quotationFixtures';
 import { nextFolio, reservedDraftFolios } from '../services/folioService';
 
 const STORAGE_KEY = 'jc-motors:quotations:v1';
@@ -140,19 +139,24 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
     return cloneQuotation(cancelled);
   }
 
+  async deleteCancelled(id: string): Promise<Quotation | undefined> {
+    const quotations = this.readAll();
+    const quotation = quotations.find((entry) => entry.id === id);
+    if (!quotation || quotation.status !== 'Cancelada') return undefined;
+
+    this.writeAll(quotations.filter((entry) => entry.id !== id));
+    return cloneQuotation(quotation);
+  }
+
   private readAll(): Quotation[] {
     let saved: string | null = null;
     try {
       saved = globalThis.localStorage?.getItem(STORAGE_KEY) ?? null;
     } catch {
-      return quotationFixtures.map(cloneQuotation);
+      return [];
     }
 
-    if (saved === null) {
-      const initial = quotationFixtures.map(cloneQuotation);
-      this.writeAll(initial);
-      return initial;
-    }
+    if (saved === null) return [];
 
     try {
       const parsed: unknown = JSON.parse(saved);
@@ -167,9 +171,7 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
       if (JSON.stringify(normalized) !== JSON.stringify(parsed)) this.writeAll(normalized);
       return normalized;
     } catch {
-      const initial = quotationFixtures.map(cloneQuotation);
-      this.writeAll(initial);
-      return initial;
+      return [];
     }
   }
 

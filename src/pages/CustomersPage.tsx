@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { Mail, Pencil, Phone, Plus, Search, Trash2, UserRound, X } from 'lucide-react';
 import { Button } from '../components/Button';
+import { useToast } from '../components/Toast';
 import { PageHeader } from '../components/PageHeader';
 import { SectionCard } from '../components/SectionCard';
 import type { CustomerProfile, CustomerProfileInput } from '../models/quotation';
@@ -38,11 +39,11 @@ function customerTerms(customer: Pick<CustomerProfile, 'name' | 'aliases'>): str
 
 export function CustomersPage() {
   const { customers, createCustomer, updateCustomer, deleteCustomer } = useCustomers();
+  const showToast = useToast();
   const [draft, setDraft] = useState<CustomerDraft>(emptyDraft);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
 
   const filteredCustomers = useMemo(() => {
     const term = normalize(search);
@@ -66,14 +67,12 @@ export function CustomersPage() {
     });
     setEditingId(customer.id);
     setError('');
-    setNotice('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
-    setNotice('');
 
     const name = draft.name.trim();
     if (!name) {
@@ -99,10 +98,10 @@ export function CustomersPage() {
 
     if (editingId) {
       updateCustomer(editingId, input);
-      setNotice(`Se actualizaron los datos de ${name}.`);
+      showToast({ type: 'success', title: 'Cliente actualizado', message: `Se actualizaron los datos de ${name}.` });
     } else {
       createCustomer(input);
-      setNotice(`Se agregó ${name} a los clientes de prueba.`);
+      showToast({ type: 'success', title: 'Cliente agregado', message: `Se agregó ${name} a la lista de clientes.` });
     }
 
     resetForm();
@@ -111,7 +110,7 @@ export function CustomersPage() {
   function removeCustomer(customer: CustomerProfile) {
     deleteCustomer(customer.id);
     if (editingId === customer.id) resetForm();
-    setNotice(`Se eliminó ${customer.name} de los clientes de prueba.`);
+    showToast({ type: 'warning', title: 'Cliente eliminado', message: `Se eliminó ${customer.name} de la lista de clientes.` });
   }
 
   return (
@@ -140,7 +139,6 @@ export function CustomersPage() {
               </Field>
             </div>
             {error && <p role="alert" className="mt-3 text-sm font-medium text-rose-600">{error}</p>}
-            {notice && <p role="status" className="mt-3 text-sm font-medium text-emerald-700">{notice}</p>}
             <div className="mt-4 flex flex-wrap justify-end gap-2">
               {editingId && <Button type="button" variant="ghost" icon={<X size={16} />} onClick={resetForm}>Cancelar edición</Button>}
               <Button type="submit" variant="primary" icon={editingId ? <Pencil size={16} /> : <Plus size={16} />}>
@@ -150,7 +148,7 @@ export function CustomersPage() {
           </form>
         </SectionCard>
 
-        <SectionCard title="Clientes de prueba" description={`${customers.length} ${customers.length === 1 ? 'cliente' : 'clientes'} disponibles para cotizar.`}>
+        <SectionCard title="Clientes" description={`${customers.length} ${customers.length === 1 ? 'cliente' : 'clientes'} disponibles para cotizar.`}>
           <label className="relative mb-4 block">
             <Search size={17} aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input className="form-input pl-10" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, apodo o teléfono" />
@@ -177,9 +175,8 @@ export function CustomersPage() {
                 </div>
               </article>
             ))}
-            {filteredCustomers.length === 0 && <p className="py-8 text-center text-sm text-slate-500">No se encontraron clientes.</p>}
+            {filteredCustomers.length === 0 && <p className="py-8 text-center text-sm text-slate-500">{customers.length === 0 ? 'Aún no hay clientes. Agrega el primero arriba.' : 'No se encontraron clientes.'}</p>}
           </div>
-          <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-400">Los cambios son temporales y se borran al cerrar la aplicación. Al volver a abrirla aparecerán de nuevo los clientes de ejemplo.</p>
         </SectionCard>
       </div>
     </>

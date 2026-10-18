@@ -54,16 +54,26 @@ test('cat√°logo de modelos depende de la marca', () => {
 });
 
 test('el directorio de clientes se guarda en localStorage', () => {
-  const customers = customerService.list();
-  assert.ok(customers.some((customer) => customer.name === 'Carlos M√©ndez'));
-  customerService.save([...customers, { id: 'new-customer', name: 'Cliente nuevo', phone: '', aliases: [] }]);
+  assert.deepEqual(customerService.list(), []);
+  assert.equal(storage.has('jc-motors:customers:v1'), false);
+  storage.set('jc-motors:customers:v1', '{');
+  assert.deepEqual(customerService.list(), []);
+  storage.delete('jc-motors:customers:v1');
+  customerService.save([{ id: 'new-customer', name: 'Cliente nuevo', phone: '', aliases: [] }]);
   assert.ok(customerService.list().some((customer) => customer.id === 'new-customer'));
 });
 
 test('guarda, recupera y elimina borradores; conserva folio al guardar cotizaci√≥n', async () => {
+  assert.deepEqual(await quotationService.list(), []);
+  assert.equal(storage.has('jc-motors:quotations:v1'), false);
+  assert.equal(await quoteDraftService.nextFolio(), 'JC-0001');
+  storage.set('jc-motors:quotations:v1', '{');
+  assert.deepEqual(await quotationService.list(), []);
+  assert.equal(storage.get('jc-motors:quotations:v1'), '{');
+  storage.delete('jc-motors:quotations:v1');
   const data = form();
   const draft = await quoteDraftService.save(data);
-  assert.equal(draft.folio, 'JC-0013');
+  assert.equal(draft.folio, 'JC-0001');
   assert.equal(draft.status, 'Borrador');
   quoteDraftService.saveTemporary(data, draft.id);
   assert.equal(quoteDraftService.getTemporary()?.draftId, draft.id);
@@ -76,7 +86,7 @@ test('guarda, recupera y elimina borradores; conserva folio al guardar cotizaci√
     includeVat: data.ivaEnabled, validityDays: Number(data.validityDays), publicNotes: data.publicNotes, customerNotes: data.customerNotes,
   };
   const other = await quotationService.create(input);
-  assert.equal(other.folio, 'JC-0014');
+  assert.equal(other.folio, 'JC-0002');
   const quote = await quotationService.create({ ...input, preferredFolio: draft.folio });
   assert.equal(quote.folio, draft.folio);
   assert.equal(quote.status, 'Pendiente');
@@ -90,5 +100,7 @@ test('guarda, recupera y elimina borradores; conserva folio al guardar cotizaci√
   quoteDraftService.deleteTemporary();
   assert.equal(quoteDraftService.list().length, 0);
   assert.equal(quoteDraftService.getTemporary(), null);
-  assert.equal(await quoteDraftService.nextFolio(), 'JC-0015');
+  assert.equal(await quoteDraftService.nextFolio(), 'JC-0003');
+  storage.delete('jc-motors:quotations:v1');
+  assert.equal((await quotationService.create(input)).folio, 'JC-0001');
 });

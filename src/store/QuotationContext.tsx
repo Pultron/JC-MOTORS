@@ -3,18 +3,18 @@ import type { ReactNode } from 'react';
 import type { CreateQuotationInput, Quotation } from '../models/quotation';
 import { quotationService } from '../services/quotationService';
 import { internalControlService } from '../services/internalControlService';
+import { useToast } from '../components/Toast';
 
 interface QuotationContextValue {
   quotations: Quotation[];
   isLoading: boolean;
-  notice: string | null;
-  clearNotice: () => void;
   getQuotation: (id: string) => Promise<Quotation | undefined>;
   createQuotation: (input: CreateQuotationInput) => Promise<Quotation>;
   updateQuotation: (id: string, input: CreateQuotationInput) => Promise<Quotation | undefined>;
   duplicateQuotation: (id: string) => Promise<Quotation | undefined>;
   approveQuotation: (id: string) => Promise<Quotation | undefined>;
   cancelQuotation: (id: string) => Promise<Quotation | undefined>;
+  deleteCancelledQuotation: (id: string) => Promise<boolean>;
 }
 
 const QuotationContext = createContext<QuotationContextValue | null>(null);
@@ -22,7 +22,7 @@ const QuotationContext = createContext<QuotationContextValue | null>(null);
 export function QuotationProvider({ children }: { children: ReactNode }) {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [notice, setNotice] = useState<string | null>(null);
+  const showToast = useToast();
 
   useEffect(() => {
     let active = true;
@@ -46,59 +46,66 @@ export function QuotationProvider({ children }: { children: ReactNode }) {
   const createQuotation = useCallback(async (input: CreateQuotationInput) => {
     const quotation = await quotationService.create(input);
     setQuotations(await quotationService.list());
-    setNotice(`La cotización ${quotation.folio} se guardó correctamente.`);
+    showToast({ type: 'success', title: 'Cotización guardada', message: `La cotización ${quotation.folio} se guardó correctamente.` });
     return quotation;
-  }, []);
+  }, [showToast]);
 
   const updateQuotation = useCallback(async (id: string, input: CreateQuotationInput) => {
     const quotation = await quotationService.update(id, input);
     if (quotation) {
       setQuotations(await quotationService.list());
-      setNotice(`La cotización ${quotation.folio} se actualizó correctamente.`);
+      showToast({ type: 'success', title: 'Cotización actualizada', message: `La cotización ${quotation.folio} se actualizó correctamente.` });
     }
     return quotation;
-  }, []);
+  }, [showToast]);
 
   const duplicateQuotation = useCallback(async (id: string) => {
     const quotation = await quotationService.duplicate(id);
     if (quotation) {
       setQuotations(await quotationService.list());
-      setNotice(`Se creó la cotización ${quotation.folio}.`);
+      showToast({ type: 'success', title: 'Cotización creada', message: `Se creó la cotización ${quotation.folio}.` });
     }
     return quotation;
-  }, []);
+  }, [showToast]);
 
   const approveQuotation = useCallback(async (id: string) => {
     const quotation = await quotationService.approve(id);
     if (!quotation) return undefined;
     await internalControlService.ensureForQuotation(quotation);
     setQuotations(await quotationService.list());
-    setNotice(`La cotización ${quotation.folio} fue aprobada y enviada a Control interno.`);
+    showToast({ type: 'success', title: 'Cotización aprobada', message: `La cotización ${quotation.folio} fue aprobada y enviada a Control interno.` });
     return quotation;
-  }, []);
+  }, [showToast]);
 
   const cancelQuotation = useCallback(async (id: string) => {
     const quotation = await quotationService.cancel(id);
     if (!quotation) return undefined;
     setQuotations(await quotationService.list());
-    setNotice(`La cotización ${quotation.folio} fue cancelada.`);
+    showToast({ type: 'warning', title: 'Cotización cancelada', message: `La cotización ${quotation.folio} fue cancelada.` });
     return quotation;
-  }, []);
+  }, [showToast]);
+
+  const deleteCancelledQuotation = useCallback(async (id: string) => {
+    const quotation = await quotationService.deleteCancelled(id);
+    if (!quotation) return false;
+    setQuotations(await quotationService.list());
+    showToast({ type: 'success', title: 'Cotización eliminada', message: `La cotización ${quotation.folio} se eliminó permanentemente.` });
+    return true;
+  }, [showToast]);
 
   const value = useMemo<QuotationContextValue>(
     () => ({
       quotations,
       isLoading,
-      notice,
-      clearNotice: () => setNotice(null),
       getQuotation,
       createQuotation,
       updateQuotation,
       duplicateQuotation,
       approveQuotation,
       cancelQuotation,
+      deleteCancelledQuotation,
     }),
-    [quotations, isLoading, notice, getQuotation, createQuotation, updateQuotation, duplicateQuotation, approveQuotation, cancelQuotation],
+    [quotations, isLoading, getQuotation, createQuotation, updateQuotation, duplicateQuotation, approveQuotation, cancelQuotation, deleteCancelledQuotation],
   );
 
   return <QuotationContext.Provider value={value}>{children}</QuotationContext.Provider>;

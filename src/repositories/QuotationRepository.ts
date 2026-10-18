@@ -8,4 +8,5 @@ export interface QuotationRepository {
   duplicate(id: string): Promise<Quotation | undefined>;
   approve(id: string): Promise<Quotation | undefined>;
   cancel(id: string): Promise<Quotation | undefined>;
+  deleteCancelled(id: string): Promise<Quotation | undefined>;
 }
