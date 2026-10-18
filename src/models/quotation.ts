@@ -1,7 +1,7 @@
-export type QuotationStatus = 'Pendiente' | 'Aprobada' | 'Cancelada';
+export type QuotationStatus = 'Pendiente' | 'Aprobada' | 'Cancelada' | 'Vencida';
 
-/** Transiciones de estado permitidas. Aprobar bloquea la cotización: ya no admite cambios posteriores. */
-export const TERMINAL_STATUSES: readonly QuotationStatus[] = ['Aprobada', 'Cancelada'];
+/** Estados terminales: una cotización aprobada, cancelada o vencida ya no admite cambios. */
+export const TERMINAL_STATUSES: readonly QuotationStatus[] = ['Aprobada', 'Cancelada', 'Vencida'];
 export type QuotationItemType = 'labor' | 'part';
 export type DiscountType = 'percentage' | 'fixed';
 export type InternalStatus = 'pending_capture' | 'complete';

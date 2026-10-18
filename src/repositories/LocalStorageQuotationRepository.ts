@@ -65,6 +65,41 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
     return cloneQuotation(quotation);
   }
 
+  async update(id: string, input: CreateQuotationInput): Promise<Quotation | undefined> {
+    const quotations = this.readAll();
+    const original = quotations.find((entry) => entry.id === id);
+    if (!original || original.status !== 'Pendiente') return undefined;
+
+    const items = input.items.map((item) => ({
+      ...item,
+      amount: roundCurrency(item.quantity * item.saleUnitPrice),
+    }));
+    const totals = calculateQuotationTotals(items, input.laborDiscountType, input.laborDiscountValue, input.includeVat);
+    const discountError = validateDiscount(totals.subtotalManoObra, input.laborDiscountType, input.laborDiscountValue);
+    if (discountError) throw new Error(discountError);
+    const updated: Quotation = {
+      ...original,
+      createdAt: new Date().toISOString(),
+      ...(input.customerId ? { customerId: input.customerId } : { customerId: undefined }),
+      customer: { ...input.customer },
+      vehicle: { ...input.vehicle },
+      items,
+      laborDiscountType: input.laborDiscountType,
+      laborDiscountValue: input.laborDiscountValue,
+      includeVat: input.includeVat,
+      subtotalNeto: totals.subtotalNeto,
+      ivaAmount: totals.ivaAmount,
+      total: totals.total,
+      validityDays: input.validityDays,
+      publicNotes: input.publicNotes,
+      customerNotes: input.customerNotes ?? '',
+      status: 'Pendiente',
+      approvedAt: undefined,
+    };
+    this.writeAll(quotations.map((entry) => entry.id === id ? updated : entry));
+    return cloneQuotation(updated);
+  }
+
   async duplicate(id: string): Promise<Quotation | undefined> {
     const original = this.readAll().find((entry) => entry.id === id);
     if (!original) return undefined;
@@ -86,8 +121,9 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
   async approve(id: string): Promise<Quotation | undefined> {
     const quotations = this.readAll();
     const quotation = quotations.find((entry) => entry.id === id);
-    if (!quotation || quotation.status === 'Cancelada') return undefined;
+    if (!quotation) return undefined;
     if (quotation.status === 'Aprobada') return cloneQuotation(quotation);
+    if (quotation.status !== 'Pendiente') return undefined;
 
     const approved: Quotation = { ...quotation, status: 'Aprobada', approvedAt: new Date().toISOString() };
     this.writeAll(quotations.map((entry) => entry.id === id ? approved : entry));
@@ -121,7 +157,13 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
     try {
       const parsed: unknown = JSON.parse(saved);
       if (!Array.isArray(parsed)) throw new Error('Invalid quotation data');
-      const normalized = (parsed as LegacyQuotation[]).map((entry, index) => normalizeQuotation(entry, index));
+      const now = Date.now();
+      const normalized = (parsed as LegacyQuotation[]).map((entry, index) => {
+        const quotation = normalizeQuotation(entry, index);
+        return quotation.status === 'Pendiente' && isExpired(quotation, now)
+          ? { ...quotation, status: 'Vencida' as const }
+          : quotation;
+      });
       if (JSON.stringify(normalized) !== JSON.stringify(parsed)) this.writeAll(normalized);
       return normalized;
     } catch {
@@ -188,10 +230,16 @@ function finiteNumber(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
+function isExpired(quotation: Quotation, now: number): boolean {
+  const createdAt = Date.parse(quotation.createdAt);
+  return Number.isFinite(createdAt) && now >= createdAt + quotation.validityDays * 24 * 60 * 60 * 1000;
+}
+
 /** 'Rechazada' era el nombre anterior de 'Cancelada': se migra para no perder el estado guardado. */
 function normalizeStatus(value: unknown): QuotationStatus {
   if (value === 'Aprobada') return 'Aprobada';
   if (value === 'Cancelada' || value === 'Rechazada') return 'Cancelada';
+  if (value === 'Vencida') return 'Vencida';
   return 'Pendiente';
 }
 

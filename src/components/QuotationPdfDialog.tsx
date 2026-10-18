@@ -92,8 +92,8 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
       const tauriInvoke = window.__TAURI__?.core.invoke;
       if (tauriInvoke) {
         const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
-        const path = await tauriInvoke<string>('save_quotation_pdf', { folio: quotation?.folio ?? '', bytes });
-        setDownloadedTo(`PDF guardado en ${path}`);
+        const path = await tauriInvoke<string | null>('save_quotation_pdf', { folio: quotation?.folio ?? '', bytes });
+        if (path) setDownloadedTo(`PDF guardado en ${path}`);
       } else {
         const objectUrl = URL.createObjectURL(file);
         const anchor = document.createElement('a');

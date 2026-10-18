@@ -18,6 +18,7 @@ const STATUS_TABS: ReadonlyArray<{ value: 'Todas' | QuotationStatus; label: stri
   { value: 'Pendiente', label: 'Pendientes' },
   { value: 'Aprobada', label: 'Aprobadas' },
   { value: 'Cancelada', label: 'Canceladas' },
+  { value: 'Vencida', label: 'Vencidas' },
 ];
 
 export function HomePage() {
@@ -111,7 +112,7 @@ export function HomePage() {
           <div role="group" aria-label="Filtrar cotizaciones por estado" className="flex shrink-0 flex-wrap items-center gap-2">
             {STATUS_TABS.map((tab) => {
               const isActive = tab.value === status;
-              const dotColor = tab.value === 'Pendiente' ? 'bg-amber-500' : tab.value === 'Aprobada' ? 'bg-emerald-500' : tab.value === 'Cancelada' ? 'bg-rose-500' : '';
+              const dotColor = tab.value === 'Pendiente' ? 'bg-amber-500' : tab.value === 'Aprobada' ? 'bg-emerald-500' : tab.value === 'Cancelada' ? 'bg-rose-500' : tab.value === 'Vencida' ? 'bg-slate-500' : '';
               return (
                 <button
                   key={tab.value}

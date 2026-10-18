@@ -1,13 +1,14 @@
-use std::fs::{self, OpenOptions};
-use std::io::Write;
+use std::fs;
+use std::path::PathBuf;
 use tauri::Manager;
+use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
 fn save_quotation_pdf(
     app: tauri::AppHandle,
     folio: String,
     bytes: Vec<u8>,
-) -> Result<String, String> {
+) -> Result<Option<String>, String> {
     if !bytes.starts_with(b"%PDF-") {
         return Err("El archivo generado no es un PDF válido".into());
     }
@@ -27,35 +28,29 @@ fn save_quotation_pdf(
         .path()
         .download_dir()
         .map_err(|error| error.to_string())?;
-    fs::create_dir_all(&downloads).map_err(|error| error.to_string())?;
-
-    for copy in 0..1000 {
-        let file_name = if copy == 0 {
-            format!("{safe_folio}.pdf")
-        } else {
-            format!("{safe_folio} ({copy}).pdf")
-        };
-        let path = downloads.join(file_name);
-        match OpenOptions::new().write(true).create_new(true).open(&path) {
-            Ok(mut file) => {
-                if let Err(error) = file.write_all(&bytes) {
-                    drop(file);
-                    let _ = fs::remove_file(&path);
-                    return Err(error.to_string());
-                }
-                return Ok(path.to_string_lossy().into_owned());
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
-            Err(error) => return Err(error.to_string()),
-        }
+    let selected_path = app
+        .dialog()
+        .file()
+        .set_title("Guardar cotización como PDF")
+        .set_directory(downloads)
+        .set_file_name(format!("{safe_folio}.pdf"))
+        .add_filter("Documento PDF", &["pdf"])
+        .blocking_save_file();
+    let Some(selected_path) = selected_path else {
+        return Ok(None);
+    };
+    let mut path: PathBuf = selected_path.into_path().map_err(|error| error.to_string())?;
+    if !path.extension().is_some_and(|extension| extension.to_string_lossy().eq_ignore_ascii_case("pdf")) {
+        path.set_extension("pdf");
     }
-
-    Err("Hay demasiados archivos con este folio en Descargas".into())
+    fs::write(&path, &bytes).map_err(|error| error.to_string())?;
+    Ok(Some(path.to_string_lossy().into_owned()))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![save_quotation_pdf])
         .run(tauri::generate_context!())
         .expect("error while running JC Motors Cotizador");

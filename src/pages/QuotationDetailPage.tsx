@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Ban, CarFront, Check, Copy, FileText, Printer, ReceiptText, UserRound } from 'lucide-react';
+import { ArrowLeft, Ban, CarFront, Check, Copy, FileText, Pencil, Printer, ReceiptText, UserRound } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
 import { Button } from '../components/Button';
 import { PageHeader } from '../components/PageHeader';
@@ -43,7 +43,7 @@ export function QuotationDetailPage() {
 
   return (
     <div className="print-area">
-      <PageHeader eyebrow="Detalle de cotización" title={publicQuotation.folio} description={`Creada el ${formatDate(publicQuotation.createdAt)}`} actions={<div className="flex flex-wrap gap-2 print:hidden"><Button icon={<ArrowLeft size={16} />} onClick={() => navigate(-1)}>Regresar</Button><Button icon={<Copy size={16} />} onClick={() => void handleDuplicate()}>Duplicar</Button>{quotation.status === 'Pendiente' && <><Button variant="secondary" icon={<Check size={16} />} onClick={() => requestApprove(quotation)}>Aprobar cotización</Button><Button variant="danger" icon={<Ban size={16} />} onClick={() => requestCancel(quotation)}>Cancelar</Button></>}<Button icon={<FileText size={16} />} onClick={() => setIsPdfOpen(true)}>Ver PDF</Button><Button variant="primary" icon={<Printer size={16} />} onClick={() => window.print()}>Imprimir</Button></div>} />
+      <PageHeader eyebrow="Detalle de cotización" title={publicQuotation.folio} description={`Creada el ${formatDate(publicQuotation.createdAt)}`} actions={<div className="flex flex-wrap gap-2 print:hidden"><Button icon={<ArrowLeft size={16} />} onClick={() => navigate(-1)}>Regresar</Button>{quotation.status === 'Pendiente' && <><Button icon={<Pencil size={16} />} onClick={() => navigate(`/nueva-cotizacion?editar=${quotation.id}`)}>Editar</Button><Button variant="secondary" icon={<Check size={16} />} onClick={() => requestApprove(quotation)}>Aprobar cotización</Button><Button variant="danger" icon={<Ban size={16} />} onClick={() => requestCancel(quotation)}>Cancelar</Button></>}<Button icon={<Copy size={16} />} onClick={() => void handleDuplicate()}>Duplicar</Button><Button icon={<FileText size={16} />} onClick={() => setIsPdfOpen(true)}>Ver PDF</Button><Button variant="primary" icon={<Printer size={16} />} onClick={() => window.print()}>Imprimir</Button></div>} />
       <div className="mb-5 hidden items-center gap-4 border-b-2 border-orange-500 pb-4 print:flex">
         <img src="/jc-motors-logo.png" alt="" className="size-16 object-contain" />
         <div><p className="text-xl font-bold text-navy-950">{publicQuotation.businessName}</p>

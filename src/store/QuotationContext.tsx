@@ -11,6 +11,7 @@ interface QuotationContextValue {
   clearNotice: () => void;
   getQuotation: (id: string) => Promise<Quotation | undefined>;
   createQuotation: (input: CreateQuotationInput) => Promise<Quotation>;
+  updateQuotation: (id: string, input: CreateQuotationInput) => Promise<Quotation | undefined>;
   duplicateQuotation: (id: string) => Promise<Quotation | undefined>;
   approveQuotation: (id: string) => Promise<Quotation | undefined>;
   cancelQuotation: (id: string) => Promise<Quotation | undefined>;
@@ -25,15 +26,18 @@ export function QuotationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    quotationService.list().then((results) => {
+    const refresh = () => quotationService.list().then((results) => {
       if (active) {
         setQuotations(results);
         setIsLoading(false);
       }
     });
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 60_000);
 
     return () => {
       active = false;
+      window.clearInterval(timer);
     };
   }, []);
 
@@ -43,6 +47,15 @@ export function QuotationProvider({ children }: { children: ReactNode }) {
     const quotation = await quotationService.create(input);
     setQuotations(await quotationService.list());
     setNotice(`La cotización ${quotation.folio} se guardó correctamente.`);
+    return quotation;
+  }, []);
+
+  const updateQuotation = useCallback(async (id: string, input: CreateQuotationInput) => {
+    const quotation = await quotationService.update(id, input);
+    if (quotation) {
+      setQuotations(await quotationService.list());
+      setNotice(`La cotización ${quotation.folio} se actualizó correctamente.`);
+    }
     return quotation;
   }, []);
 
@@ -80,11 +93,12 @@ export function QuotationProvider({ children }: { children: ReactNode }) {
       clearNotice: () => setNotice(null),
       getQuotation,
       createQuotation,
+      updateQuotation,
       duplicateQuotation,
       approveQuotation,
       cancelQuotation,
     }),
-    [quotations, isLoading, notice, getQuotation, createQuotation, duplicateQuotation, approveQuotation, cancelQuotation],
+    [quotations, isLoading, notice, getQuotation, createQuotation, updateQuotation, duplicateQuotation, approveQuotation, cancelQuotation],
   );
 
   return <QuotationContext.Provider value={value}>{children}</QuotationContext.Provider>;

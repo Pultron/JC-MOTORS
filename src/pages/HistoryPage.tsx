@@ -10,7 +10,7 @@ import type { PublicQuotation, QuotationStatus } from '../models/quotation';
 import { useQuotations } from '../store/QuotationContext';
 import { getMonthKey, toPublicQuotation } from '../utils/quotation';
 
-const statuses: Array<'Todas' | QuotationStatus> = ['Todas', 'Pendiente', 'Aprobada', 'Cancelada'];
+const statuses: Array<'Todas' | QuotationStatus> = ['Todas', 'Pendiente', 'Aprobada', 'Cancelada', 'Vencida'];
 
 export function HistoryPage() {
   const navigate = useNavigate();

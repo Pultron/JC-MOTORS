@@ -4,6 +4,7 @@ const statusStyles: Record<QuotationStatus, string> = {
   Pendiente: 'bg-orange-50 text-orange-700 ring-orange-600/15',
   Aprobada: 'bg-emerald-50 text-emerald-700 ring-emerald-600/15',
   Cancelada: 'bg-rose-50 text-rose-700 ring-rose-600/15',
+  Vencida: 'bg-slate-100 text-slate-600 ring-slate-500/15',
 };
 
 interface StatusBadgeProps {

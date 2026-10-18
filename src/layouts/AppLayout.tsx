@@ -1,4 +1,4 @@
-import { ChartNoAxesColumnIncreasing, FilePlus2, Gauge, History, Settings, UsersRound } from 'lucide-react';
+import { ChartNoAxesColumnIncreasing, FilePlus2, Gauge, History, UsersRound } from 'lucide-react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { useEffect } from 'react';
 import { useQuotations } from '../store/QuotationContext';
@@ -9,7 +9,6 @@ const navigation = [
   { label: 'Historial', to: '/historial', icon: History },
   { label: 'Control interno', to: '/control-interno', icon: ChartNoAxesColumnIncreasing },
   { label: 'Clientes', to: '/clientes', icon: UsersRound },
-  { label: 'Configuración', to: '/configuracion', icon: Settings },
 ];
 
 export function AppLayout() {
@@ -33,10 +32,10 @@ export function AppLayout() {
           <p className="font-serif text-base font-semibold italic tracking-[0.12em] text-slate-200">Cotizador</p>
         </div>
         <nav className="flex gap-1 overflow-x-auto p-3 lg:flex-1 lg:flex-col lg:gap-1.5 lg:p-4">
-          <p className="hidden px-3 pb-2 pt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 lg:block">Menú principal</p>
+          <p className="hidden px-3 pb-2 pt-4 text-xs font-extrabold uppercase tracking-[0.14em] text-white lg:block">Menú principal</p>
           {navigation.map(({ label, to, icon: Icon, end }) => (
-            <NavLink key={to} to={to} end={end} className={({ isActive }) => `flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${isActive ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>
-              {({ isActive }) => <><Icon size={18} className={isActive ? 'text-white' : ''} /><span>{label}</span></>}
+            <NavLink key={to} to={to} end={end} className={({ isActive }) => `relative flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${isActive ? 'bg-[#234361] text-white shadow-sm before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-r-full before:bg-orange-500' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>
+              {({ isActive }) => <><Icon size={18} className={isActive ? 'text-orange-500' : ''} /><span>{label}</span></>}
             </NavLink>
           ))}
         </nav>

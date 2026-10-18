@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Ban, Check, Copy, Download, Eye, LockKeyhole, MoreVertical } from 'lucide-react';
+import { Ban, Check, Copy, Eye, FileText, LockKeyhole, MoreVertical, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import type { LucideIcon } from 'lucide-react';
 import type { Quotation } from '../models/quotation';
@@ -139,10 +139,11 @@ interface MenuItemsInput {
 function buildMenuItems({ quotation, navigate, onOpenPdf, onApprove, onCancel, onDuplicate }: MenuItemsInput): MenuItem[] {
   const items: MenuItem[] = [
     { key: 'view', label: 'Ver detalle', icon: Eye, onSelect: () => navigate(`/cotizaciones/${quotation.id}`) },
-    { key: 'pdf', label: 'Descargar PDF', icon: Download, onSelect: () => onOpenPdf(quotation) },
+    { key: 'pdf', label: 'Ver cotización', icon: FileText, onSelect: () => onOpenPdf(quotation) },
   ];
 
   if (quotation.status === 'Pendiente') {
+    items.push({ key: 'edit', label: 'Editar cotización', icon: Pencil, onSelect: () => navigate(`/nueva-cotizacion?editar=${quotation.id}`) });
     if (onApprove) items.push({ key: 'approve', label: 'Aprobar cotización', icon: Check, onSelect: () => onApprove(quotation) });
     if (onCancel) items.push({ key: 'cancel', label: 'Cancelar cotización', icon: Ban, tone: 'danger', onSelect: () => onCancel(quotation) });
   }
