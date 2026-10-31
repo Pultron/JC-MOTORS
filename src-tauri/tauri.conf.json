@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "JC Motors Cotizador",
-  "version": "0.1.6",
+  "version": "1.0.0",
   "identifier": "mx.jcmotors.cotizador",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -38,7 +38,11 @@
       "icons/jc-motors-shortcut.ico": "jc-motors-logo-v2.ico"
     },
     "windows": {
+      "webviewInstallMode": {
+        "type": "offlineInstaller"
+      },
       "nsis": {
+        "installerIcon": "icons/icon.ico",
         "installerHooks": "nsis/installer-hooks.nsh"
       }
     },
