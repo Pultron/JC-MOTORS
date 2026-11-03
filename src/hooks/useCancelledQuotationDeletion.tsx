@@ -1,51 +1,30 @@
-import { useState } from 'react';
-import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { Quotation } from '../models/quotation';
+import { useToast } from '../components/ui/Toast';
 import { useQuotations } from '../store/QuotationContext';
+import { useConfirm } from './useConfirm';
 
 export function useCancelledQuotationDeletion() {
   const { deleteCancelledQuotation } = useQuotations();
-  const [pending, setPending] = useState<Quotation | null>(null);
-  const [isBusy, setIsBusy] = useState(false);
-  const [error, setError] = useState('');
+  const confirm = useConfirm();
+  const toast = useToast();
 
-  function requestDelete(quotation: Quotation) {
+  async function requestDelete(quotation: Quotation) {
     if (quotation.status !== 'Cancelada') return;
-    setError('');
-    setPending(quotation);
-  }
+    const accepted = await confirm({
+      title: '¿Eliminar cotización permanentemente?',
+      description: `La cotización ${quotation.folio} y sus datos se eliminarán definitivamente. Esta acción no se puede deshacer.`,
+      confirmLabel: 'Eliminar permanentemente',
+      tone: 'danger',
+    });
+    if (!accepted) return;
 
-  async function handleConfirm() {
-    if (!pending) return;
-    setError('');
-    setIsBusy(true);
     try {
-      const deleted = await deleteCancelledQuotation(pending.id);
-      if (!deleted) {
-        setError('Solo se pueden eliminar cotizaciones que estén canceladas.');
-        return;
-      }
-      setPending(null);
+      const deleted = await deleteCancelledQuotation(quotation.id);
+      if (!deleted) toast.error({ title: 'No se pudo eliminar', description: 'Solo se pueden eliminar cotizaciones que estén canceladas.' });
     } catch {
-      setError('No se pudo eliminar la cotización. Inténtalo de nuevo.');
-    } finally {
-      setIsBusy(false);
+      toast.error({ title: 'No se pudo eliminar la cotización', description: 'Inténtalo de nuevo.' });
     }
   }
 
-  const confirmDialog = (
-    <ConfirmDialog
-      isOpen={pending !== null}
-      title="¿Eliminar cotización permanentemente?"
-      description={`La cotización ${pending?.folio ?? ''} y sus datos se eliminarán definitivamente. Esta acción no se puede deshacer.`}
-      confirmLabel="Eliminar permanentemente"
-      tone="danger"
-      isBusy={isBusy}
-      error={error}
-      onConfirm={() => void handleConfirm()}
-      onClose={() => setPending(null)}
-    />
-  );
-
-  return { requestDelete, confirmDialog };
+  return { requestDelete: (quotation: Quotation) => void requestDelete(quotation) };
 }

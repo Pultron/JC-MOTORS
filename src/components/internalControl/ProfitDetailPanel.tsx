@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FileText, LockKeyhole, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../Button';
-import { ConfirmDialog } from '../ConfirmDialog';
-import { useToast } from '../Toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import { useToast } from '../ui/Toast';
 import type { Quotation } from '../../models/quotation';
 import type { InternalCostRecord } from '../../models/internalCosts';
 import { calculateProfit } from '../../services/profitCalculationService';
@@ -30,12 +30,12 @@ export function ProfitDetailPanel({ quote, record, onSaved, onClose, onDirty, on
   quote: Quotation; record?: InternalCostRecord; onSaved: (record: InternalCostRecord) => void;
   onClose: () => void; onDirty: (dirty: boolean) => void; onBusy: (busy: boolean) => void;
 }) {
-  const showToast = useToast();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [draft, setDraft] = useState(() => initialDraft(quote, record));
   const baseline = useRef(JSON.stringify(draft));
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
-  const [deleting, setDeleting] = useState<string>();
   const dirty = JSON.stringify(draft) !== baseline.current;
   useEffect(() => { onDirty(dirty); }, [dirty, onDirty]);
 
@@ -66,14 +66,19 @@ export function ProfitDetailPanel({ quote, record, onSaved, onClose, onDirty, on
       const saved = await internalCostsStorageService.save(preview.current);
       const next = initialDraft(quote, saved);
       baseline.current = JSON.stringify(next); setDraft(next); onDirty(false); onSaved(saved);
-    } catch (e) { showToast({ type: 'error', title: 'Error al guardar gastos', message: e instanceof Error ? e.message : 'No se pudieron guardar los gastos. Intenta de nuevo.' }); }
+    } catch (e) { toast.error({ title: 'Error al guardar gastos', description: e instanceof Error ? e.message : 'No se pudieron guardar los gastos. Intenta de nuevo.' }); }
     finally { savingRef.current = false; setSaving(false); onBusy(false); }
   }
 
-  function removeExpense(id: string) { setDraft(current => ({ ...current, expenses: current.expenses.filter(e => e.id !== id) })); setDeleting(undefined); }
+  async function confirmRemoval(id: string) {
+    const accepted = await confirm({ title: 'Eliminar gasto guardado', description: 'Se quitará este gasto del detalle. Guarda los cambios para confirmar la eliminación.', confirmLabel: 'Eliminar gasto', tone: 'danger' });
+    if (accepted) removeExpense(id);
+  }
 
-  return <aside className="profit-card profit-detail" aria-label="Detalle de ganancia">
-    <h2><span className="profit-icon"><FileText size={23} /></span>Detalle de ganancia</h2>
+  function removeExpense(id: string) { setDraft(current => ({ ...current, expenses: current.expenses.filter(e => e.id !== id) })); }
+
+  return <aside className="profit-card profit-detail profit-rise" style={{ animationDelay: '.21s' }} aria-label="Detalle de ganancia">
+    <h2><span className="profit-icon"><FileText size={17} /></span>Detalle de ganancia</h2>
     <div className="profit-detail-customer"><h3>{quote.folio} · {quote.customer.name}</h3><p>{vehicleLabel(quote)}</p></div>
     <p className="profit-private"><LockKeyhole size={17} /><span>Esta información es interna y no aparece en la cotización del cliente.</span></p>
     <form onSubmit={e => { e.preventDefault(); void save(); }}>
@@ -82,7 +87,7 @@ export function ProfitDetailPanel({ quote, record, onSaved, onClose, onDirty, on
           <tbody>{preview.totals.items.map(item => <InternalItemCostRow key={item.id} item={item} value={draft.costs[item.id]} onChange={value => setDraft(current => ({ ...current, costs: { ...current.costs, [item.id]: value } }))} />)}</tbody>
         </table></div>
         {preview.totals.items.length === 0 && <p className="profit-help">Esta cotización no incluye refacciones. Puedes registrar servicios externos en Otros costos.</p>}
-        <AdditionalExpensesSection expenses={draft.expenses} onChange={expenses => setDraft(current => ({ ...current, expenses }))} onRemove={id => record?.additionalExpenses.some(e => e.id === id) ? setDeleting(id) : removeExpense(id)} />
+        <AdditionalExpensesSection expenses={draft.expenses} onChange={expenses => setDraft(current => ({ ...current, expenses }))} onRemove={id => record?.additionalExpenses.some(e => e.id === id) ? void confirmRemoval(id) : removeExpense(id)} />
       </fieldset>
       <ProfitTotals totals={preview.totals} />
       <p className="profit-help">Importes antes de IVA.{preview.totals.status !== 'complete' ? ' La ganancia es provisional: faltan costos por capturar.' : ''}</p>
@@ -90,7 +95,6 @@ export function ProfitDetailPanel({ quote, record, onSaved, onClose, onDirty, on
       {preview.error && <p className="profit-error" role="alert">{preview.error}</p>}
       <div className="profit-detail-actions"><Button type="submit" variant="primary" className="profit-primary" disabled={saving || Boolean(preview.error)}>{saving ? 'Guardando…' : 'Guardar gastos'}</Button><Button type="button" className="profit-outline" disabled={saving} onClick={onClose}>Cerrar</Button></div>
     </form>
-    <ConfirmDialog isOpen={Boolean(deleting)} title="Eliminar gasto guardado" description="Se quitará este gasto del detalle. Guarda los cambios para confirmar la eliminación." confirmLabel="Eliminar gasto" tone="danger" onClose={() => setDeleting(undefined)} onConfirm={() => deleting && removeExpense(deleting)} />
   </aside>;
 }
 
@@ -99,7 +103,8 @@ function MoneyInput({ value, onChange, label }: { value: string; onChange: (valu
   let cents: number | null = null;
   let invalid = false;
   try { cents = parseCents(value); } catch { invalid = true; }
-  return <input aria-label={label} aria-invalid={invalid} inputMode="decimal" type="text" placeholder="$0.00" value={focused || invalid || cents === null ? value : formatCents(cents)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onChange={e => onChange(e.target.value)} />;
+  const display = focused || invalid || cents === null ? value : (cents / 100).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return <span className="profit-money"><span aria-hidden="true">$</span><input aria-label={label} aria-invalid={invalid} inputMode="decimal" type="text" placeholder="0.00" value={display} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onChange={e => onChange(e.target.value)} /></span>;
 }
 
 export function InternalItemCostRow({ item, value, onChange }: { item: QuoteProfit['items'][number]; value: string; onChange: (value: string) => void }) {
@@ -110,7 +115,7 @@ export function AdditionalExpensesSection({ expenses, onChange, onRemove }: { ex
   const update = (id: string, changes: Partial<ExpenseDraft>) => onChange(expenses.map(e => e.id === id ? { ...e, ...changes } : e));
   return <section className="profit-expenses"><h3>Otros costos</h3>
     {expenses.length > 0 && <div className="profit-expense-head"><span>Descripción</span><span>Importe</span></div>}
-    {expenses.map((expense, i) => <div className="profit-expense-row" key={expense.id}>
+    {expenses.map((expense, i) => <div className="profit-expense-row profit-row-in" key={expense.id}>
       <input aria-label={`Descripción del gasto ${i + 1}`} placeholder="Nombre del gasto" value={expense.description} onChange={e => update(expense.id, { description: e.target.value })} />
       <MoneyInput label={`Importe de ${expense.description || `gasto ${i + 1}`}`} value={expense.amount} onChange={amount => update(expense.id, { amount })} />
       <button type="button" aria-label={`Eliminar ${expense.description || `gasto ${i + 1}`}`} onClick={() => onRemove(expense.id)}><Trash2 size={17} /></button>
@@ -120,5 +125,11 @@ export function AdditionalExpensesSection({ expenses, onChange, onRemove }: { ex
 }
 
 export function ProfitTotals({ totals }: { totals: QuoteProfit }) {
-  return <dl className="profit-totals"><div><dt>Total vendido</dt><dd>{formatCents(totals.soldTotalCents)}</dd></div><div><dt>Total gastado</dt><dd>{formatCents(totals.spentTotalCents)}</dd></div><div className="profit-total-result"><dt>Ganancia obtenida</dt><dd className={profitColor(totals.profitCents)}>{formatCents(totals.profitCents)}</dd></div><div><dt>Margen</dt><dd className={profitColor(totals.profitCents)}>{totals.marginPercentage.toFixed(1)}%</dd></div></dl>;
+  const tone = totals.profitCents < 0 ? 'negative' : 'positive';
+  const margin = totals.marginPercentage.toFixed(1);
+  const fill = Math.min(100, Math.max(0, totals.marginPercentage));
+  return <dl className="profit-totals"><div><dt>Total vendido</dt><dd>{formatCents(totals.soldTotalCents)}</dd></div><div><dt>Total gastado</dt><dd>{formatCents(totals.spentTotalCents)}</dd></div>
+    <div className={`profit-total-result profit-tone-${tone}`}><dt>Ganancia obtenida</dt><dd className={profitColor(totals.profitCents)}>{formatCents(totals.profitCents)}</dd></div>
+    <div className="profit-margin"><dt>Margen</dt><dd className={profitColor(totals.profitCents)}>{margin}%</dd></div>
+    <div className="profit-bar" role="img" aria-label={`Margen de ganancia ${margin}%`}><span className={`profit-bar-fill profit-tone-${tone}`} style={{ width: `${fill}%` }} /></div></dl>;
 }

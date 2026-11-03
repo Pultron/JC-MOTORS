@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Loader2, Printer, Share2, X } from 'lucide-react';
 import { Button } from './Button';
-import { useToast } from './Toast';
+import { useToast } from './ui/Toast';
 import type { PublicQuotation } from '../models/quotation';
 import type { QuotationLogo } from '../utils/pdfQuotation';
+import { savePdfFile } from '../utils/savePdfFile';
 
 type PdfModule = typeof import('../utils/pdfQuotation');
 
@@ -18,7 +19,7 @@ interface Preview {
 }
 
 export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogProps) {
-  const showToast = useToast();
+  const toast = useToast();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [pdfModule, setPdfModule] = useState<PdfModule | null>(null);
   const [logo, setLogo] = useState<QuotationLogo | null | undefined>();
@@ -64,7 +65,7 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
     if (!preview) return;
     const printWindow = window.open(preview.url, '_blank');
     if (!printWindow) {
-      showToast({ type: 'error', title: 'No se pudo imprimir', message: 'El navegador bloqueó la ventana de impresión. Usa «Descargar PDF» y ábrelo con un lector.' });
+      toast.error({ title: 'No se pudo imprimir', description: 'El navegador bloqueó la ventana de impresión. Usa «Descargar PDF» y ábrelo con un lector.' });
       return;
     }
     printWindow.addEventListener('load', () => {
@@ -86,25 +87,10 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
     if (!file || isDownloading) return;
     setIsDownloading(true);
     try {
-      const tauriInvoke = window.__TAURI__?.core.invoke;
-      if (tauriInvoke) {
-        const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
-        const path = await tauriInvoke<string | null>('save_quotation_pdf', { folio: quotation?.folio ?? '', bytes });
-        if (path) showToast({ type: 'success', title: 'PDF guardado', message: `PDF guardado en ${path}` });
-      } else {
-        const objectUrl = URL.createObjectURL(file);
-        const anchor = document.createElement('a');
-        anchor.href = objectUrl;
-        anchor.download = file.name;
-        anchor.style.display = 'none';
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        // El navegador necesita tiempo para leer el blob después del clic.
-        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
-      }
+      const path = await savePdfFile(file, quotation?.folio ?? '');
+      if (path) toast.success({ title: 'PDF guardado', description: `PDF guardado en ${path}` });
     } catch (cause) {
-      showToast({ type: 'error', title: 'No se pudo guardar el PDF', message: `No se pudo guardar el PDF: ${String(cause)}` });
+      toast.error({ title: 'No se pudo guardar el PDF', description: `No se pudo guardar el PDF: ${String(cause)}` });
     } finally {
       setIsDownloading(false);
     }

@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
-import { FolderOpen, RotateCcw, Trash2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ClientVehicleSection, PublicNotesSection, QuoteItemsSection } from '../components/newQuote/QuoteFormSections';
-import { QuoteSummary } from '../components/newQuote/QuoteSummary';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/ui/Toast';
+import { useConfirm } from './useConfirm';
 import type { QuoteDraft, QuoteDraftItem, QuoteFormData } from '../models/quoteDraft';
 import type { CreateQuotationInput, Quotation } from '../models/quotation';
 import { frequentConcepts } from '../repositories/serviceFixtures';
@@ -13,6 +10,7 @@ import type { TemporaryQuoteDraft } from '../services/quoteDraftService';
 import { validateQuoteForm } from '../services/quoteValidation';
 import { useCustomers } from '../store/CustomerContext';
 import { useQuotations } from '../store/QuotationContext';
+import { parseDecimal } from '../utils/currency';
 import { calculateQuotationTotals, createId } from '../utils/quotation';
 
 function blankItem(description = ''): QuoteDraftItem {
@@ -27,12 +25,12 @@ function emptyForm(): QuoteFormData {
   return {
     customerId: '', customerName: '', phone: '', email: '', make: '', model: '', year: '', plates: '',
     items: [blankItem('')], laborAmount: '', laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true,
-    validityDays: '', publicNotes: '', customerNotes: '',
+    validityDays: '15', publicNotes: '', customerNotes: '',
   };
 }
 
 function normalize(value: string) {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('es-MX');
+  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLocaleLowerCase('es-MX');
 }
 
 function formFromQuotation(quotation: Quotation): QuoteFormData {
@@ -55,13 +53,15 @@ function formFromQuotation(quotation: Quotation): QuoteFormData {
   };
 }
 
-export function NewQuotationPage() {
+/** Estado, cálculos derivados y acciones de la pantalla "Nueva cotización". */
+export function useCotizacionForm() {
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('editar') ?? undefined;
   const navigate = useNavigate();
   const { customers, createCustomer } = useCustomers();
   const { quotations, isLoading, createQuotation, updateQuotation } = useQuotations();
-  const showToast = useToast();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [form, setForm] = useState<QuoteFormData>(emptyForm);
   const [editReady, setEditReady] = useState(!editId);
   const [drafts, setDrafts] = useState<QuoteDraft[]>(() => quoteDraftService.list());
@@ -92,10 +92,10 @@ export function NewQuotationPage() {
   }, [editId, isLoading, quotationToEdit, navigate]);
 
   const totals = useMemo(() => {
-    const labor = Math.max(0, Number(form.laborAmount) || 0);
+    const labor = parseDecimal(form.laborAmount);
     return calculateQuotationTotals(
       [
-        ...form.items.map((item) => ({ type: item.type, quantity: Math.max(0, Number(item.quantity) || 0), saleUnitPrice: Math.max(0, Number(item.unitPrice) || 0) })),
+        ...form.items.map((item) => ({ type: item.type, quantity: parseDecimal(item.quantity), saleUnitPrice: parseDecimal(item.unitPrice) })),
         ...(labor > 0 ? [{ type: 'labor' as const, quantity: 1, saleUnitPrice: labor }] : []),
       ],
       form.laborDiscountType, Number(form.laborDiscountValue) || 0, form.ivaEnabled,
@@ -116,11 +116,11 @@ export function NewQuotationPage() {
         setSaveState('saved');
       } catch {
         setSaveState('idle');
-        showToast({ type: 'error', title: 'Error al guardar', message: 'No se pudo guardar el borrador temporal. Revisa el espacio disponible.' });
+        toast.error({ title: 'Error al guardar', description: 'No se pudo guardar el borrador temporal. Revisa el espacio disponible.' });
       }
     }, 650);
     return () => { if (autosaveTimer.current !== null) window.clearTimeout(autosaveTimer.current); };
-  }, [form, dirty, recovery, activeDraft, editId, showToast]);
+  }, [form, dirty, recovery, activeDraft, editId, toast]);
 
   useEffect(() => {
     if (!form.laborDiscountValue.trim()) return;
@@ -179,16 +179,21 @@ export function NewQuotationPage() {
     updateField('items', items.length ? items : [blankItem('')]);
   }
 
+  function setLaborAmount(value: string) {
+    setForm((current) => ({ ...current, laborAmount: value, ...(parseDecimal(value) > 0 || current.laborDiscountType === 'percentage' ? {} : { laborDiscountValue: '0' }) }));
+    setErrors((current) => ({ ...current, laborAmount: '' }));
+    setDirty(true);
+  }
+
   function validate(): boolean {
     const next = validateQuoteForm(form, totals);
     setErrors(next);
     return Object.keys(next).length === 0;
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function submit() {
     if (!validate()) return;
-    const labor = Math.max(0, Number(form.laborAmount) || 0);
+    const labor = parseDecimal(form.laborAmount);
     const input: CreateQuotationInput = {
       ...(activeDraft ? { preferredFolio: activeDraft.folio } : {}),
       ...(form.customerId ? { customerId: form.customerId } : {}),
@@ -207,7 +212,7 @@ export function NewQuotationPage() {
         ? await updateQuotation(editId, input)
         : await createQuotation(input);
       if (!quote) {
-        showToast({ type: 'warning', title: 'Cotización no editable', message: 'Esta cotización ya no está pendiente y no se puede editar.' });
+        toast.warning({ title: 'Cotización no editable', description: 'Esta cotización ya no está pendiente y no se puede editar.' });
         return;
       }
       if (!form.customerId && !customers.some((customer) => normalize(customer.name) === normalize(form.customerName))) {
@@ -220,7 +225,7 @@ export function NewQuotationPage() {
       }
       navigate('/historial');
     } catch {
-      showToast({ type: 'error', title: 'Error al guardar', message: 'No se pudo guardar la cotización. Inténtalo de nuevo.' });
+      toast.error({ title: 'Error al guardar', description: 'No se pudo guardar la cotización. Inténtalo de nuevo.' });
     } finally {
       setBusy(false);
     }
@@ -236,54 +241,59 @@ export function NewQuotationPage() {
       quoteDraftService.deleteTemporary();
       setDirty(false);
       setSaveState('saved');
-      showToast({ type: 'success', title: 'Borrador guardado', message: `El borrador ${saved.folio} se guardó correctamente.` });
+      toast.success({ title: 'Borrador guardado', description: `El borrador ${saved.folio} se guardó correctamente.` });
     } catch {
-      showToast({ type: 'error', title: 'Error al guardar', message: 'No se pudo guardar el borrador.' });
+      toast.error({ title: 'Error al guardar', description: 'No se pudo guardar el borrador.' });
     } finally {
       setBusy(false);
     }
   }
 
-  function clearForm() {
-    if (!window.confirm('¿Limpiar todos los datos capturados?')) return;
+  async function clearForm() {
+    const accepted = await confirm({ title: '¿Limpiar el formulario?', description: 'Se borrarán todos los datos capturados en esta cotización.', confirmLabel: 'Limpiar formulario', tone: 'danger' });
+    if (!accepted) return;
     if (autosaveTimer.current !== null) window.clearTimeout(autosaveTimer.current);
     quoteDraftService.deleteTemporary();
     setForm(emptyForm()); setActiveDraft(null); setRecovery(null); setErrors({}); setDirty(false); setSaveState('idle');
-    showToast({ type: 'info', title: 'Formulario limpio.' });
+    toast.info({ title: 'Formulario limpio.' });
   }
 
-  function openDraft(draft: QuoteDraft) {
-    if (dirty && !window.confirm('¿Abrir este borrador y reemplazar el formulario actual?')) return;
+  async function openDraft(draft: QuoteDraft) {
+    if (dirty && !(await confirm({ title: '¿Abrir este borrador?', description: 'Se reemplazarán los datos del formulario actual.', confirmLabel: 'Abrir borrador' }))) return;
     quoteDraftService.deleteTemporary();
     setRecovery(null);
     setForm({ ...draft.data, laborAmount: displayLaborAmount(draft.data.laborAmount), customerNotes: draft.data.customerNotes ?? '' });
     setActiveDraft(draft); setErrors({}); setDirty(false); setSaveState('saved');
-    showToast({ type: 'info', title: 'Borrador abierto', message: `Borrador ${draft.folio} abierto.` });
+    toast.info({ title: 'Borrador abierto', description: `Borrador ${draft.folio} abierto.` });
   }
 
-  function deleteDraft(draft: QuoteDraft) {
-    if (!window.confirm(`¿Eliminar el borrador ${draft.folio}?`)) return;
+  async function deleteDraft(draft: QuoteDraft) {
+    const accepted = await confirm({ title: '¿Eliminar este borrador?', description: `El borrador ${draft.folio} se eliminará definitivamente.`, confirmLabel: 'Eliminar borrador', tone: 'danger' });
+    if (!accepted) return;
     quoteDraftService.delete(draft.id);
     setDrafts(quoteDraftService.list());
     if (activeDraft?.id === draft.id) setActiveDraft(null);
-    showToast({ type: 'warning', title: 'Borrador eliminado', message: `Borrador ${draft.folio} eliminado.` });
+    toast.warning({ title: 'Borrador eliminado', description: `Borrador ${draft.folio} eliminado.` });
   }
 
-  if (editId && (!editReady || loadedEditId.current !== editId || isLoading)) return <p className="py-16 text-center text-sm text-slate-500">Cargando cotización…</p>;
+  function recoverTemporary() {
+    if (!recovery) return;
+    setForm({ ...recovery.data, laborAmount: displayLaborAmount(recovery.data.laborAmount), customerNotes: recovery.data.customerNotes ?? '' });
+    setActiveDraft(drafts.find((draft) => draft.id === recovery.draftId) ?? null);
+    setRecovery(null); setDirty(false); setSaveState('saved');
+  }
 
-  return <div className="new-quotation-page">
-    {!editId && <span role="status" className="sr-only">{saveState === 'saving' ? 'Guardando…' : saveState === 'saved' ? 'Guardado automáticamente' : 'Guardado automático'}</span>}
-    {!editId && recovery && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900"><span>Hay un formulario guardado automáticamente. ¿Deseas recuperarlo?</span><div className="flex gap-2"><button type="button" className="rounded-lg bg-blue-700 px-3 py-2 font-semibold text-white hover:bg-blue-800" onClick={() => { setForm({ ...recovery.data, laborAmount: displayLaborAmount(recovery.data.laborAmount), customerNotes: recovery.data.customerNotes ?? '' }); setActiveDraft(drafts.find((draft) => draft.id === recovery.draftId) ?? null); setRecovery(null); setDirty(false); setSaveState('saved'); }}>Recuperar</button><button type="button" className="rounded-lg border border-blue-200 px-3 py-2 font-semibold hover:bg-white" onClick={() => { quoteDraftService.deleteTemporary(); setRecovery(null); }}>Descartar</button></div></div>}
-    {!editId && drafts.length > 0 && <section className="mb-5 rounded-xl border border-slate-200 bg-white px-4 py-3"><h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-navy-950"><FolderOpen size={17} />Borradores guardados</h2><div className="flex flex-wrap gap-2">{drafts.map((draft) => <div key={draft.id} className="flex items-center gap-1 rounded-lg border border-slate-200 pl-3 text-xs"><button type="button" className="py-2 font-semibold text-blue-700 hover:underline" onClick={() => openDraft(draft)}>{draft.folio} · {draft.data.customerName || 'Sin cliente'}</button><button type="button" className="rounded-lg p-2 text-slate-400 hover:text-rose-600" aria-label={`Eliminar borrador ${draft.folio}`} onClick={() => deleteDraft(draft)}><Trash2 size={14} /></button></div>)}</div></section>}
-    <form onSubmit={handleSubmit} noValidate className="quote-form-grid">
-      <div className="quote-form-sections">
-        {editId && quotationToEdit && <p className="flex items-center gap-2 text-xs font-medium text-blue-700"><RotateCcw size={14} />Editando cotización {quotationToEdit.folio}</p>}
-        {!editId && activeDraft && <p className="flex items-center gap-2 text-xs font-medium text-blue-700"><RotateCcw size={14} />Editando borrador {activeDraft.folio}</p>}
-        <ClientVehicleSection form={form} errors={errors} customers={customers} onChange={updateField} onCustomerChange={updateCustomer} onSelectCustomer={selectCustomer} />
-        <QuoteItemsSection form={form} errors={errors} suggestions={suggestions} onAdd={addItem} onUpdate={updateItem} onDelete={deleteItem} />
-        <PublicNotesSection form={form} errors={errors} onChange={updateField} />
-      </div>
-      <QuoteSummary form={form} totals={totals} errors={errors} busy={busy} onChange={updateField} onSaveDraft={editId ? undefined : saveDraft} onClear={editId ? undefined : clearForm} submitLabel={editId ? 'Guardar cambios' : 'Guardar cotización'} />
-    </form>
-  </div>;
+  function discardTemporary() {
+    quoteDraftService.deleteTemporary();
+    setRecovery(null);
+  }
+
+  return {
+    form, errors, totals, suggestions, customers, busy, saveState,
+    editId, quotationToEdit, drafts, activeDraft, recovery,
+    isLoadingEdit: Boolean(editId) && (!editReady || loadedEditId.current !== editId || isLoading),
+    isSaved: !dirty && (Boolean(activeDraft) || Boolean(editId)),
+    updateField, updateCustomer, selectCustomer, addItem, updateItem, deleteItem, setLaborAmount,
+    submit, saveDraft, clearForm, openDraft, deleteDraft, recoverTemporary, discardTemporary,
+  };
 }

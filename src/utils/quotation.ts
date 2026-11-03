@@ -55,7 +55,7 @@ export function validateDiscount(
   value: number,
 ): string | undefined {
   if (!Number.isFinite(value) || value < 0) return 'El descuento debe ser cero o mayor.';
-  if (subtotal <= 0 && value > 0) return 'No hay mano de obra a la que aplicar el descuento.';
+  if (type === 'fixed' && subtotal <= 0 && value > 0) return 'No hay mano de obra a la que aplicar el descuento.';
   if (type === 'percentage' && value > 100) return 'El porcentaje debe estar entre 0 y 100.';
   if (type === 'fixed' && value > subtotal) return 'El descuento no puede superar el subtotal de mano de obra.';
   return undefined;

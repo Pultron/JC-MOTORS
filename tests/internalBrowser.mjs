@@ -20,10 +20,10 @@ try {
   await c.fill('.profit-search input', 'ABC-2');
   await c.waitFor('document.querySelector(".profit-table tbody").innerText.includes("Luis")');
   await c.fill('.profit-search input', '');
-  await c.fill('.profit-status-filter select', 'pending');
+  await c.pick('.profit-status-filter [role=combobox]', 'pending');
   await c.waitFor('document.querySelectorAll(".profit-table tbody tr").length === 1');
   assert.match(await c.evaluate('document.querySelector(".profit-table tbody").innerText'), /Ana/);
-  await c.fill('.profit-status-filter select', 'all');
+  await c.pick('.profit-status-filter [role=combobox]', 'all');
   await c.click('.profit-segments button:first-child');
   await c.waitFor('document.querySelectorAll(".profit-table tbody tr").length === 1');
   await c.click('.profit-segments button:nth-child(2)');
@@ -31,8 +31,11 @@ try {
   await c.click('.profit-segments button:nth-child(3)');
   await c.waitFor('document.querySelectorAll(".profit-table tbody tr").length === 4');
   await c.click('.profit-range-button');
-  await c.fill('.profit-range-popover label:first-child input', '2020-01-01');
-  await c.fill('.profit-range-popover label:nth-child(2) input', '2020-01-31');
+  // Un año atrás no hay cotizaciones aprobadas.
+  await c.evaluate('for (let i = 0; i < 12; i++) document.querySelector(".profit-cal-prev").click()');
+  await c.waitFor('Boolean(document.querySelector(".profit-cal-day:not(.is-outside)"))');
+  await c.click('.profit-cal-day:not(.is-outside)');
+  await c.evaluate('[...document.querySelectorAll(".profit-cal-day:not(.is-outside)")].pop().click()');
   await c.click('.profit-range-popover .profit-primary');
   await c.waitFor('document.body.innerText.includes("No hay cotizaciones aprobadas en este periodo")');
   assert.match(await c.evaluate('document.querySelector(".profit-metric-value").innerText'), /0\.00/);
@@ -43,9 +46,9 @@ try {
   await c.fill('.profit-items input', '9000.50');
   await c.waitFor('Boolean(document.querySelector(".profit-total-result .profit-negative"))');
   await c.click('.profit-detail-actions button:nth-child(2)');
-  await c.waitFor('Boolean(document.querySelector("dialog[open]"))');
-  await c.click('dialog[open] button:first-child');
-  await c.waitFor('!document.querySelector("dialog[open]")');
+  await c.waitFor('Boolean(document.querySelector("[data-testid=confirm-dialog]"))');
+  await c.click('[data-testid="confirm-cancel"]');
+  await c.waitFor('!document.querySelector("[data-testid=confirm-dialog]")');
   await c.click('.profit-detail-actions button[type=submit]');
   await c.waitFor('document.body.innerText.includes("Gastos guardados correctamente")');
   assert.equal(await c.evaluate('localStorage.getItem("jc-motors:quotations:v1")'), quoteBefore);
@@ -59,8 +62,9 @@ try {
   await c.click('.profit-detail-actions button[type=submit]');
   await c.waitFor('JSON.parse(localStorage.getItem("jc-motors-internal-costs-v1")).find(r => r.quoteId === "demo-0").additionalExpenses.length === 2');
   await c.click('.profit-expense-row:last-of-type button');
-  await c.waitFor('Boolean(document.querySelector("dialog[open]"))');
-  await c.click('dialog[open] button:last-child');
+  await c.waitFor('Boolean(document.querySelector("[data-testid=confirm-dialog]"))');
+  await c.click('[data-testid="confirm-accept"]');
+  await c.waitFor('!document.querySelector("[data-testid=confirm-dialog]")');
   await c.click('.profit-detail-actions button[type=submit]');
   await c.waitFor('JSON.parse(localStorage.getItem("jc-motors-internal-costs-v1")).find(r => r.quoteId === "demo-0").additionalExpenses.length === 1');
   await c.fill('.profit-items input', '-20');
@@ -68,8 +72,8 @@ try {
   assert.equal(await c.evaluate('document.querySelector(".profit-detail-actions button[type=submit]").disabled'), true);
   await c.fill('.profit-items input', '780');
   await c.click('.profit-detail-actions button:nth-child(2)');
-  await c.waitFor('Boolean(document.querySelector("dialog[open]"))');
-  await c.click('dialog[open] button:last-child');
+  await c.waitFor('Boolean(document.querySelector("[data-testid=confirm-dialog]"))');
+  await c.click('[data-testid="confirm-accept"]');
   await c.waitFor('Boolean(document.querySelector(".profit-detail-empty"))');
   await c.click('.profit-table tbody tr:first-child button');
   await c.waitFor('Boolean(document.querySelector(".profit-items input"))');

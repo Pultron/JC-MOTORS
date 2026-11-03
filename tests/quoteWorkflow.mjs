@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { calculateQuotationTotals } from '../src/utils/quotation.ts';
+import { calculateQuotationTotals, validateDiscount } from '../src/utils/quotation.ts';
 import { quoteDraftService } from '../src/services/quoteDraftService.ts';
 import { quotationService } from '../src/services/quotationService.ts';
 import { getVehicleModels, vehicleBrands } from '../src/services/vehicleCatalog.ts';
@@ -36,6 +36,22 @@ test('calcula descuento solamente sobre mano de obra, IVA y total con decimales'
   });
   assert.equal(calculateQuotationTotals(items, 'fixed', 100, false).total, 730);
   assert.equal(calculateQuotationTotals([{ type: 'part', quantity: 3, saleUnitPrice: 0.1 }], 'fixed', 0, false).total, 0.3);
+});
+
+test('promociones de 5, 10 y 15% se aplican solo sobre la mano de obra', () => {
+  const items = [
+    { type: 'labor', quantity: 1, saleUnitPrice: 1000 },
+    { type: 'part', quantity: 1, saleUnitPrice: 500 },
+  ];
+  for (const [percent, discount, subtotal, iva, total] of [[5, 50, 1450, 232, 1682], [10, 100, 1400, 224, 1624], [15, 150, 1350, 216, 1566]]) {
+    assert.deepEqual(calculateQuotationTotals(items, 'percentage', percent, true), {
+      subtotalRefacciones: 500, subtotalManoObra: 1000, laborDiscount: discount,
+      subtotalNeto: subtotal, ivaAmount: iva, total,
+    });
+  }
+  assert.equal(calculateQuotationTotals(items, 'percentage', 10, false).total, 1400);
+  assert.equal(calculateQuotationTotals([{ type: 'part', quantity: 1, saleUnitPrice: 500 }], 'percentage', 15, false).laborDiscount, 0);
+  assert.equal(validateDiscount(0, 'percentage', 10), undefined);
 });
 
 test('valida los campos obligatorios y formatos sin exigir correo opcional', () => {

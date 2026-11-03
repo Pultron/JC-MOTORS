@@ -23,7 +23,14 @@ export async function connect(port = 9223) {
   const waitFor = async expression => { for (let i = 0; i < 100; i++) { if (await evaluate(expression)) return; await new Promise(r => setTimeout(r, 100)); } throw new Error(`Timed out: ${expression}`); };
   const click = selector => evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
   const fill = (selector, value) => evaluate(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); e.focus(); Object.getOwnPropertyDescriptor(e.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype, 'value').set.call(e, ${JSON.stringify(value)}); e.dispatchEvent(new Event(e.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); })()`);
+  /** Elige una opción de un Select personalizado: abre el combobox y hace clic en la opción por su valor. */
+  const pick = async (selector, value) => {
+    await click(selector);
+    await waitFor(`Boolean(document.querySelector('.mac-listbox [role="option"][data-value=${JSON.stringify(String(value))}]'))`);
+    await evaluate(`document.querySelector('.mac-listbox [role="option"][data-value=${JSON.stringify(String(value))}]').click()`);
+    await waitFor(`!document.querySelector('.mac-listbox')`);
+  };
   const screenshot = async path => { const { data } = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true }); await writeFile(path, Buffer.from(data, 'base64')); };
   await send('Runtime.enable');
-  return { send, evaluate, waitFor, click, fill, screenshot, errors, close: () => socket.close() };
+  return { send, evaluate, waitFor, click, fill, pick, screenshot, errors, close: () => socket.close() };
 }

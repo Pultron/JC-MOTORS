@@ -4,6 +4,9 @@ import type { InternalCaptureStatus } from '../../models/internalCosts';
 import type { Quotation } from '../../models/quotation';
 import type { QuoteProfit } from '../../services/profitCalculationService';
 import { formatCents } from '../../utils/currencyUtils';
+import { useCountUp } from '../../hooks/useCountUp';
+import { Select } from '../ui/Select';
+import { RangeCalendar } from './RangeCalendar';
 import { rangeLabel } from '../../utils/dateRangeUtils';
 import type { DateRange, Period } from '../../utils/dateRangeUtils';
 
@@ -12,19 +15,13 @@ export interface ProfitRow { quote: Quotation; totals: QuoteProfit }
 
 export function PeriodFilter({ period, range, onChange }: { period: Period; range: DateRange; onChange: (period: Period, range?: DateRange) => void }) {
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(range);
   return <div className="profit-period">
     <div className="profit-segments" role="group" aria-label="Periodo">
       {(['today', 'week', 'month'] as const).map((key, i) => <button key={key} type="button" aria-pressed={period === key} onClick={() => { onChange(key); setOpen(false); }}>{['Hoy', 'Semana', 'Mes'][i]}</button>)}
     </div>
     <div className="profit-range-wrap">
-      <button className="profit-range-button" type="button" aria-expanded={open} onClick={() => { setDraft(range); setOpen(!open); }}><CalendarDays size={18} />{rangeLabel(range)}</button>
-      {open && <div className="profit-range-popover">
-        <label>Desde<input type="date" value={draft.start} max={draft.end || undefined} onChange={e => setDraft({ ...draft, start: e.target.value })} /></label>
-        <label>Hasta<input type="date" value={draft.end} min={draft.start || undefined} onChange={e => setDraft({ ...draft, end: e.target.value })} /></label>
-        <button className="profit-primary" disabled={!draft.start || !draft.end || draft.start > draft.end} onClick={() => { onChange('custom', draft); setOpen(false); }}>Aplicar rango</button>
-        <button className="profit-outline" onClick={() => setOpen(false)}>Cancelar</button>
-      </div>}
+      <button className="profit-range-button" type="button" aria-expanded={open} onClick={() => setOpen(!open)}><CalendarDays size={18} />{rangeLabel(range)}</button>
+      {open && <RangeCalendar value={range} onCancel={() => setOpen(false)} onApply={next => { onChange('custom', next); setOpen(false); }} />}
     </div>
   </div>;
 }
@@ -37,11 +34,16 @@ export function ProfitSummaryCards({ rows }: { rows: ProfitRow[] }) {
       { title: 'Total vendido', amount: sold, subtitle: `Suma de ${rows.length} cotizaciones aprobadas`, Icon: ShoppingCart },
       { title: 'Total gastado', amount: spent, subtitle: 'Refacciones, envíos y otros gastos', Icon: Coins },
       { title: 'Ganancia obtenida', amount: sold - spent, subtitle: 'Dinero restante después de gastos', Icon: ChartNoAxesColumnIncreasing },
-    ].map(({ title, amount, subtitle, Icon }, i) => <section className="profit-card profit-metric" key={title}>
-      <span className={`profit-icon ${i === 2 ? 'profit-icon-green' : ''}`}><Icon size={26} /></span>
-      <div><h2>{title}</h2><p className={`profit-metric-value ${i === 2 ? profitColor(amount) : ''}`}>{formatCents(amount, true)}</p><p className="profit-muted">{subtitle}</p></div>
+    ].map(({ title, amount, subtitle, Icon }, i) => <section className="profit-card profit-metric profit-rise" style={{ animationDelay: `${0.07 * (i + 1)}s` }} key={title}>
+      <span className={`profit-icon ${i === 2 ? 'profit-icon-green' : ''}`}><Icon size={22} /></span>
+      <div><h2>{title}</h2><AnimatedAmount amount={amount} className={`profit-metric-value ${i === 2 ? profitColor(amount) : ''}`} /><p className="profit-muted">{subtitle}</p></div>
     </section>)}
   </div>;
+}
+
+function AnimatedAmount({ amount, className }: { amount: number; className: string }) {
+  const shown = useCountUp(amount);
+  return <p className={className} aria-label={formatCents(amount, true)}><span aria-hidden="true">{formatCents(shown, true)}</span></p>;
 }
 
 export function InternalCaptureStatusBadge({ status }: { status: InternalCaptureStatus }) {
@@ -52,10 +54,10 @@ export function QuoteProfitabilityTable({ rows, selectedId, search, status, onSe
   rows: ProfitRow[]; selectedId?: string; search: string; status: string; hasQuotes: boolean;
   onSearch: (value: string) => void; onStatus: (value: string) => void; onSelect: (quote: Quotation) => void;
 }) {
-  return <section className="profit-card profit-table-card">
+  return <section className="profit-card profit-table-card profit-rise" style={{ animationDelay: '.14s' }}>
     <div className="profit-table-toolbar"><h2><span className="profit-icon"><List size={22} /></span>Rentabilidad por cotización</h2>
       <div className="profit-table-filters"><label className="profit-search"><span>Buscar cotización</span><div><Search size={17} /><input placeholder="Buscar folio, cliente o vehículo" value={search} onChange={e => onSearch(e.target.value)} /></div></label>
-        <label className="profit-status-filter"><span>Estado de captura</span><select value={status} onChange={e => onStatus(e.target.value)}><option value="all">Todas</option>{Object.entries(captureLabels).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label>
+        <div className="profit-status-filter"><label htmlFor="profit-status-select"><span>Estado de captura</span></label><Select id="profit-status-select" className="profit-select" value={status} onChange={onStatus} options={[{ value: 'all', label: 'Todas' }, ...Object.entries(captureLabels).map(([key, label]) => ({ value: key, label }))]} /></div>
       </div>
     </div>
     <div className="profit-table-scroll"><table className="profit-table"><thead><tr>{['Folio', 'Cliente / vehículo', 'Vendido', 'Gastado', 'Ganancia', 'Margen', 'Estado', 'Acción'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>

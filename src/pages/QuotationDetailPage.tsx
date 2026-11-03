@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Ban, CarFront, Check, Copy, FileText, Pencil, Printer, ReceiptText, UserRound } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
 import { Button } from '../components/Button';
-import { PageHeader } from '../components/PageHeader';
 import { QuotationPdfDialog } from '../components/QuotationPdfDialog';
 import { SectionCard } from '../components/SectionCard';
 import { StatusBadge } from '../components/StatusBadge';
@@ -18,7 +17,7 @@ export function QuotationDetailPage() {
   const [quotation, setQuotation] = useState<Quotation | undefined>();
   const [isLoading, setIsLoading] = useState(true);
   const [isPdfOpen, setIsPdfOpen] = useState(false);
-  const { requestApprove, requestCancel, confirmDialog } = useQuotationActions(setQuotation);
+  const { requestApprove, requestCancel } = useQuotationActions(setQuotation);
   const publicQuotation = useMemo(() => quotation ? toPublicQuotation(quotation) : undefined, [quotation]);
 
   useEffect(() => {
@@ -43,7 +42,11 @@ export function QuotationDetailPage() {
 
   return (
     <div className="print-area">
-      <PageHeader eyebrow="Detalle de cotización" title={publicQuotation.folio} description={`Creada el ${formatDate(publicQuotation.createdAt)}`} actions={<div className="flex flex-wrap gap-2 print:hidden"><Button icon={<ArrowLeft size={16} />} onClick={() => navigate(-1)}>Regresar</Button>{quotation.status === 'Pendiente' && <><Button icon={<Pencil size={16} />} onClick={() => navigate(`/nueva-cotizacion?editar=${quotation.id}`)}>Editar</Button><Button variant="secondary" icon={<Check size={16} />} onClick={() => requestApprove(quotation)}>Aprobar cotización</Button><Button variant="danger" icon={<Ban size={16} />} onClick={() => requestCancel(quotation)}>Cancelar</Button></>}<Button icon={<Copy size={16} />} onClick={() => void handleDuplicate()}>Duplicar</Button><Button icon={<FileText size={16} />} onClick={() => setIsPdfOpen(true)}>Ver PDF</Button><Button variant="primary" icon={<Printer size={16} />} onClick={() => window.print()}>Imprimir</Button></div>} />
+      <h1 className="sr-only">Cotización {publicQuotation.folio}</h1>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <p className="text-[13px] text-slate-500">{publicQuotation.folio} · Creada el {formatDate(publicQuotation.createdAt)}</p>
+        <div className="flex flex-wrap gap-2"><Button icon={<ArrowLeft size={16} />} onClick={() => navigate(-1)}>Regresar</Button>{quotation.status === 'Pendiente' && <><Button icon={<Pencil size={16} />} onClick={() => navigate(`/nueva-cotizacion?editar=${quotation.id}`)}>Editar</Button><Button variant="secondary" icon={<Check size={16} />} onClick={() => requestApprove(quotation)}>Aprobar cotización</Button><Button variant="danger" icon={<Ban size={16} />} onClick={() => requestCancel(quotation)}>Cancelar</Button></>}<Button icon={<Copy size={16} />} onClick={() => void handleDuplicate()}>Duplicar</Button><Button icon={<FileText size={16} />} onClick={() => setIsPdfOpen(true)}>Ver PDF</Button><Button variant="primary" icon={<Printer size={16} />} onClick={() => window.print()}>Imprimir</Button></div>
+      </div>
       <div className="mb-5 hidden items-center gap-4 border-b-2 border-orange-500 pb-4 print:flex">
         <img src="/jc-motors-logo.png" alt="" className="size-16 object-contain" />
         <div><p className="text-xl font-bold text-navy-950">{publicQuotation.businessName}</p>
@@ -83,7 +86,6 @@ export function QuotationDetailPage() {
 
       {isPdfOpen && <QuotationPdfDialog quotation={publicQuotation} onClose={() => setIsPdfOpen(false)} />}
 
-      {confirmDialog}
     </div>
   );
 }

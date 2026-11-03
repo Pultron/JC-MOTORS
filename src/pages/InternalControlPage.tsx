@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FileText, LoaderCircle } from 'lucide-react';
 import { useParams } from 'react-router';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/ui/Toast';
+import { useConfirm } from '../hooks/useConfirm';
 import { PeriodFilter, ProfitSummaryCards, QuoteProfitabilityTable } from '../components/internalControl/ProfitOverview';
 import { ProfitDetailPanel } from '../components/internalControl/ProfitDetailPanel';
 import type { InternalCostRecord } from '../models/internalCosts';
@@ -14,7 +14,8 @@ import type { DateRange, Period } from '../utils/dateRangeUtils';
 import './internalControl.css';
 
 export function InternalControlPage() {
-  const showToast = useToast();
+  const toast = useToast();
+  const confirm = useConfirm();
   const { quotations, isLoading } = useQuotations();
   const { quotationId } = useParams();
   const [records, setRecords] = useState<InternalCostRecord[]>([]);
@@ -28,14 +29,13 @@ export function InternalControlPage() {
   const [selectedId, setSelectedId] = useState<string | undefined>(quotationId);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const pendingAction = useRef<(() => void)>();
 
   const guard = useCallback((action: () => void) => {
     if (busy) return;
-    if (dirty) { pendingAction.current = action; setConfirming(true); }
-    else action();
-  }, [dirty, busy]);
+    if (!dirty) { action(); return; }
+    void confirm({ title: 'Cambios sin guardar', description: 'Hay gastos que todavía no has guardado. ¿Quieres descartarlos y continuar?', confirmLabel: 'Descartar cambios', tone: 'danger' })
+      .then(accepted => { if (!accepted) return; setDirty(false); action(); });
+  }, [dirty, busy, confirm]);
 
   useEffect(() => {
     let active = true;
@@ -83,16 +83,15 @@ export function InternalControlPage() {
 
   const clearSelection = () => { setSelectedId(undefined); setDirty(false); };
   return <div className="profit-page">
-    <div className="profit-heading"><div><p className="profit-eyebrow">RENTABILIDAD</p><h1>Control de ganancias</h1><p className="profit-description">Registra los costos reales y conoce la utilidad de cada cotización.</p></div>
+    <div className="profit-heading"><div className="profit-title"><p className="profit-eyebrow">Rentabilidad</p><h1>Control de ganancias</h1><p className="profit-subtitle">Registra los costos reales y conoce la utilidad de cada cotización.</p></div>
       <PeriodFilter period={period} range={range} onChange={(next, custom) => guard(() => { setPeriod(next); setRange(next === 'custom' ? custom! : periodRange(next)); clearSelection(); })} />
     </div>
     {loading || isLoading ? <div className="profit-card profit-loading" role="status"><LoaderCircle size={23} className="animate-spin" />Cargando cotizaciones y gastos…</div>
       : error ? <div className="profit-card profit-empty" role="alert"><h2>No se pudo cargar el control interno</h2><p>{error}</p><button className="profit-outline" onClick={() => setRetry(r => r + 1)}>Reintentar</button></div>
       : <><ProfitSummaryCards rows={periodRows} /><div className="profit-workspace">
         <QuoteProfitabilityTable rows={rows} selectedId={selectedId} search={search} status={status} hasQuotes={periodRows.length > 0} onSearch={setSearch} onStatus={setStatus} onSelect={quote => { if (quote.id !== selectedId) guard(() => { setSelectedId(quote.id); setDirty(false); }); }} />
-        {selected ? <ProfitDetailPanel key={selected.id} quote={selected} record={recordMap.get(selected.id)} onDirty={setDirty} onBusy={setBusy} onClose={() => guard(clearSelection)} onSaved={saved => { setRecords(current => [...current.filter(r => r.quoteId !== saved.quoteId), saved]); showToast({ type: 'success', title: 'Gastos guardados', message: 'Gastos guardados correctamente' }); }} />
+        {selected ? <ProfitDetailPanel key={selected.id} quote={selected} record={recordMap.get(selected.id)} onDirty={setDirty} onBusy={setBusy} onClose={() => guard(clearSelection)} onSaved={saved => { setRecords(current => [...current.filter(r => r.quoteId !== saved.quoteId), saved]); toast.success({ title: 'Gastos guardados', description: 'Gastos guardados correctamente' }); }} />
           : <aside className="profit-card profit-detail profit-detail-empty"><span className="profit-icon"><FileText size={25} /></span><h2>Detalle de ganancia</h2><p>Selecciona una cotización para consultar su ganancia y registrar los costos reales.</p><p className="profit-help">La información se guarda únicamente en el control interno.</p></aside>}
       </div></>}
-    <ConfirmDialog isOpen={confirming} title="Cambios sin guardar" description="Hay gastos que todavía no has guardado. ¿Quieres descartarlos y continuar?" confirmLabel="Descartar cambios" tone="danger" onClose={() => { setConfirming(false); pendingAction.current = undefined; }} onConfirm={() => { const action = pendingAction.current; pendingAction.current = undefined; setConfirming(false); setDirty(false); action?.(); }} />
   </div>;
 }
