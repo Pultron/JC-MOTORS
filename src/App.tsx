@@ -8,6 +8,7 @@ import { CustomersPage } from './pages/CustomersPage';
 import { FacturasPage } from './pages/FacturasPage';
 import { InternalControlPage } from './pages/InternalControlPage';
 import { InternalControlDetailPage } from './pages/InternalControlDetailPage';
+import { BackupPage } from './pages/BackupPage';
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="facturas" element={<FacturasPage />} />
         <Route path="control-interno"element={<InternalControlPage />} />
         <Route path="control-interno/:quotationId" element={<InternalControlDetailPage />} />
+        <Route path="respaldo" element={<BackupPage />} />
         <Route path="cotizaciones/:id" element={<QuotationDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

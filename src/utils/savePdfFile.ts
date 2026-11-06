@@ -5,7 +5,7 @@
 export async function savePdfFile(
   file: File,
   folio: string,
-  command: 'save_quotation_pdf' | 'save_invoice_pdf' | 'save_invoice_xml' ='save_quotation_pdf',
+  command: 'save_quotation_pdf' | 'save_invoice_pdf' | 'save_invoice_xml' | 'save_backup_json' ='save_quotation_pdf',
 ): Promise<string | null | undefined> {
   const tauriInvoke = window.__TAURI__?.core.invoke;
   if (tauriInvoke) {

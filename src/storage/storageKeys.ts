@@ -15,7 +15,20 @@ export const STORAGE_KEYS = {
   migration: 'jc-motors:meta:migration:v1',
   /** Versión de esquema por dominio: {"quotations": 1}. Solo se normaliza y reescribe cuando es menor a la actual. */
   schema: 'jc-motors:meta:schema:v1',
+  lastBackup: 'jc-motors:meta:last-backup:v1',
 } as const;
+
+/** Claves que viajan en un archivo de respaldo. Borradores, autoguardado, copias de seguridad y metadatos no. */
+export const BACKUP_EXPORT_KEYS: readonly string[] = [
+  STORAGE_KEYS.quotations,
+  STORAGE_KEYS.customers,
+  STORAGE_KEYS.internalControls,
+  STORAGE_KEYS.internalCosts,
+  STORAGE_KEYS.invoices,
+  STORAGE_KEYS.invoiceFolio,
+  STORAGE_KEYS.quotationFolio,
+  STORAGE_KEYS.sidebarTheme,
+];
 
 export const BACKUP_PREFIX = 'jc-motors:backup:';
 

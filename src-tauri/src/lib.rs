@@ -85,11 +85,23 @@ fn save_invoice_xml(
     save_file(&app, "Guardar factura como XML", &folio, &bytes, "xml", "Documento XML")
 }
 
+#[tauri::command]
+fn save_backup_json(
+    app: tauri::AppHandle,
+    folio: String,
+    bytes: Vec<u8>,
+) -> Result<Option<String>, String> {
+    if !bytes.starts_with(b"{") {
+        return Err("El respaldo generado no es válido".into());
+    }
+    save_file(&app, "Guardar respaldo de JC Motors", &folio, &bytes, "json", "Respaldo JC Motors")
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![save_quotation_pdf, save_invoice_pdf, save_invoice_xml])
+        .invoke_handler(tauri::generate_handler![save_quotation_pdf, save_invoice_pdf, save_invoice_xml, save_backup_json])
         .run(tauri::generate_context!())
         .expect("error while running JC Motors Cotizador");
 }
