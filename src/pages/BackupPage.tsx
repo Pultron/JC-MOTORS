@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { Download, Upload } from 'lucide-react';
+import { Download, HardDrive, Upload } from 'lucide-react';
+import { StorageUsageBar } from '../components/StorageUsageBar';
 import { Segmented } from '../components/newQuote/primitives/Segmented';
 import { Card } from '../components/newQuote/primitives/Card';
 import { CardHeader } from '../components/newQuote/primitives/CardHeader';
@@ -34,6 +35,7 @@ export function BackupPage() {
   const [pending, setPending] = useState<PendingImport | null>(null);
   const [mode, setMode] = useState<ImportMode>('merge');
   const [busy, setBusy] = useState(false);
+  const [usageKey, setUsageKey] = useState(0);
 
   async function saveFile(backup: BackupFile, folio: string): Promise<string | null | undefined> {
     const file = new File([serializeBackup(backup)], `${folio}.json`, { type: 'application/json' });
@@ -95,7 +97,9 @@ export function BackupPage() {
 
     setBusy(true);
     try {
-      if (!saveSafetySnapshot()) {
+      const snapshotSaved = saveSafetySnapshot();
+      setUsageKey((key) => key + 1);
+      if (!snapshotSaved) {
         // Sin espacio para la copia en la app: se exige guardarla como archivo antes de tocar nada.
         const saved = await saveFile(buildBackup(), `${backupFileName()} (antes de importar)`);
         if (saved === null) {
@@ -111,6 +115,7 @@ export function BackupPage() {
       window.setTimeout(() => window.location.reload(), 2200);
     } catch {
       setCurrent(summarizeCurrent());
+      setUsageKey((key) => key + 1);
       toast.error({ title: 'No se pudo importar', description: 'Se restauraron tus datos tal como estaban.' });
     } finally {
       setBusy(false);
@@ -129,6 +134,11 @@ export function BackupPage() {
             <Download size={16} aria-hidden="true" />Exportar respaldo
           </button>
         </div>
+      </Card>
+
+      <Card as="section">
+        <CardHeader icon={<HardDrive size={18} />} title="Almacenamiento" subtitle="Espacio que ocupan tus datos en esta computadora." />
+        <StorageUsageBar refreshKey={usageKey} />
       </Card>
 
       <Card as="section">

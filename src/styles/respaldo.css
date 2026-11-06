@@ -1,3 +1,10 @@
+.respaldo-page { --respaldo-warning: #b25000; }
+.storage-bar { height: 8px; margin-top: 8px; overflow: hidden; border-radius: 999px; background: var(--color-mac-fill); }
+.storage-bar-fill { height: 100%; border-radius: 999px; transition: width 300ms ease; }
+.storage-bar-fill[data-level="ok"] { background: var(--color-mac-success); }
+.storage-bar-fill[data-level="warning"] { background: var(--respaldo-warning); }
+.storage-bar-fill[data-level="danger"] { background: var(--color-mac-danger); }
+@media (prefers-reduced-motion: reduce) { .storage-bar-fill { transition: none; } }
 .respaldo-label { width: 120px; flex: none; font-size: 14px; color: var(--color-mac-ink); }
 .respaldo-value { min-width: 0; flex: 1; overflow-wrap: anywhere; font-size: 14px; color: var(--color-mac-ink-2); }
 .respaldo-hint { border-top: 1px solid var(--color-mac-separator); padding: 10px 16px 0; font-size: 13px; color: var(--color-mac-ink-2); }
