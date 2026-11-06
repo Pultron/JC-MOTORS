@@ -9,6 +9,7 @@ await mkdir(dir, { recursive: true });
 
 const STORAGE_KEY = 'jc-motors:quotations:v1';
 const DRAFTS_KEY = 'jc-motors:quote-drafts:v1';
+const FOLIO_KEY = 'jc-motors:quotation-folio:v1';
 
 const labor = (amount) => [{ id: `i-${amount}`, type: 'labor', description: 'Mano de obra', quantity: 1, saleUnitPrice: amount, amount }];
 const quotation = (n, createdAt, name, make, model, total, status) => ({
@@ -71,7 +72,7 @@ try {
   const pickDay = (iso) => c.click(`.profit-cal-grid [data-date="${iso}"]`);
   const applyRange = () => c.click('.profit-cal-actions .profit-primary');
   const loadSeeded = async () => {
-    await c.evaluate(`localStorage.setItem(${q(STORAGE_KEY)}, ${JSON.stringify(JSON.stringify(seed))}); localStorage.removeItem(${q(DRAFTS_KEY)}); location.reload()`);
+    await c.evaluate(`localStorage.setItem(${q(STORAGE_KEY)}, ${JSON.stringify(JSON.stringify(seed))}); localStorage.removeItem(${q(DRAFTS_KEY)}); localStorage.removeItem(${q(FOLIO_KEY)}); location.reload()`);
     await c.waitFor('document.querySelectorAll("[data-testid=hi-row]").length === 9');
     await sleep(900); // deja terminar la animación de entrada
   };

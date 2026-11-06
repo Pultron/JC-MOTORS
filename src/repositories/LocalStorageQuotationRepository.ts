@@ -9,7 +9,7 @@ import type {
 } from '../models/quotation';
 import { calculateQuotationTotals, createId, roundCurrency, validateDiscount } from '../utils/quotation';
 import type { QuotationRepository } from './QuotationRepository';
-import { nextFolio, reservedDraftFolios } from '../services/folioService';
+import { ensureQuotationFolioAtLeast, nextFolio, reservedDraftFolios } from '../services/folioService';
 import { quarantineCorrupt, readGuardedJson } from '../storage/corruptBackup';
 import type { GuardedReadOptions } from '../storage/corruptBackup';
 import { readRaw, writeRaw } from '../storage/safeStorage';
@@ -48,10 +48,11 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
     const discountError = validateDiscount(totals.subtotalManoObra, input.laborDiscountType, input.laborDiscountValue);
     if (discountError) throw new Error(discountError);
     const quotations = this.readAll();
+    const usePreferred = Boolean(input.preferredFolio) && !quotations.some((entry) => entry.folio === input.preferredFolio);
+    if (usePreferred) ensureQuotationFolioAtLeast(input.preferredFolio!);
     const quotation: Quotation = {
       id: createId(),
-      folio: input.preferredFolio && !quotations.some((entry) => entry.folio === input.preferredFolio)
-        ? input.preferredFolio : this.nextFolio(quotations),
+      folio: usePreferred ? input.preferredFolio! : this.nextFolio(quotations),
       createdAt: new Date().toISOString(),
       ...(input.customerId ? { customerId: input.customerId } : {}),
       customer: { ...input.customer },

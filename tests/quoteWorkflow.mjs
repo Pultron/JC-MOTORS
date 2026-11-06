@@ -82,7 +82,6 @@ test('el directorio de clientes se guarda en localStorage', () => {
 test('guarda, recupera y elimina borradores; conserva folio al guardar cotización', async () => {
   assert.deepEqual(await quotationService.list(), []);
   assert.equal(storage.has('jc-motors:quotations:v1'), false);
-  assert.equal(await quoteDraftService.nextFolio(), 'JC-0001');
   storage.set('jc-motors:quotations:v1', '{');
   assert.deepEqual(await quotationService.list(), []);
   assert.equal(storage.get('jc-motors:quotations:v1'), '{');
@@ -118,5 +117,6 @@ test('guarda, recupera y elimina borradores; conserva folio al guardar cotizaci�
   assert.equal(quoteDraftService.getTemporary(), null);
   assert.equal(await quoteDraftService.nextFolio(), 'JC-0003');
   storage.delete('jc-motors:quotations:v1');
-  assert.equal((await quotationService.create(input)).folio, 'JC-0001');
+  // #014: el contador es una marca de agua; vaciar las cotizaciones no reinicia la numeración.
+  assert.equal((await quotationService.create(input)).folio, 'JC-0004');
 });

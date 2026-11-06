@@ -9,6 +9,8 @@ export const STORAGE_KEYS = {
   invoices: 'jc-motors:invoices:v1',
   /** Consecutivo de FACTURAS: guarda el número como texto ("12"). Distinto del de cotizaciones. */
   invoiceFolio: 'jc-motors:invoice-folio:v1',
+  /** Consecutivo de COTIZACIONES: guarda {"lastNumber": n}. Distinto del de facturas. */
+  quotationFolio: 'jc-motors:quotation-folio:v1',
   sidebarTheme: 'jc-motors:sidebar-theme:v1',
   migration: 'jc-motors:meta:migration:v1',
 } as const;
