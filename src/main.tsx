@@ -6,12 +6,14 @@ import { ConfirmProvider } from './components/ui/ConfirmDialog';
 import { ToastProvider } from './components/ui/Toast';
 import { CustomerProvider } from './store/CustomerContext';
 import { QuotationProvider } from './store/QuotationContext';
+import { StorageNoticeBridge } from './storage/StorageNoticeBridge';
 import './styles.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <HashRouter>
       <ToastProvider>
+        <StorageNoticeBridge />
         <ConfirmProvider>
           <QuotationProvider>
             <CustomerProvider>

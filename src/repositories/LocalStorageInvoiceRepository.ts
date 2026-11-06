@@ -1,7 +1,15 @@
 import type { Invoice } from '../models/invoice';
 import type { InvoiceRepository, SaveInvoiceResult } from './InvoiceRepository';
 
+import { quarantineCorrupt, readGuardedJson } from '../storage/corruptBackup';
+import type { GuardedReadOptions } from '../storage/corruptBackup';
+import { readRaw } from '../storage/safeStorage';
+
 export const INVOICES_STORAGE_KEY = 'jcmotors.invoices';
+const DAMAGED: GuardedReadOptions = {
+  backupName: 'invoices',
+  damagedMessage: 'Las facturas estaban dañadas; se guardó una copia de respaldo',
+};
 
 export class LocalStorageInvoiceRepository implements InvoiceRepository {
   async getAll(): Promise<Invoice[]> {
@@ -29,12 +37,13 @@ export class LocalStorageInvoiceRepository implements InvoiceRepository {
   }
 
   private readAll(): Invoice[] {
+    const result = readGuardedJson(INVOICES_STORAGE_KEY, DAMAGED, (value): value is Array<Partial<Invoice>> => Array.isArray(value));
+    if (result.status !== 'ok') return [];
     try {
-      const saved = globalThis.localStorage?.getItem(INVOICES_STORAGE_KEY);
-      if (!saved) return [];
-      const parsed: unknown = JSON.parse(saved);
-      return Array.isArray(parsed) ? (parsed as Array<Partial<Invoice>>).map(withDefaults) : [];
+      return result.value.map(withDefaults);
     } catch {
+      const raw = readRaw(INVOICES_STORAGE_KEY);
+      if (raw !== null) quarantineCorrupt(INVOICES_STORAGE_KEY, raw, DAMAGED);
       return [];
     }
   }

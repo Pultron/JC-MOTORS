@@ -1,9 +1,16 @@
 import type { InternalCostRecord, InternalCostsRepository } from '../models/internalCosts';
 import { createId, calculateRealUnitCost } from '../utils/quotation';
 import { toCents } from '../utils/currencyUtils';
+import { readGuardedJson } from '../storage/corruptBackup';
+import type { GuardedReadOptions } from '../storage/corruptBackup';
+import { readRaw } from '../storage/safeStorage';
 
 export const INTERNAL_COSTS_KEY = 'jc-motors-internal-costs-v1';
 const LEGACY_KEY = 'jc-motors:internal-controls:v1';
+const DAMAGED: GuardedReadOptions = {
+  backupName: 'internal-costs',
+  damagedMessage: 'Los costos internos estaban dañados; se guardó una copia de respaldo',
+};
 
 function validRecord(value: unknown): value is InternalCostRecord {
   if (!value || typeof value !== 'object') return false;
@@ -17,31 +24,33 @@ function validRecord(value: unknown): value is InternalCostRecord {
     && new Set(r.additionalExpenses.map(e => e.id)).size === r.additionalExpenses.length;
 }
 
+function isCostRecordList(value: unknown): value is InternalCostRecord[] {
+  return Array.isArray(value) && value.every(validRecord) && new Set(value.map(r => r.quoteId)).size === value.length;
+}
+
 export class LocalStorageInternalCostsRepository implements InternalCostsRepository {
   private read(): InternalCostRecord[] {
-    const raw = globalThis.localStorage?.getItem(INTERNAL_COSTS_KEY) ?? null;
-    const records: unknown = raw === null ? [] : JSON.parse(raw);
-    if (!Array.isArray(records) || !records.every(validRecord)
-      || new Set(records.map(r => r.quoteId)).size !== records.length) {
-      throw new Error('No se pudieron leer los gastos guardados. Los datos originales se conservaron.');
-    }
+    const result = readGuardedJson(INTERNAL_COSTS_KEY, DAMAGED, isCostRecordList);
+    const records: InternalCostRecord[] = result.status === 'ok' ? [...result.value] : [];
     // Migrate costs without touching legacy payment records or customer quotations.
-    const legacyRaw = globalThis.localStorage?.getItem(LEGACY_KEY) ?? null;
-    if (legacyRaw) {
-      const legacy: unknown = JSON.parse(legacyRaw);
-      if (!Array.isArray(legacy)) throw new Error('No se pudo leer el control interno anterior.');
+    // The legacy key belongs to the internal-control repository, which quarantines it if damaged; here it is only skipped.
+    const legacyRaw = readRaw(LEGACY_KEY);
+    let legacy: unknown = [];
+    try { legacy = legacyRaw ? JSON.parse(legacyRaw) : []; } catch { legacy = []; }
+    if (Array.isArray(legacy)) {
       for (const old of legacy) {
-        if (!old || typeof old.quotationId !== 'string' || !Array.isArray(old.partCosts)) throw new Error('El control interno anterior tiene datos inválidos.');
+        if (!old || typeof old.quotationId !== 'string' || !Array.isArray(old.partCosts)) continue;
         if (records.some(r => r.quoteId === old.quotationId) || old.partCosts.length === 0) continue;
-        const migrated: InternalCostRecord = {
-          id: old.id ?? createId(), quoteId: old.quotationId,
-          itemCosts: old.partCosts.map((c: { quotationItemId: string; supplierUnitCost: number; supplierDiscountType: 'fixed' | 'percentage'; supplierDiscountValue: number }) => ({
-            quoteItemId: c.quotationItemId,
-            actualUnitCostCents: toCents(calculateRealUnitCost(c.supplierUnitCost, c.supplierDiscountType, c.supplierDiscountValue)),
-          })), additionalExpenses: [], createdAt: old.createdAt, updatedAt: old.updatedAt,
-        };
-        if (!validRecord(migrated)) throw new Error('No se pudieron recuperar los costos anteriores.');
-        records.push(migrated);
+        try {
+          const migrated: InternalCostRecord = {
+            id: old.id ?? createId(), quoteId: old.quotationId,
+            itemCosts: old.partCosts.map((c: { quotationItemId: string; supplierUnitCost: number; supplierDiscountType: 'fixed' | 'percentage'; supplierDiscountValue: number }) => ({
+              quoteItemId: c.quotationItemId,
+              actualUnitCostCents: toCents(calculateRealUnitCost(c.supplierUnitCost, c.supplierDiscountType, c.supplierDiscountValue)),
+            })), additionalExpenses: [], createdAt: old.createdAt, updatedAt: old.updatedAt,
+          };
+          if (validRecord(migrated)) records.push(migrated);
+        } catch { /* Un registro anterior inválido se omite; el original no se modifica. */ }
       }
     }
     return records;

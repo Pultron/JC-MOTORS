@@ -1,8 +1,14 @@
 import type { InternalControlRecord, Quotation } from '../models/quotation';
 import { createId } from '../utils/quotation';
 import type { InternalControlRepository } from './InternalControlRepository';
+import { readGuardedJson } from '../storage/corruptBackup';
+import type { GuardedReadOptions } from '../storage/corruptBackup';
 
 const STORAGE_KEY = 'jc-motors:internal-controls:v1';
+const DAMAGED: GuardedReadOptions = {
+  backupName: 'internal-controls',
+  damagedMessage: 'El control interno estaba dañado; se guardó una copia de respaldo',
+};
 
 export class LocalStorageInternalControlRepository implements InternalControlRepository {
   async list(): Promise<InternalControlRecord[]> {
@@ -82,14 +88,8 @@ export class LocalStorageInternalControlRepository implements InternalControlRep
   }
 
   private readAll(): InternalControlRecord[] {
-    try {
-      const value = globalThis.localStorage?.getItem(STORAGE_KEY);
-      if (!value) return [];
-      const parsed: unknown = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed as InternalControlRecord[] : [];
-    } catch {
-      return [];
-    }
+    const result = readGuardedJson(STORAGE_KEY, DAMAGED, (value): value is InternalControlRecord[] => Array.isArray(value));
+    return result.status === 'ok' ? result.value : [];
   }
 
   private writeAll(records: InternalControlRecord[]): void {

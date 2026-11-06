@@ -7,7 +7,10 @@ import { periodRange, isInRange } from '../src/utils/dateRangeUtils.ts';
 import { toPublicQuotation } from '../src/utils/quotation.ts';
 
 const storage = new Map();
-globalThis.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) };
+globalThis.localStorage = {
+  getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value),
+  removeItem: key => storage.delete(key), key: index => [...storage.keys()][index] ?? null, get length() { return storage.size; },
+};
 beforeEach(() => storage.clear());
 const quote = () => ({ id: 'q1', folio: 'JC-0042', createdAt: '2026-10-05T12:00:00', approvedAt: '2026-10-05T12:00:00', status: 'Aprobada',
   customer: { name: 'Carlos Méndez', phone: '6671234567' }, vehicle: { make: 'Nissan', model: 'Sentra', year: 2022, plates: 'ABC123' },
@@ -74,12 +77,13 @@ test('recupera costos anteriores y descuentos sin borrar pagos', async () => {
   assert.equal((await repo.list())[0].itemCosts.length, 0);
   assert.equal(storage.get('jc-motors:internal-controls:v1'), legacy);
 });
-test('datos dañados y errores de escritura se notifican sin sobrescribir datos', async () => {
+test('datos dañados se respaldan y se lee vacío (#001); errores de escritura siguen fallando', async () => {
   const repo = new LocalStorageInternalCostsRepository();
   storage.set(INTERNAL_COSTS_KEY, '{damaged');
-  await assert.rejects(repo.list());
-  await assert.rejects(repo.save(record()));
-  assert.equal(storage.get(INTERNAL_COSTS_KEY), '{damaged');
+  assert.deepEqual(await repo.list(), []);
+  const backups = [...storage].filter(([key]) => key.startsWith('jc-motors:backup:internal-costs:'));
+  assert.equal(backups.length, 1);
+  assert.equal(backups[0][1], '{damaged');
   storage.clear();
   await assert.rejects(repo.save({ ...record(), itemCosts: [{ quoteItemId: 'p1', actualUnitCostCents: -1 }] }));
   const previous = localStorage.setItem;

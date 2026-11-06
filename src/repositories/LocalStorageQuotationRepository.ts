@@ -10,8 +10,16 @@ import type {
 import { calculateQuotationTotals, createId, roundCurrency, validateDiscount } from '../utils/quotation';
 import type { QuotationRepository } from './QuotationRepository';
 import { nextFolio, reservedDraftFolios } from '../services/folioService';
+import { quarantineCorrupt, readGuardedJson } from '../storage/corruptBackup';
+import type { GuardedReadOptions } from '../storage/corruptBackup';
+import { readRaw } from '../storage/safeStorage';
 
 const STORAGE_KEY = 'jc-motors:quotations:v1';
+const DAMAGED: GuardedReadOptions = {
+  backupName: 'quotations',
+  damagedMessage: 'Las cotizaciones estaban dañadas; se guardó una copia de respaldo',
+};
+const isList = (value: unknown): value is unknown[] => Array.isArray(value);
 
 type LegacyQuotation = Omit<Partial<Quotation>, 'items' | 'customer' | 'vehicle'> & {
   items?: Array<Partial<QuotationItem> & { unitPrice?: number }>;
@@ -149,28 +157,24 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
   }
 
   private readAll(): Quotation[] {
-    let saved: string | null = null;
-    try {
-      saved = globalThis.localStorage?.getItem(STORAGE_KEY) ?? null;
-    } catch {
-      return [];
-    }
-
-    if (saved === null) return [];
+    const result = readGuardedJson(STORAGE_KEY, DAMAGED, isList);
+    if (result.status !== 'ok') return [];
 
     try {
-      const parsed: unknown = JSON.parse(saved);
-      if (!Array.isArray(parsed)) throw new Error('Invalid quotation data');
       const now = Date.now();
-      const normalized = (parsed as LegacyQuotation[]).map((entry, index) => {
+      const normalized = (result.value as LegacyQuotation[]).map((entry, index) => {
         const quotation = normalizeQuotation(entry, index);
         return quotation.status === 'Pendiente' && isExpired(quotation, now)
           ? { ...quotation, status: 'Vencida' as const }
           : quotation;
       });
-      if (JSON.stringify(normalized) !== JSON.stringify(parsed)) this.writeAll(normalized);
+      try {
+        if (JSON.stringify(normalized) !== JSON.stringify(result.value)) this.writeAll(normalized);
+      } catch { /* Sin espacio para persistir la normalización: se usa solo en memoria. */ }
       return normalized;
     } catch {
+      const raw = readRaw(STORAGE_KEY);
+      if (raw !== null) quarantineCorrupt(STORAGE_KEY, raw, DAMAGED);
       return [];
     }
   }
