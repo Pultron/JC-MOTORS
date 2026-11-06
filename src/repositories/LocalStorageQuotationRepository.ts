@@ -10,7 +10,7 @@ import type {
 import { calculateQuotationTotals, createId, roundCurrency, validateDiscount } from '../utils/quotation';
 import type { QuotationRepository } from './QuotationRepository';
 import { ensureQuotationFolioAtLeast, nextFolio, reservedDraftFolios } from '../services/folioService';
-import { quarantineCorrupt, readGuardedJson } from '../storage/corruptBackup';
+import { parseGuardedJson, quarantineCorrupt } from '../storage/corruptBackup';
 import type { GuardedReadOptions } from '../storage/corruptBackup';
 import { readRaw, writeRaw } from '../storage/safeStorage';
 import { STORAGE_KEYS } from '../storage/storageKeys';
@@ -21,6 +21,45 @@ const DAMAGED: GuardedReadOptions = {
   damagedMessage: 'Las cotizaciones estaban dañadas; se guardó una copia de respaldo',
 };
 const isList = (value: unknown): value is unknown[] => Array.isArray(value);
+
+/**
+ * Sube este número cuando cambie la forma guardada o la lógica de totales: la siguiente lectura normaliza y reescribe
+ * UNA vez. Con la versión al día solo se normaliza lo que no tiene la forma actual.
+ */
+const QUOTATIONS_SCHEMA_VERSION = 1;
+
+function readSchemaVersion(): number {
+  try {
+    const raw = readRaw(STORAGE_KEYS.schema);
+    const version = raw ? (JSON.parse(raw) as { quotations?: unknown }).quotations : 0;
+    return typeof version === 'number' && Number.isFinite(version) ? version : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeSchemaVersion(): void {
+  try {
+    const raw = readRaw(STORAGE_KEYS.schema);
+    const current: unknown = raw ? JSON.parse(raw) : {};
+    const base = current && typeof current === 'object' && !Array.isArray(current) ? current : {};
+    writeRaw(STORAGE_KEYS.schema, JSON.stringify({ ...base, quotations: QUOTATIONS_SCHEMA_VERSION }));
+  } catch { /* Sin la marca, la siguiente lectura normaliza otra vez (es idempotente). */ }
+}
+
+const STATUSES: readonly string[] = ['Pendiente', 'Aprobada', 'Cancelada', 'Vencida'];
+
+/** Revisión barata (sin serializar) para detectar datos escritos por otra vía con una forma anterior. */
+function looksCurrent(value: unknown): boolean {
+  const q = value as Partial<Quotation> | null;
+  return Boolean(q) && typeof q === 'object'
+    && typeof q!.id === 'string' && typeof q!.folio === 'string' && typeof q!.createdAt === 'string'
+    && typeof q!.status === 'string' && STATUSES.includes(q!.status)
+    && typeof q!.includeVat === 'boolean' && typeof q!.total === 'number' && typeof q!.validityDays === 'number'
+    && Boolean(q!.customer) && Boolean(q!.vehicle) && Array.isArray(q!.items)
+    && q!.items.every((item) => item && typeof item.id === 'string' && (item.type === 'part' || item.type === 'labor')
+      && typeof item.saleUnitPrice === 'number' && typeof item.quantity === 'number' && typeof item.amount === 'number');
+}
 
 type LegacyQuotation = Omit<Partial<Quotation>, 'items' | 'customer' | 'vehicle'> & {
   items?: Array<Partial<QuotationItem> & { unitPrice?: number }>;
@@ -158,31 +197,68 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
     return cloneQuotation(quotation);
   }
 
-  private readAll(): Quotation[] {
-    const result = readGuardedJson(STORAGE_KEY, DAMAGED, isList);
-    if (result.status !== 'ok') return [];
+  /** Lista parseada y normalizada; se reutiliza mientras el texto guardado no cambie (también si lo escribe otra ventana). */
+  private cache: { raw: string; list: Quotation[] } | null = null;
 
-    try {
-      const now = Date.now();
-      const normalized = (result.value as LegacyQuotation[]).map((entry, index) => {
-        const quotation = normalizeQuotation(entry, index);
-        return quotation.status === 'Pendiente' && isExpired(quotation, now)
-          ? { ...quotation, status: 'Vencida' as const }
-          : quotation;
-      });
-      try {
-        if (JSON.stringify(normalized) !== JSON.stringify(result.value)) this.writeAll(normalized);
-      } catch { /* Sin espacio para persistir la normalización: se usa solo en memoria. */ }
-      return normalized;
-    } catch {
-      const raw = readRaw(STORAGE_KEY);
-      if (raw !== null) quarantineCorrupt(STORAGE_KEY, raw, DAMAGED);
+  private readAll(): Quotation[] {
+    const raw = readRaw(STORAGE_KEY);
+    if (raw === null) {
+      this.cache = null;
       return [];
     }
+    const base = this.cache?.raw === raw ? this.cache.list : this.load(raw);
+    return this.withExpiry(base);
+  }
+
+  private load(raw: string): Quotation[] {
+    const result = parseGuardedJson(STORAGE_KEY, raw, DAMAGED, isList);
+    if (result.status !== 'ok') {
+      this.cache = { raw, list: [] };
+      return [];
+    }
+
+    const needsNormalization = readSchemaVersion() < QUOTATIONS_SCHEMA_VERSION || !result.value.every(looksCurrent);
+    let list: Quotation[];
+    try {
+      list = needsNormalization
+        ? (result.value as LegacyQuotation[]).map((entry, index) => normalizeQuotation(entry, index))
+        : result.value as Quotation[];
+    } catch {
+      quarantineCorrupt(STORAGE_KEY, raw, DAMAGED);
+      this.cache = { raw, list: [] };
+      return [];
+    }
+
+    this.cache = { raw, list };
+    if (needsNormalization) {
+      try {
+        this.writeAll(list);
+      } catch { /* Sin espacio para persistir la normalización: se usa solo en memoria. */ }
+    }
+    return list;
+  }
+
+  /** Pendiente → Vencida depende de la hora, no del esquema: se deriva en cada lectura sin volver a parsear. */
+  private withExpiry(list: Quotation[]): Quotation[] {
+    const now = Date.now();
+    let changed = false;
+    const result = list.map((quotation) => {
+      if (quotation.status !== 'Pendiente' || !isExpired(quotation, now)) return quotation;
+      changed = true;
+      return { ...quotation, status: 'Vencida' as const };
+    });
+    if (!changed) return list;
+    try {
+      this.writeAll(result);
+    } catch { /* Sin espacio: el estado vencido se sigue derivando al leer. */ }
+    return result;
   }
 
   private writeAll(quotations: Quotation[]): void {
-    writeRaw(STORAGE_KEY, JSON.stringify(quotations));
+    const json = JSON.stringify(quotations);
+    writeRaw(STORAGE_KEY, json);
+    this.cache = { raw: json, list: quotations };
+    if (readSchemaVersion() < QUOTATIONS_SCHEMA_VERSION) writeSchemaVersion();
   }
 
   private nextFolio(quotations: Quotation[]): string {

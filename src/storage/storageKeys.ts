@@ -13,6 +13,8 @@ export const STORAGE_KEYS = {
   quotationFolio: 'jc-motors:quotation-folio:v1',
   sidebarTheme: 'jc-motors:sidebar-theme:v1',
   migration: 'jc-motors:meta:migration:v1',
+  /** Versión de esquema por dominio: {"quotations": 1}. Solo se normaliza y reescribe cuando es menor a la actual. */
+  schema: 'jc-motors:meta:schema:v1',
 } as const;
 
 export const BACKUP_PREFIX = 'jc-motors:backup:';

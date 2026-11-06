@@ -54,7 +54,16 @@ export function readGuardedJson<T>(
   options: GuardedReadOptions,
   validate: (value: unknown) => value is T,
 ): GuardedRead<T> {
-  const raw = readRaw(key);
+  return parseGuardedJson(key, readRaw(key), options, validate);
+}
+
+/** Igual que readGuardedJson cuando el texto crudo ya se leyó (permite cachear sin volver a leer). */
+export function parseGuardedJson<T>(
+  key: string,
+  raw: string | null,
+  options: GuardedReadOptions,
+  validate: (value: unknown) => value is T,
+): GuardedRead<T> {
   if (raw === null || raw.trim() === '') return { status: 'missing' };
   try {
     const parsed: unknown = JSON.parse(raw);
