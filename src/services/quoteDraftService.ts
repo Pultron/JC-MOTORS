@@ -4,10 +4,19 @@ import { quotationService } from './quotationService';
 import { nextFolio, SAVED_DRAFTS_KEY } from './folioService';
 import { readGuardedJson } from '../storage/corruptBackup';
 import type { GuardedReadOptions } from '../storage/corruptBackup';
-import { removeRaw, writeRaw } from '../storage/safeStorage';
+import { isQuotaError, removeRaw, writeRaw } from '../storage/safeStorage';
+import { emitStorageNotice } from '../storage/storageNotices';
 import { STORAGE_KEYS } from '../storage/storageKeys';
 
 const TEMP_KEY = STORAGE_KEYS.quoteAutosave;
+const STALE_DRAFT_DAYS = 30;
+
+export class DraftStorageFullError extends Error {
+  constructor() {
+    super('No se pudo guardar el borrador: almacenamiento lleno');
+    this.name = 'DraftStorageFullError';
+  }
+}
 
 export interface TemporaryQuoteDraft {
   data: QuoteFormData;
@@ -41,8 +50,36 @@ export const quoteDraftService = {
     const value = read<TemporaryQuoteDraft | null>(TEMP_KEY, null, TEMP_DAMAGED);
     return value && typeof value === 'object' && value.data && Array.isArray(value.data.items) ? value : null;
   },
+  /** Lanza DraftStorageFullError si no hay espacio; lo ya guardado queda intacto. */
   saveTemporary(data: QuoteFormData, draftId: string | null): void {
-    write(TEMP_KEY, { data, draftId });
+    try {
+      write(TEMP_KEY, { data, draftId });
+    } catch (error) {
+      if (isQuotaError(error)) throw new DraftStorageFullError();
+      throw error;
+    }
+  },
+  /** Borra los borradores guardados que llevan más de 30 días sin modificarse. Devuelve cuántos quitó. */
+  purgeStale(now = Date.now(), maxAgeDays = STALE_DRAFT_DAYS): number {
+    const result = readGuardedJson(SAVED_DRAFTS_KEY, DRAFTS_DAMAGED, (value): value is unknown[] => Array.isArray(value));
+    if (result.status !== 'ok') return 0;
+    const cutoff = now - maxAgeDays * 24 * 60 * 60 * 1000;
+    // Solo se descarta por antigüedad comprobable; lo ilegible o sin fecha se conserva tal cual.
+    const kept = result.value.filter((draft) => {
+      const savedAt = Date.parse((draft as { savedAt?: string } | null)?.savedAt ?? '');
+      return !Number.isFinite(savedAt) || savedAt >= cutoff;
+    });
+    const removed = result.value.length - kept.length;
+    if (removed === 0) return 0;
+    write(SAVED_DRAFTS_KEY, kept);
+    emitStorageNotice({
+      level: 'info',
+      title: 'Borradores antiguos eliminados',
+      description: removed === 1
+        ? 'Se eliminó 1 borrador con más de 30 días sin modificar.'
+        : `Se eliminaron ${removed} borradores con más de 30 días sin modificar.`,
+    });
+    return removed;
   },
   deleteTemporary(): void {
     removeRaw(TEMP_KEY);

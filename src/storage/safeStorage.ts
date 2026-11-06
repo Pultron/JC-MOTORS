@@ -32,6 +32,16 @@ export function writeRaw(key: string, value: string): void {
   const storage = getStorage();
   if (!storage) throw new Error('El almacenamiento local no está disponible.');
   storage.setItem(key, value);
+  try {
+    afterWriteHook?.();
+  } catch { /* La revisión de espacio nunca debe hacer fallar un guardado ya hecho. */ }
+}
+
+let afterWriteHook: (() => void) | undefined;
+
+/** Permite revisar el espacio ocupado tras escribir sin que este módulo dependa de storageUsage. */
+export function setAfterWriteHook(hook: (() => void) | undefined): void {
+  afterWriteHook = hook;
 }
 
 export function removeRaw(key: string): void {
