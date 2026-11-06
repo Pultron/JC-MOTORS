@@ -19,14 +19,14 @@ function validRecord(value: unknown): value is InternalCostRecord {
 
 export class LocalStorageInternalCostsRepository implements InternalCostsRepository {
   private read(): InternalCostRecord[] {
-    const raw = localStorage.getItem(INTERNAL_COSTS_KEY);
+    const raw = globalThis.localStorage?.getItem(INTERNAL_COSTS_KEY) ?? null;
     const records: unknown = raw === null ? [] : JSON.parse(raw);
     if (!Array.isArray(records) || !records.every(validRecord)
       || new Set(records.map(r => r.quoteId)).size !== records.length) {
       throw new Error('No se pudieron leer los gastos guardados. Los datos originales se conservaron.');
     }
     // Migrate costs without touching legacy payment records or customer quotations.
-    const legacyRaw = localStorage.getItem(LEGACY_KEY);
+    const legacyRaw = globalThis.localStorage?.getItem(LEGACY_KEY) ?? null;
     if (legacyRaw) {
       const legacy: unknown = JSON.parse(legacyRaw);
       if (!Array.isArray(legacy)) throw new Error('No se pudo leer el control interno anterior.');
@@ -55,7 +55,7 @@ export class LocalStorageInternalCostsRepository implements InternalCostsReposit
     const existing = records.find(r => r.quoteId === record.quoteId);
     const saved = { ...record, id: existing?.id ?? record.id,
       createdAt: existing?.createdAt ?? new Date().toISOString(), updatedAt: new Date().toISOString() };
-    localStorage.setItem(INTERNAL_COSTS_KEY, JSON.stringify([...records.filter(r => r.quoteId !== saved.quoteId), saved]));
+    globalThis.localStorage?.setItem(INTERNAL_COSTS_KEY, JSON.stringify([...records.filter(r => r.quoteId !== saved.quoteId), saved]));
     return structuredClone(saved);
   }
 }
