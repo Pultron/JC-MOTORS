@@ -2,8 +2,9 @@ import type { CustomerProfile } from '../models/quotation';
 import { readGuardedJson } from '../storage/corruptBackup';
 import type { GuardedReadOptions } from '../storage/corruptBackup';
 import { writeRaw } from '../storage/safeStorage';
+import { STORAGE_KEYS } from '../storage/storageKeys';
 
-const STORAGE_KEY = 'jc-motors:customers:v1';
+const STORAGE_KEY = STORAGE_KEYS.customers;
 const DAMAGED: GuardedReadOptions = {
   backupName: 'customers',
   damagedMessage: 'Los clientes estaban dañados; se guardó una copia de respaldo',

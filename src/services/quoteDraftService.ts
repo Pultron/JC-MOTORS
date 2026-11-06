@@ -5,8 +5,9 @@ import { nextFolio, SAVED_DRAFTS_KEY } from './folioService';
 import { readGuardedJson } from '../storage/corruptBackup';
 import type { GuardedReadOptions } from '../storage/corruptBackup';
 import { removeRaw, writeRaw } from '../storage/safeStorage';
+import { STORAGE_KEYS } from '../storage/storageKeys';
 
-const TEMP_KEY = 'jc-motors:quote-autosave:v1';
+const TEMP_KEY = STORAGE_KEYS.quoteAutosave;
 
 export interface TemporaryQuoteDraft {
   data: QuoteFormData;

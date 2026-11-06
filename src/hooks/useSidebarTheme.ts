@@ -1,15 +1,11 @@
 import { useCallback, useState } from 'react';
+import { readRaw, writeRaw } from '../storage/safeStorage';
+import { STORAGE_KEYS } from '../storage/storageKeys';
 
 export type SidebarTheme = 'dark' | 'light';
 
-const STORAGE_KEY = 'jc-motors-sidebar-theme';
-
 function readTheme(): SidebarTheme {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY) === 'light' ? 'light' : 'dark';
-  } catch {
-    return 'dark';
-  }
+  return readRaw(STORAGE_KEYS.sidebarTheme) === 'light' ? 'light' : 'dark';
 }
 
 export function useSidebarTheme() {
@@ -18,7 +14,7 @@ export function useSidebarTheme() {
   const setTheme = useCallback((next: SidebarTheme) => {
     setThemeState(next);
     try {
-      window.localStorage.setItem(STORAGE_KEY, next);
+      writeRaw(STORAGE_KEYS.sidebarTheme, next);
     } catch {
       // Sin almacenamiento disponible: el tema solo vale para esta sesión.
     }

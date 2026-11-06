@@ -1,7 +1,6 @@
 import { emitStorageNotice } from './storageNotices';
 import { listKeys, readRaw, writeRaw } from './safeStorage';
-
-export const BACKUP_PREFIX = 'jc-motors:backup:';
+import { BACKUP_PREFIX } from './storageKeys';
 
 export interface GuardedReadOptions {
   /** Segmento de la clave de respaldo: jc-motors:backup:<backupName>:<timestamp>. */

@@ -3,10 +3,11 @@ import { createId, calculateRealUnitCost } from '../utils/quotation';
 import { toCents } from '../utils/currencyUtils';
 import { readGuardedJson } from '../storage/corruptBackup';
 import type { GuardedReadOptions } from '../storage/corruptBackup';
-import { readRaw } from '../storage/safeStorage';
+import { readRaw, writeRaw } from '../storage/safeStorage';
+import { STORAGE_KEYS } from '../storage/storageKeys';
 
-export const INTERNAL_COSTS_KEY = 'jc-motors-internal-costs-v1';
-const LEGACY_KEY = 'jc-motors:internal-controls:v1';
+export const INTERNAL_COSTS_KEY = STORAGE_KEYS.internalCosts;
+const LEGACY_KEY = STORAGE_KEYS.internalControls;
 const DAMAGED: GuardedReadOptions = {
   backupName: 'internal-costs',
   damagedMessage: 'Los costos internos estaban dañados; se guardó una copia de respaldo',
@@ -64,7 +65,7 @@ export class LocalStorageInternalCostsRepository implements InternalCostsReposit
     const existing = records.find(r => r.quoteId === record.quoteId);
     const saved = { ...record, id: existing?.id ?? record.id,
       createdAt: existing?.createdAt ?? new Date().toISOString(), updatedAt: new Date().toISOString() };
-    globalThis.localStorage?.setItem(INTERNAL_COSTS_KEY, JSON.stringify([...records.filter(r => r.quoteId !== saved.quoteId), saved]));
+    writeRaw(INTERNAL_COSTS_KEY, JSON.stringify([...records.filter(r => r.quoteId !== saved.quoteId), saved]));
     return structuredClone(saved);
   }
 }

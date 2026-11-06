@@ -3,8 +3,10 @@ import { createId } from '../utils/quotation';
 import type { InternalControlRepository } from './InternalControlRepository';
 import { readGuardedJson } from '../storage/corruptBackup';
 import type { GuardedReadOptions } from '../storage/corruptBackup';
+import { writeRaw } from '../storage/safeStorage';
+import { STORAGE_KEYS } from '../storage/storageKeys';
 
-const STORAGE_KEY = 'jc-motors:internal-controls:v1';
+const STORAGE_KEY = STORAGE_KEYS.internalControls;
 const DAMAGED: GuardedReadOptions = {
   backupName: 'internal-controls',
   damagedMessage: 'El control interno estaba dañado; se guardó una copia de respaldo',
@@ -93,7 +95,7 @@ export class LocalStorageInternalControlRepository implements InternalControlRep
   }
 
   private writeAll(records: InternalControlRecord[]): void {
-    globalThis.localStorage?.setItem(STORAGE_KEY, JSON.stringify(records));
+    writeRaw(STORAGE_KEY, JSON.stringify(records));
   }
 }
 

@@ -12,9 +12,10 @@ import type { QuotationRepository } from './QuotationRepository';
 import { nextFolio, reservedDraftFolios } from '../services/folioService';
 import { quarantineCorrupt, readGuardedJson } from '../storage/corruptBackup';
 import type { GuardedReadOptions } from '../storage/corruptBackup';
-import { readRaw } from '../storage/safeStorage';
+import { readRaw, writeRaw } from '../storage/safeStorage';
+import { STORAGE_KEYS } from '../storage/storageKeys';
 
-const STORAGE_KEY = 'jc-motors:quotations:v1';
+const STORAGE_KEY = STORAGE_KEYS.quotations;
 const DAMAGED: GuardedReadOptions = {
   backupName: 'quotations',
   damagedMessage: 'Las cotizaciones estaban dañadas; se guardó una copia de respaldo',
@@ -180,7 +181,7 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
   }
 
   private writeAll(quotations: Quotation[]): void {
-    globalThis.localStorage?.setItem(STORAGE_KEY, JSON.stringify(quotations));
+    writeRaw(STORAGE_KEY, JSON.stringify(quotations));
   }
 
   private nextFolio(quotations: Quotation[]): string {

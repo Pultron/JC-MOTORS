@@ -7,7 +7,7 @@ try {
   if (!process.env.TAURI_TEST) await c.send('Page.navigate', { url: 'http://127.0.0.1:5173/#/control-interno' });
   await c.waitFor('Boolean(document.querySelector("nav"))');
   const fixtures = internalDemoFixtures();
-  await c.evaluate(`localStorage.setItem('jc-motors:quotations:v1', ${JSON.stringify(JSON.stringify(fixtures.quotations))}); localStorage.setItem('jc-motors-internal-costs-v1', ${JSON.stringify(JSON.stringify(fixtures.records))}); localStorage.removeItem('jc-motors:internal-controls:v1'); location.hash = '#/control-interno'; location.reload()`);
+  await c.evaluate(`localStorage.setItem('jc-motors:quotations:v1', ${JSON.stringify(JSON.stringify(fixtures.quotations))}); localStorage.setItem('jc-motors:internal-costs:v1', ${JSON.stringify(JSON.stringify(fixtures.records))}); localStorage.removeItem('jc-motors:internal-controls:v1'); location.hash = '#/control-interno'; location.reload()`);
   await c.waitFor('document.querySelectorAll(".profit-table tbody tr").length === 4');
   await c.send('Emulation.setDeviceMetricsOverride', { width: 1586, height: 992, deviceScaleFactor: 1, mobile: false });
   await c.click('.profit-table tbody tr button');
@@ -60,13 +60,13 @@ try {
   await c.fill('.profit-expense-row:last-of-type input:first-child', 'Grúa');
   await c.fill('.profit-expense-row:last-of-type input:nth-child(2)', '250.10');
   await c.click('.profit-detail-actions button[type=submit]');
-  await c.waitFor('JSON.parse(localStorage.getItem("jc-motors-internal-costs-v1")).find(r => r.quoteId === "demo-0").additionalExpenses.length === 2');
+  await c.waitFor('JSON.parse(localStorage.getItem("jc-motors:internal-costs:v1")).find(r => r.quoteId === "demo-0").additionalExpenses.length === 2');
   await c.click('.profit-expense-row:last-of-type button');
   await c.waitFor('Boolean(document.querySelector("[data-testid=confirm-dialog]"))');
   await c.click('[data-testid="confirm-accept"]');
   await c.waitFor('!document.querySelector("[data-testid=confirm-dialog]")');
   await c.click('.profit-detail-actions button[type=submit]');
-  await c.waitFor('JSON.parse(localStorage.getItem("jc-motors-internal-costs-v1")).find(r => r.quoteId === "demo-0").additionalExpenses.length === 1');
+  await c.waitFor('JSON.parse(localStorage.getItem("jc-motors:internal-costs:v1")).find(r => r.quoteId === "demo-0").additionalExpenses.length === 1');
   await c.fill('.profit-items input', '-20');
   await c.waitFor('Boolean(document.querySelector(".profit-error"))');
   assert.equal(await c.evaluate('document.querySelector(".profit-detail-actions button[type=submit]").disabled'), true);

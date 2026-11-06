@@ -1,4 +1,5 @@
 /** Acceso defensivo a localStorage: nunca lanza al leer ni al listar; escribir sí lanza para que quien guarda sepa que falló. */
+import { legacyKeyFor, STORAGE_KEYS } from './storageKeys';
 
 export function getStorage(): Storage | undefined {
   try {
@@ -8,9 +9,19 @@ export function getStorage(): Storage | undefined {
   }
 }
 
+/**
+ * Mientras la migración de claves no esté marcada como completa, una clave nueva ausente se lee de su clave anterior:
+ * así un fallo de copia (cuota llena) nunca deja la app mostrando datos vacíos.
+ */
 export function readRaw(key: string): string | null {
   try {
-    return getStorage()?.getItem(key) ?? null;
+    const storage = getStorage();
+    if (!storage) return null;
+    const value = storage.getItem(key);
+    if (value !== null) return value;
+    const legacy = legacyKeyFor(key);
+    if (legacy && storage.getItem(STORAGE_KEYS.migration) === null) return storage.getItem(legacy);
+    return null;
   } catch {
     return null;
   }

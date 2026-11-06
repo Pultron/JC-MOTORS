@@ -3,9 +3,10 @@ import type { InvoiceRepository, SaveInvoiceResult } from './InvoiceRepository';
 
 import { quarantineCorrupt, readGuardedJson } from '../storage/corruptBackup';
 import type { GuardedReadOptions } from '../storage/corruptBackup';
-import { readRaw } from '../storage/safeStorage';
+import { readRaw, writeRaw } from '../storage/safeStorage';
+import { STORAGE_KEYS } from '../storage/storageKeys';
 
-export const INVOICES_STORAGE_KEY = 'jcmotors.invoices';
+export const INVOICES_STORAGE_KEY = STORAGE_KEYS.invoices;
 const DAMAGED: GuardedReadOptions = {
   backupName: 'invoices',
   damagedMessage: 'Las facturas estaban dañadas; se guardó una copia de respaldo',
@@ -49,7 +50,7 @@ export class LocalStorageInvoiceRepository implements InvoiceRepository {
   }
 
   private writeAll(invoices: Invoice[]): void {
-    globalThis.localStorage?.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
+    writeRaw(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
   }
 }
 

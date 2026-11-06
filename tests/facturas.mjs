@@ -34,14 +34,14 @@ try {
   };
   const rows = () => c.evaluate('document.querySelectorAll("[data-testid=invoice-row]").length');
   const rowFor = (uuid) => `[data-testid=invoice-row][data-uuid="${uuid}"]`;
-  const contador = () => c.evaluate('Number(localStorage.getItem("jcmotors.folioConsecutivo") || 0)');
-  const stored = (uuid) => c.evaluate(`(() => { const i = JSON.parse(localStorage.getItem('jcmotors.invoices') || '[]').find((x) => x.uuid === ${JSON.stringify(uuid)}); return i && { folio: i.folio, origen: i.origen, selloIncompleto: i.selloIncompleto, dudosos: i.camposDudosos.length, selloCFD: i.timbre.selloCFD, selloSAT: i.timbre.selloSAT, cadena: i.timbre.cadenaOriginal, total: i.total, emisor: i.emisor, receptor: i.receptor, uuid: i.uuid, urlQrOriginal: i.urlQrOriginal, archivoTipo: i.archivoTipo }; })()`);
-  const reset = async () => { await c.evaluate('localStorage.removeItem("jcmotors.invoices"); localStorage.removeItem("jcmotors.folioConsecutivo"); location.reload()'); await c.waitFor('Boolean(document.querySelector("[data-testid=xml-input]"))'); };
+  const contador = () => c.evaluate('Number(localStorage.getItem("jc-motors:invoice-folio:v1") || 0)');
+  const stored = (uuid) => c.evaluate(`(() => { const i = JSON.parse(localStorage.getItem('jc-motors:invoices:v1') || '[]').find((x) => x.uuid === ${JSON.stringify(uuid)}); return i && { folio: i.folio, origen: i.origen, selloIncompleto: i.selloIncompleto, dudosos: i.camposDudosos.length, selloCFD: i.timbre.selloCFD, selloSAT: i.timbre.selloSAT, cadena: i.timbre.cadenaOriginal, total: i.total, emisor: i.emisor, receptor: i.receptor, uuid: i.uuid, urlQrOriginal: i.urlQrOriginal, archivoTipo: i.archivoTipo }; })()`);
+  const reset = async () => { await c.evaluate('localStorage.removeItem("jc-motors:invoices:v1"); localStorage.removeItem("jc-motors:invoice-folio:v1"); location.reload()'); await c.waitFor('Boolean(document.querySelector("[data-testid=xml-input]"))'); };
   const importar = async (file, uuid) => { await upload(file); await c.waitFor(`Boolean(document.querySelector('${rowFor(uuid)}'))`); };
   /** PDF generado por la app a partir de una factura guardada (se usa como "PDF de entrada"). */
   const pdfDe = (uuid) => c.evaluate(`(async () => {
     const { generarFacturaPdf } = await import('/src/services/invoicePdf.ts');
-    const invoice = JSON.parse(localStorage.getItem('jcmotors.invoices')).find((i) => i.uuid === ${JSON.stringify(uuid)});
+    const invoice = JSON.parse(localStorage.getItem('jc-motors:invoices:v1')).find((i) => i.uuid === ${JSON.stringify(uuid)});
     const { file, pages, trace, nombre } = await generarFacturaPdf(invoice);
     const buf = new Uint8Array(await file.arrayBuffer()); let s = '';
     for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
@@ -152,7 +152,7 @@ try {
   await upload(paths['third-sin-adjunto.pdf']);
   await new Promise((r) => setTimeout(r, 1500));
   assert.equal(await rows(), antes);
-  assert.equal(await c.evaluate('JSON.parse(localStorage.getItem("jcmotors.invoices")).length'), 3);
+  assert.equal(await c.evaluate('JSON.parse(localStorage.getItem("jc-motors:invoices:v1")).length'), 3);
   assert.equal(await contador(), 3, 'un duplicado no consume folio');
 
   // ---- 5. Folios consecutivos; el contador no retrocede al borrar
@@ -191,7 +191,7 @@ try {
   }
 
   // ---- PDFs reales de dos PAC con diseños distintos: todo se lee sin confirmación y sin dudas por campo
-  const completa = (uuid) => c.evaluate(`(() => { const i = JSON.parse(localStorage.getItem('jcmotors.invoices') || '[]').find((x) => x.uuid === ${JSON.stringify(uuid)}); if (i) delete i.archivoOriginal; return i; })()`);
+  const completa = (uuid) => c.evaluate(`(() => { const i = JSON.parse(localStorage.getItem('jc-motors:invoices:v1') || '[]').find((x) => x.uuid === ${JSON.stringify(uuid)}); if (i) delete i.archivoOriginal; return i; })()`);
   const num = (valor) => Number(valor);
   const verificarSellos = (inv) => {
     for (const sello of [inv.timbre.selloCFD, inv.timbre.selloSAT]) {
@@ -322,7 +322,7 @@ try {
   await abrirOriginal();
   await c.evaluate('document.querySelector("[data-testid=original-preview]").dispatchEvent(new MouseEvent("mousedown", { bubbles: true }))');
   await c.waitFor('!document.querySelector("[data-testid=original-preview]")');
-  const uuidXml = await c.evaluate(`JSON.parse(localStorage.getItem('jcmotors.invoices')).find((i) => i.archivoTipo === 'xml')?.uuid`);
+  const uuidXml = await c.evaluate(`JSON.parse(localStorage.getItem('jc-motors:invoices:v1')).find((i) => i.archivoTipo === 'xml')?.uuid`);
   if (uuidXml) {
     await c.click(rowFor(uuidXml));
     await abrirOriginal();
@@ -349,7 +349,7 @@ try {
     await c.evaluate('[...document.querySelectorAll(".profit-cal-actions button")].find((b) => /Aplicar/i.test(b.innerText)).click()');
     await c.waitFor('!document.querySelector(".profit-range-popover")');
   };
-  const esperadas = (desde, hasta) => c.evaluate(`JSON.parse(localStorage.getItem('jcmotors.invoices')).filter((i) => i.fechaEmision.slice(0, 10) >= '${desde}' && i.fechaEmision.slice(0, 10) <= '${hasta}').length`);
+  const esperadas = (desde, hasta) => c.evaluate(`JSON.parse(localStorage.getItem('jc-motors:invoices:v1')).filter((i) => i.fechaEmision.slice(0, 10) >= '${desde}' && i.fechaEmision.slice(0, 10) <= '${hasta}').length`);
   await filtrarPor('2026-10-14', '2026-10-16');
   const dentro = await esperadas('2026-10-14', '2026-10-16');
   assert.ok(dentro >= 2 && dentro < totalFacturas, 'el rango deja fuera algunas facturas');
@@ -365,7 +365,7 @@ try {
   assert.equal(await c.evaluate('document.querySelector("[data-testid=date-filter]").innerText.trim()'), 'Todas las fechas');
 
   // Un sello truncado se importa igual, pero la interfaz lo advierte (punto ámbar + franja)
-  await c.evaluate(`(() => { const list = JSON.parse(localStorage.getItem('jcmotors.invoices')); const i = list.find((x) => x.uuid === ${JSON.stringify(UUID_G)}); i.timbre.selloSAT = i.timbre.selloSAT.slice(0, 300); i.selloIncompleto = true; localStorage.setItem('jcmotors.invoices', JSON.stringify(list)); location.reload(); })()`);
+  await c.evaluate(`(() => { const list = JSON.parse(localStorage.getItem('jc-motors:invoices:v1')); const i = list.find((x) => x.uuid === ${JSON.stringify(UUID_G)}); i.timbre.selloSAT = i.timbre.selloSAT.slice(0, 300); i.selloIncompleto = true; localStorage.setItem('jc-motors:invoices:v1', JSON.stringify(list)); location.reload(); })()`);
   await c.waitFor('Boolean(document.querySelector("[data-testid=xml-input]"))');
   await c.waitFor(`Boolean(document.querySelector('${rowFor(UUID_G)} [data-testid=row-sello-dot]'))`);
   await c.click(rowFor(UUID_G));
