@@ -4,6 +4,7 @@ import type { CreateQuotationInput, Quotation } from '../models/quotation';
 import { quotationService } from '../services/quotationService';
 import { internalControlService } from '../services/internalControlService';
 import { useToast } from '../components/ui/Toast';
+import { STORAGE_KEYS } from '../storage/storageKeys';
 
 interface QuotationContextValue {
   quotations: Quotation[];
@@ -27,18 +28,30 @@ export function QuotationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    const refresh = () => quotationService.list().then((results) => {
+    const refresh = () => { void quotationService.list().then((results) => {
       if (active) {
         setQuotations(results);
         setIsLoading(false);
       }
-    });
-    void refresh();
-    const timer = window.setInterval(() => { void refresh(); }, 60_000);
+    }); };
+    refresh();
+
+    // Las mutaciones de este contexto ya actualizan el estado. Estos eventos cubren lo que no controla:
+    // otra ventana que escribe en el mismo almacenamiento, y las cotizaciones que vencen con el tiempo (se
+    // recalculan al volver a la ventana en lugar de leer cada minuto).
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === STORAGE_KEYS.quotations) refresh();
+    };
+    const handleVisibility = () => { if (document.visibilityState === 'visible') refresh(); };
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       active = false;
-      window.clearInterval(timer);
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 
