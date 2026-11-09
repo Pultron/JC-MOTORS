@@ -13,19 +13,25 @@ export type MoneyVariant = 'display' | 'pdf' | 'formal';
 
 const NBSP = / /g;
 
+/** Above this magnitude cents are no longer safe integers; doubles there carry no useful cents. */
+const MAX_ROUNDABLE = Math.floor(Number.MAX_SAFE_INTEGER / 100);
+
 /**
- * Rounds to 2 decimals using decimal-exponent shifting instead of `x * 100`, so values such as
- * 1.005, 2.675 or 8.345 round the way a person expects. Half cases go away from zero.
- * Handles scientific notation and negatives; non-finite values are returned unchanged.
+ * Rounds to 2 decimals (half away from zero).
+ *
+ * For normal magnitudes it keeps the exact arithmetic the app has always used for stored amounts
+ * (`(x + EPSILON) * 100`), so no saved quotation total changes by a cent; a pure decimal-shift
+ * rounding would differ on ~1% of half-cent products such as 0.5 × 18341.85. What it fixes:
+ * negatives are rounded symmetrically (no -0, -1.005 → -1.01), and values too large for safe cents
+ * (including scientific notation such as 1e21) are returned untouched instead of being corrupted
+ * by the `/ 100`. Non-finite values are returned unchanged.
  */
 export function roundCurrency(amount: number): number {
   if (!Number.isFinite(amount)) return amount;
-  const shift = (value: number, by: number): number => {
-    const [mantissa, exponent = '0'] = String(value).split('e');
-    return Number(`${mantissa}e${Number(exponent) + by}`);
-  };
-  const result = shift(Math.round(shift(Math.abs(amount), 2)), -2);
-  return amount < 0 && result !== 0 ? -result : result;
+  const abs = Math.abs(amount);
+  if (abs > MAX_ROUNDABLE) return amount;
+  const rounded = Math.round((abs + Number.EPSILON) * 100) / 100;
+  return amount < 0 && rounded !== 0 ? -rounded : rounded;
 }
 
 function groupThousands(integerDigits: string): string {

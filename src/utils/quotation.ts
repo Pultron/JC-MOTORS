@@ -5,6 +5,8 @@ import type {
   QuotationItem,
 } from '../models/quotation';
 
+import { roundCurrency } from './money';
+
 export const IVA_RATE = 0.16;
 
 export interface QuotationTotals {
@@ -125,6 +127,4 @@ export function createId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `quotation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-export function roundCurrency(amount: number): number {
-  return Math.round((amount + Number.EPSILON) * 100) / 100;
-}
+export { roundCurrency };
