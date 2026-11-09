@@ -12,8 +12,3 @@ export function parseCents(value: string): number | null {
   if (!Number.isSafeInteger(cents)) throw new Error('El importe excede el límite permitido.');
   return cents;
 }
-
-export function formatCents(cents: number, withCode = false): string {
-  const formatted = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(cents / 100);
-  return withCode ? `MXN ${formatted}` : formatted;
-}

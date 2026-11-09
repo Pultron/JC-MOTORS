@@ -108,14 +108,6 @@ export function toPublicQuotation(quotation: Quotation): PublicQuotation {
   };
 }
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-    currencyDisplay: 'code',
-  }).format(amount);
-}
-
 export function formatDate(date: string): string {
   return new Intl.DateTimeFormat('es-MX', {
     day: '2-digit',

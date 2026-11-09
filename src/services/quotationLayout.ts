@@ -1,4 +1,5 @@
 import type { PublicQuotation } from '../models/quotation';
+import { formatMoney } from '../utils/money';
 
 /** Design units: px on an A4 sheet at 96 dpi. jsPDF works in mm/pt, so the PDF converts with mm()/pt(). */
 export const PAGE_W = 794;
@@ -108,10 +109,6 @@ export function validUntil(quotation: Pick<PublicQuotation, 'createdAt' | 'valid
   return date;
 }
 
-export const money = (amount: number): string => new Intl.NumberFormat('es-MX', {
-  style: 'currency', currency: 'MXN',
-}).format(amount);
-
 export function conditionsFor(quotation: PublicQuotation): string[] {
   return [
     `Cotización válida hasta el ${longDate(validUntil(quotation))}.`,
@@ -134,21 +131,21 @@ export interface TotalRow { label: string; value: string; tone?: 'discount' }
 
 export function totalRowsFor(quotation: PublicQuotation): TotalRow[] {
   const rows: TotalRow[] = [
-    { label: 'Refacciones', value: money(quotation.subtotalRefacciones) },
-    { label: 'Mano de obra', value: money(quotation.subtotalManoObra) },
+    { label: 'Refacciones', value: formatMoney(quotation.subtotalRefacciones, 'pdf') },
+    { label: 'Mano de obra', value: formatMoney(quotation.subtotalManoObra, 'pdf') },
   ];
   if (quotation.laborDiscount > 0) {
     const percent = quotation.laborDiscountPercent;
     rows.push({
       label: percent ? `Descuento M.O. (${percent}%)` : 'Descuento M.O.',
-      value: `− ${money(quotation.laborDiscount)}`,
+      value: `− ${formatMoney(quotation.laborDiscount, 'pdf')}`,
       tone: 'discount',
     });
   }
-  rows.push({ label: 'Subtotal', value: money(quotation.subtotalNeto) });
+  rows.push({ label: 'Subtotal', value: formatMoney(quotation.subtotalNeto, 'pdf') });
   rows.push({
     label: quotation.includeVat ? 'IVA (16%)' : 'IVA no incluido',
-    value: money(quotation.ivaAmount),
+    value: formatMoney(quotation.ivaAmount, 'pdf'),
   });
   return rows;
 }

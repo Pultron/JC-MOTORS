@@ -1,7 +1,8 @@
 import { useRef } from 'react';
 import { Package, Plus, Trash2 } from 'lucide-react';
 import type { QuoteDraftItem, QuoteFormData } from '../../models/quoteDraft';
-import { formatMoney, parseDecimal, sanitizeDecimalInput } from '../../utils/currency';
+import { parseDecimal, sanitizeDecimalInput } from '../../utils/currency';
+import { formatMoney } from '../../utils/money';
 import { roundCurrency } from '../../utils/quotation';
 import { SuggestionInput } from '../ui/SuggestionInput';
 import { Card } from './primitives/Card';

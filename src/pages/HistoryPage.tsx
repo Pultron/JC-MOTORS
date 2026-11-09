@@ -12,6 +12,7 @@ import type { PublicQuotation, Quotation, QuotationStatus } from '../models/quot
 import { useQuotations } from '../store/QuotationContext';
 import { localDate } from '../utils/dateRangeUtils';
 import type { DateRange } from '../utils/dateRangeUtils';
+import { formatMoney } from '../utils/money';
 import { calculateQuotationTotals, formatDate, toPublicQuotation } from '../utils/quotation';
 import '../styles/historial.css';
 
@@ -25,7 +26,6 @@ const TOAST_MS = 3300;
 
 const normalize = (value: string) => value.toLocaleLowerCase('es-MX');
 const folioNumber = (folio: string) => Number(folio.replace(/\D/g, '')) || 0;
-const formatTotal = (amount: number) => `MXN $${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function HistoryPage() {
   const navigate = useNavigate();
@@ -176,7 +176,7 @@ export function HistoryPage() {
                         <td className="hi-client">{quotation.customer.name}</td>
                         <td className="hi-vehicle">{quotation.vehicle.make} {quotation.vehicle.model}</td>
                         <td><span className="hi-badge" data-status={quotation.status} data-testid="hi-badge"><i aria-hidden="true" />{quotation.status}</span></td>
-                        <td className="hi-right hi-total">{formatTotal(total)}</td>
+                        <td className="hi-right hi-total">{formatMoney(total)}</td>
                         <td>
                           <div className="hi-actions">
                             <button type="button" className="hi-icon" data-testid={`hi-view-${quotation.folio}`} title={`Ver detalle ${quotation.folio}`} aria-label={`Ver detalle ${quotation.folio}`} onClick={() => navigate(`/cotizaciones/${quotation.id}`)}><Eye size={18} aria-hidden="true" /></button>

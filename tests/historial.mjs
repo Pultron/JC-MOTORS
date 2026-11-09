@@ -86,7 +86,7 @@ try {
   assert.equal(await text('.hi-header h1'), 'Historial');
   assert.equal(await text('[data-testid=hi-count]'), '9 cotizaciones');
   assert.deepEqual(await folios(), ['JC-0009', 'JC-0008', 'JC-0007', 'JC-0006', 'JC-0005', 'JC-0004', 'JC-0003', 'JC-0002', 'JC-0001']);
-  assert.equal(await text('[data-testid=hi-row] .hi-total'), 'MXN $6,150.00');
+  assert.equal(await text('[data-testid=hi-row] .hi-total'), '$6,150.00');
   assert.equal(await c.evaluate('document.querySelector("[data-testid=hi-search]").getAttribute("aria-label")'), 'Buscar por folio, cliente o vehículo');
   assert.equal(await count('thead th.hi-sr-only'), 1, 'la columna de acciones lleva encabezado oculto');
   assert.equal(await rangeText(), 'Todas las fechas');

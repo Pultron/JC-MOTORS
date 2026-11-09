@@ -9,7 +9,7 @@
     "test:quote": "node --experimental-strip-types --loader ./tests/ts-loader.mjs tests/quoteWorkflow.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test": "node --experimental-strip-types --loader ./tests/ts-loader.mjs --test tests/backup.mjs tests/folioCounter.mjs tests/internalCosts.mjs tests/quotationCache.mjs tests/quotationContext.mjs tests/quotationPdf.mjs tests/quoteWorkflow.mjs tests/storageMigration.mjs tests/storageSafety.mjs tests/storageUsage.mjs"
+    "test": "node --experimental-strip-types --loader ./tests/ts-loader.mjs --test tests/money.mjs tests/backup.mjs tests/folioCounter.mjs tests/internalCosts.mjs tests/quotationCache.mjs tests/quotationContext.mjs tests/quotationPdf.mjs tests/quoteWorkflow.mjs tests/storageMigration.mjs tests/storageSafety.mjs tests/storageUsage.mjs"
   },
   "dependencies": {
     "jspdf": "^4.2.1",

@@ -2,10 +2,11 @@ import { jsPDF } from 'jspdf';
 import type { PublicQuotation } from '../models/quotation';
 import {
   BAND_BOTTOM, BAND_TOP, BULLET_INDENT, CARD_LABEL_W, COND_TITLE_H, CONT_HEADER, CONTENT_W, LINE, MARGIN_X,
-  PAGE_H, PAGE_W, cardWidth, conditionsWidth, customerRows, describe, headerHeight, longDate, mm, money, planificar, pt,
+  PAGE_H, PAGE_W, cardWidth, conditionsWidth, customerRows, describe, headerHeight, longDate, mm, planificar, pt,
   rowTextWidth, validUntil, vehicleRows,
 } from '../services/quotationLayout';
 import type { Blocks, CardRowData, Mode, Sheet } from '../services/quotationLayout';
+import { formatMoney } from './money';
 import { registerFonts } from './pdfAssets';
 import type { PdfAssets } from './pdfAssets';
 import { drawIcon } from './pdfIcons';
@@ -254,8 +255,8 @@ function drawTable(page: Page, mode: Mode, sheet: Sheet, y: number): number {
     const textTop = rowY + (height - lines.length * mode.rowFont * LINE) / 2;
     page.text(lines, MARGIN_X + 16, textTop, { size: mode.rowFont, color: C.text });
     page.middle(String(item.quantity), qtyX + mode.colQty / 2, rowY, height, { size: mode.rowFont, color: C.text, align: 'center' });
-    page.middle(money(item.saleUnitPrice), priceEnd - 16, rowY, height, { size: mode.rowFont, color: C.text2, align: 'right' });
-    page.middle(money(item.amount), RIGHT - 16, rowY, height, { size: mode.rowFont, bold: true, color: C.navy, align: 'right' });
+    page.middle(formatMoney(item.saleUnitPrice, 'pdf'), priceEnd - 16, rowY, height, { size: mode.rowFont, color: C.text2, align: 'right' });
+    page.middle(formatMoney(item.amount, 'pdf'), RIGHT - 16, rowY, height, { size: mode.rowFont, bold: true, color: C.navy, align: 'right' });
     if (index < sheet.filas.length - 1) page.hline(MARGIN_X, RIGHT, rowY + height, C.line);
     rowY += height;
   });
@@ -302,7 +303,7 @@ function drawTotals(page: Page, mode: Mode, blocks: Blocks, total: number, top: 
     if (index < blocks.totalRows.length - 1) page.hline(x + 20, x + mode.totW - 20, rowTop + mode.totRowH, C.line);
   });
   page.middle('TOTAL', x + 20, barTop, mode.barH, { size: mode.barLabel, font: 'InterXB', color: C.white });
-  page.middle(`MXN ${money(total)}`, x + mode.totW - 20, barTop, mode.barH, { size: mode.barValue, font: 'InterXB', color: C.orangeLight, align: 'right' });
+  page.middle(formatMoney(total, 'formal'), x + mode.totW - 20, barTop, mode.barH, { size: mode.barValue, font: 'InterXB', color: C.orangeLight, align: 'right' });
   page.stroke(x, top, mode.totW, blocks.totalsHeight, C.navy, 1.5, radius);
 }
 

@@ -11,7 +11,8 @@ import { useQuotationActions } from '../../hooks/useQuotationActions';
 import { useQuotationPdfDownload } from '../../hooks/useQuotationPdfDownload';
 import type { PublicQuotation, Quotation, QuotationStatus } from '../../models/quotation';
 import { useQuotations } from '../../store/QuotationContext';
-import { calculateQuotationTotals, formatCurrency, formatDate, toPublicQuotation } from '../../utils/quotation';
+import { formatMoney } from '../../utils/money';
+import { calculateQuotationTotals, formatDate, toPublicQuotation } from '../../utils/quotation';
 
 const PAGE_SIZE = 5;
 
@@ -158,7 +159,7 @@ export function QuotesTable() {
                             <StatusBadge status={quotation.status} size="sm" />
                           </span>
                         </td>
-                        <td className="num text-right font-semibold text-mac-ink">{formatCurrency(totals.total)}</td>
+                        <td className="num text-right font-semibold text-mac-ink">{formatMoney(totals.total)}</td>
                         <td className="text-right">
                           <div className="flex justify-end">
                             <QuotationActionsMenu

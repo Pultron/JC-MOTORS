@@ -129,7 +129,7 @@ test('pdf content (JC-0006) and consistency with the planner', () => {
   const doc = buildQuotationPdf(data, assets);
   const { text } = pdfText(doc, 'JC-0006.pdf');
   for (const expected of ['Folio: JC-0006', '18 de noviembre de 2026', 'Cotización válida hasta el 18 de noviembre de 2026',
-    'MXN $3,825.00', 'Esta cotización no es un comprobante fiscal.', 'Descuento M.O. (15%)', '− $75.00', 'IVA no incluido', 'Precios sin IVA',
+    '$3,825.00 MXN', 'Esta cotización no es un comprobante fiscal.', 'Descuento M.O. (15%)', '− $75.00', 'IVA no incluido', 'Precios sin IVA',
     'OBSERVACIONES', 'VIDRIO ROTO', '(243) 421-3213', 'Autorización del cliente']) {
     assert.ok(text.includes(expected), `missing: ${expected}`);
   }
@@ -147,7 +147,7 @@ test('pdf multi-sheet: page count equals the planner and the signature is never 
     assert.ok(expected.hojas.length > 1);
     assert.ok(text.includes(`Hoja 1 de ${expected.hojas.length}`));
     const pages = text.split('\f').filter(Boolean);
-    assert.ok(pages.at(-1).includes('Autorización del cliente') && pages.at(-1).includes('MXN'), 'last sheet carries totals and signature');
+    assert.ok(pages.at(-1).includes('Autorización del cliente') && /\$[\d,]+\.\d{2} MXN/.test(pages.at(-1)),'last sheet carries totals and signature');
     assert.ok(pages.slice(0, -1).every((page) => !page.includes('Autorización del cliente')), 'no earlier sheet has the signature');
   }
 });
