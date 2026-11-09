@@ -92,6 +92,8 @@ export interface Sheet {
 
 export interface Plan {
   modo: Mode;
+  /** Measured blocks the PDF must draw, so preview and PDF can never disagree. */
+  blocks: Blocks;
   hojas: Sheet[];
 }
 
@@ -225,7 +227,11 @@ export const BULLET_INDENT = 18;
 export const COND_TITLE_H = 26;
 const OBS_TITLE_H = 18;
 
-export function describe(doc: MeasureDoc, quotation: PublicQuotation, mode: Mode): Blocks {
+/**
+ * `rowReserve` is the height the last sheet must keep free for its minimum concept rows. Only when the observations are so
+ * long that conditions + totals + signature would leave no room for those rows, the observations are cut with an ellipsis.
+ */
+export function describe(doc: MeasureDoc, quotation: PublicQuotation, mode: Mode, rowReserve = 0): Blocks {
   const customer = cardRowHeights(doc, customerRows(quotation), mode);
   const vehicle = cardRowHeights(doc, vehicleRows(quotation), mode);
   const cards = mode.cardPadT + Math.max(mode.cardIcon, mode.cardTitle * 1.3) + 12
@@ -239,9 +245,23 @@ export function describe(doc: MeasureDoc, quotation: PublicQuotation, mode: Mode
 
   const observations = observationsFor(quotation);
   setText(doc, 'Inter', 'bold', mode.bulletFont);
-  const observationLines = observations
+  let observationLines = observations
     ? doc.splitTextToSize(observations, mm(conditionsWidth(mode) - mode.obsPadX * 2))
     : [];
+  const authLine = 14 * 1.4;
+  const auth = mode.authMargin + mode.authPadT + 15 * 1.25 + 4 + mode.bulletFont * 1.4
+    + mode.signGap + authLine + mode.authPadB;
+  const footer = mode.footPadT + 1 + 12 + 2 * 13 * 1.4 + mode.noteT + 12 * 1.4 + mode.noteB;
+  const separator = mode.sepTop + 1 + mode.sepBot;
+  if (observations && rowReserve > 0) {
+    const fixed = BAND_TOP + mode.padTop + CONT_HEADER + separator + mode.headH + mode.blockMargin + auth + footer + BAND_BOTTOM + SLACK;
+    const room = PAGE_H - fixed - rowReserve - (COND_TITLE_H + bulletsHeight + 14 + mode.obsPadT + OBS_TITLE_H + mode.obsPadB);
+    const fitting = Math.max(1, Math.floor(room / (mode.bulletFont * LINE)));
+    if (observationLines.length > fitting) {
+      observationLines = observationLines.slice(0, fitting);
+      observationLines[fitting - 1] = `${observationLines[fitting - 1].slice(0, -1).trimEnd()}…`;
+    }
+  }
   const observationsHeight = observations
     ? mode.obsPadT + OBS_TITLE_H + observationLines.length * mode.bulletFont * LINE + mode.obsPadB
     : 0;
@@ -250,15 +270,9 @@ export function describe(doc: MeasureDoc, quotation: PublicQuotation, mode: Mode
   const totalRows = totalRowsFor(quotation);
   const totalsHeight = totalRows.length * mode.totRowH + mode.barH;
 
-  const authLine = 14 * 1.4;
-  const auth = mode.authMargin + mode.authPadT + 15 * 1.25 + 4 + mode.bulletFont * 1.4
-    + mode.signGap + authLine + mode.authPadB;
-
-  const footer = mode.footPadT + 1 + 12 + 2 * 13 * 1.4 + mode.noteT + 12 * 1.4 + mode.noteB;
-
   return {
     header: mode.padTop + headerHeight(mode),
-    separator: mode.sepTop + 1 + mode.sepBot,
+    separator,
     cards,
     cardRows: { customer, vehicle },
     sectionTitle: mode.tableMargin + mode.sectionFont * 1.25 + 10,
@@ -308,19 +322,22 @@ export function planificar(doc: MeasureDoc, quotation: PublicQuotation): Plan {
     const blocks = describe(doc, quotation, mode);
     const altos = items.map((item) => altoFila(doc, item.description, mode));
     if (fijoUnaHoja(blocks, mode) + sum(altos) <= PAGE_H) {
-      return { modo: mode, hojas: [{ filas: items, altos, final: true }] };
+      return { modo: mode, blocks, hojas: [{ filas: items, altos, final: true }] };
     }
   }
 
   const mode = COMPACT;
-  const blocks = describe(doc, quotation, mode);
   const altos = items.map((item) => altoFila(doc, item.description, mode));
+  const minLast = Math.min(MIN_LAST_SHEET_ROWS, items.length);
+  const tallest = [...altos].sort((a, b) => b - a).slice(0, minLast);
+  const blocks = describe(doc, quotation, mode, sum(tallest));
   const capUltima = PAGE_H - fijoUltima(blocks, mode);
   const hojas: Sheet[] = [];
   let i = 0;
 
   while (true) {
-    if (sum(altos.slice(i)) <= capUltima) {
+    // The final sheet is never empty: with <= minLast rows left they all go on it, so it cannot hold only totals and signature.
+    if (altos.length - i <= minLast || sum(altos.slice(i)) <= capUltima) {
       hojas.push({ filas: items.slice(i), altos: altos.slice(i), final: true });
       break;
     }
@@ -329,9 +346,9 @@ export function planificar(doc: MeasureDoc, quotation: PublicQuotation): Plan {
     let usado = 0;
     while (i + n < altos.length && usado + altos[i + n] <= cap) usado += altos[i + n++];
     // Keep at least MIN_LAST_SHEET_ROWS rows for the last sheet so it never carries only totals and signature.
-    n = Math.max(1, Math.min(n, altos.length - i - MIN_LAST_SHEET_ROWS));
+    n = Math.max(1, Math.min(n, altos.length - i - minLast));
     hojas.push({ filas: items.slice(i, i + n), altos: altos.slice(i, i + n), final: false });
     i += n;
   }
-  return { modo: mode, hojas };
+  return { modo: mode, blocks, hojas };
 }

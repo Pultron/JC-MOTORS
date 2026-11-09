@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import type { PublicQuotation } from '../models/quotation';
 import {
   BAND_BOTTOM, BAND_TOP, BULLET_INDENT, CARD_LABEL_W, COND_TITLE_H, CONT_HEADER, CONTENT_W, LINE, MARGIN_X,
-  PAGE_H, PAGE_W, cardWidth, conditionsWidth, customerRows, describe, headerHeight, mm, planificar, pt,
+  PAGE_H, PAGE_W, cardWidth, conditionsWidth, customerRows, headerHeight, mm, planificar, pt,
   rowTextWidth, validUntil, vehicleRows,
 } from '../services/quotationLayout';
 import type { Blocks, CardRowData, Mode, Sheet } from '../services/quotationLayout';
@@ -98,7 +98,7 @@ export function buildQuotationPdf(quotation: PublicQuotation, assets: PdfAssets)
   registerFonts(doc, assets);
   doc.setLineHeightFactor(LINE);
   const plan = planificar(doc, quotation);
-  const blocks = describe(doc, quotation, plan.modo);
+  const blocks = plan.blocks;
   const page = new Page(doc);
   const business = loadBusinessInfo();
 
