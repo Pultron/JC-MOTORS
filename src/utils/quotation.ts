@@ -95,6 +95,7 @@ export function toPublicQuotation(quotation: Quotation): PublicQuotation {
       amount,
     })),
     laborDiscount: totals.laborDiscount,
+    ...(quotation.laborDiscountType === 'percentage' ? { laborDiscountPercent: quotation.laborDiscountValue } : {}),
     subtotalRefacciones: totals.subtotalRefacciones,
     subtotalManoObra: totals.subtotalManoObra,
     subtotalNeto: totals.subtotalNeto,

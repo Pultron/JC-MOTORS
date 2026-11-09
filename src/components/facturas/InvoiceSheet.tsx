@@ -55,10 +55,7 @@ export function InvoiceSheet({ invoice }: { invoice: Invoice }) {
       <div className="inv-body">
         <header className="inv-head">
           <img src="/jc-motors-logo.png" alt="JC Motors" className="inv-logo" />
-          <div className="inv-brandblock">
-            <strong className="inv-brand">JC Motors</strong>
-            <span className="inv-sub">Taller Automotriz · Culiacán, Sinaloa, México</span>
-          </div>
+          <div className="inv-brandblock" />
           <div className="inv-title">
             <strong>FACTURA</strong>
             <span className="inv-folio-interno"><small>FOLIO INTERNO</small><b className="inv-mono" data-testid="invoice-folio">{formatearFolio(invoice.folio)}</b></span>

@@ -5,9 +5,10 @@ import { useConfirm } from './useConfirm';
 import type { QuoteDraft, QuoteDraftItem, QuoteFormData } from '../models/quoteDraft';
 import type { CreateQuotationInput, Quotation } from '../models/quotation';
 import { frequentConcepts } from '../repositories/serviceFixtures';
-import { quoteDraftService } from '../services/quoteDraftService';
+import { DraftStorageFullError, quoteDraftService } from '../services/quoteDraftService';
 import type { TemporaryQuoteDraft } from '../services/quoteDraftService';
-import { validateQuoteForm } from '../services/quoteValidation';
+import { MAX_CONCEPTS } from '../services/quotationLayout';
+import { MAX_CONCEPTS_MESSAGE, validateQuoteForm } from '../services/quoteValidation';
 import { useCustomers } from '../store/CustomerContext';
 import { useQuotations } from '../store/QuotationContext';
 import { parseDecimal } from '../utils/currency';
@@ -114,9 +115,9 @@ export function useCotizacionForm() {
       try {
         quoteDraftService.saveTemporary(form, activeDraft?.id ?? null);
         setSaveState('saved');
-      } catch {
+      } catch (error) {
         setSaveState('idle');
-        toast.error({ title: 'Error al guardar', description: 'No se pudo guardar el borrador temporal. Revisa el espacio disponible.' });
+        toast.error({ title: 'Error al guardar', description: error instanceof DraftStorageFullError ? error.message : 'No se pudo guardar el borrador temporal. Revisa el espacio disponible.' });
       }
     }, 650);
     return () => { if (autosaveTimer.current !== null) window.clearTimeout(autosaveTimer.current); };
@@ -156,6 +157,10 @@ export function useCotizacionForm() {
   }
 
   function addItem(description = '') {
+    if (form.items.length >= MAX_CONCEPTS) {
+      setErrors((current) => ({ ...current, items: MAX_CONCEPTS_MESSAGE }));
+      return;
+    }
     const only = form.items.length === 1 ? form.items[0] : undefined;
     if (description && only && !only.description.trim() && !only.unitPrice.trim()) {
       updateField('items', [{ ...only, description }]);

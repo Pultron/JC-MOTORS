@@ -314,3 +314,8 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
   .print-area { color: #111827; }
   .print-area section { break-inside: avoid; box-shadow: none; }
 }
+
+/* Fade when the printed-sheet count changes. */
+.sheet-count-fade { animation: sheet-count-in 160ms cubic-bezier(.2, .8, .2, 1); }
+@keyframes sheet-count-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .sheet-count-fade { animation: none; } }

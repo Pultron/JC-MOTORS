@@ -1,4 +1,5 @@
-import { Calculator, Info, Save, Tag, Trash2 } from 'lucide-react';
+import { Calculator, FileText, Info, Save, Tag, Trash2 } from 'lucide-react';
+import { useQuotationSheetCount } from '../../hooks/useQuotationSheetCount';
 import type { QuoteFormData } from '../../models/quoteDraft';
 import type { QuotationTotals } from '../../utils/quotation';
 import { formatMoney, sanitizeDecimalInput } from '../../utils/currency';
@@ -30,6 +31,7 @@ const PROMOTION_OPTIONS = [
 ];
 
 export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChange, onSaveDraft, onClear, submitLabel = 'Guardar cotización' }: Props) {
+  const sheets = useQuotationSheetCount(form, totals);
   const discountValue = Number(form.laborDiscountValue) || 0;
   const promotionValue = form.laborDiscountType === 'percentage' && PROMOTION_OPTIONS.some((option) => Number(option.value) === discountValue)
     ? String(discountValue)
@@ -74,6 +76,12 @@ export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChang
           <span className="font-semibold text-mac-accent-text">Total</span>
           <strong data-testid="resumen-total" className="text-[28px] font-bold leading-none tracking-[-0.02em] text-mac-accent">{formatMoney(totals.total)}</strong>
         </div>
+        {sheets !== null && <p aria-live="polite" data-testid="resumen-hojas" className="mx-4 mb-3 flex items-center gap-1.5 text-xs font-medium" style={{ color: sheets > 1 ? '#B25000' : '#636366' }}>
+          <span key={sheets} className="sheet-count-fade flex items-center gap-1.5">
+            {sheets > 1 && <FileText size={14} aria-hidden="true" />}
+            {sheets === 1 ? 'Se imprimirá en 1 hoja' : `Se imprimirá en ${sheets} hojas`}
+          </span>
+        </p>}
         <p className="mx-4 mb-4 flex items-start gap-2 rounded-xl bg-mac-info-bg p-3 text-xs leading-snug text-mac-info-text"><Info size={15} aria-hidden="true" className="mt-px flex-none" />Los costos y descuentos internos de las refacciones no se muestran al cliente.</p>
       </div>
       <div className="grid gap-2 px-4 pb-4">

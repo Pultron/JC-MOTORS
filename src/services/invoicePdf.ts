@@ -141,13 +141,7 @@ function tituloSeccion(ctx: Ctx, valor: string, x = MARGEN, ancho = ANCHO) {
 // ---------------------------------------------------------------- bloques
 function dibujarEncabezado(ctx: Ctx, invoice: Invoice, logo: string) {
   const { doc } = ctx;
-  doc.addImage(logo, 'PNG', MARGEN, 12, 18, 18);
-  const x = MARGEN + 18 + 4;
-
-  fuente(ctx, 'PlexSans', 'bold', 14, NAVY);
-  texto(ctx, 'JC Motors', x, 19.5);
-  fuente(ctx, 'PlexSans', 'normal', 7.5, MUTE);
-  texto(ctx, 'Taller Automotriz · Culiacán, Sinaloa, México', x, 24);
+  doc.addImage(logo, 'PNG', MARGEN, 5.5, 28, 28);
 
   fuente(ctx, 'PlexSans', 'bold', 15, NAVY);
   texto(ctx, 'FACTURA', DERECHA, 18, { align: 'right' });
