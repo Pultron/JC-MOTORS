@@ -5,6 +5,7 @@ import { InvoiceSheet } from '../components/facturas/InvoiceSheet';
 import { OriginalPreview } from '../components/facturas/OriginalPreview';
 import { RangeCalendar } from '../components/internalControl/RangeCalendar';
 import { useToast } from '../components/ui/Toast';
+import { formatDate } from '../utils/dateFormat';
 import { useConfirm } from '../hooks/useConfirm';
 import { useInvoices } from '../hooks/useInvoices';
 import type { ImportOutcome } from '../hooks/useInvoices';
@@ -21,7 +22,6 @@ const SIN_RANGO: DateRange = { start: '', end: '' };
 /** Fecha de emisión (AAAA-MM-DD) tal como viene en la factura, sin pasar por la zona horaria. */
 const diaDeEmision = (invoice: Invoice) => invoice.fechaEmision.slice(0, 10);
 
-const formatDate = (iso: string) => new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 
 function Estado({ estado }: { estado: Invoice['estado'] }) {
   if (estado === 'timbrada') return null;
@@ -200,7 +200,7 @@ export function FacturasPage() {
           {visibles.map((invoice, i) => (
             <li key={invoice.uuid} style={{ animationDelay: `${i * 50}ms` }} className={flashUuid === invoice.uuid ? 'is-flash' : undefined}>
               <button type="button" data-testid="invoice-row" data-uuid={invoice.uuid} data-selected={invoice.uuid === selectedUuid} onClick={() => select(invoice.uuid)}>
-                <span className="fac-row-top"><span className="fac-row-uuid">Nº {formatearFolio(invoice.folio)}{invoice.selloIncompleto && <span className="fac-dot-warn" title="El sello digital no se extrajo completo; el PDF generado no será válido para imprimir" data-testid="row-sello-dot" />}</span><span className="fac-row-date">{formatDate(invoice.fechaEmision)}</span></span>
+                <span className="fac-row-top"><span className="fac-row-uuid">Nº {formatearFolio(invoice.folio)}{invoice.selloIncompleto && <span className="fac-dot-warn" title="El sello digital no se extrajo completo; el PDF generado no será válido para imprimir" data-testid="row-sello-dot" />}</span><span className="fac-row-date">{formatDate(invoice.fechaEmision, 'medium')}</span></span>
                 <span className="fac-row-name">{invoice.receptor.nombre}</span>
                 <span className="fac-row-bottom"><Estado estado={invoice.estado} /><strong>{formatMoney(invoice.total)}</strong></span>
               </button>

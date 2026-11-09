@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { localDate } from '../../utils/dateRangeUtils';
+import { formatDate, parseDate } from '../../utils/dateFormat';
 import type { DateRange } from '../../utils/dateRangeUtils';
 
 const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-const parse = (iso: string) => new Date(`${iso}T12:00:00`);
-const fmt = (iso: string) => parse(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+const parse = (iso: string) => parseDate(iso) ?? new Date();
+const fmt = (iso: string) => formatDate(iso, 'compact');
 
 interface Props { value: DateRange; onApply: (range: DateRange) => void; onCancel: () => void }
 
@@ -45,7 +46,7 @@ export function RangeCalendar({ value, onApply, onCancel }: Props) {
 
   const preview = picking && hover ? (hover < draft.start ? { start: hover, end: draft.start } : { start: draft.start, end: hover }) : draft;
   const shift = (delta: number) => setMonth(current => new Date(current.getFullYear(), current.getMonth() + delta, 1));
-  const title = month.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+  const title = formatDate(month, 'monthYear');
 
   return <div ref={root} className="profit-range-popover" role="dialog" aria-label="Seleccionar rango de fechas" onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); onCancel(); } }}>
     <div className="profit-cal-head">

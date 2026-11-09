@@ -12,7 +12,8 @@ import { useQuotationPdfDownload } from '../../hooks/useQuotationPdfDownload';
 import type { PublicQuotation, Quotation, QuotationStatus } from '../../models/quotation';
 import { useQuotations } from '../../store/QuotationContext';
 import { formatMoney } from '../../utils/money';
-import { calculateQuotationTotals, formatDate, toPublicQuotation } from '../../utils/quotation';
+import { calculateQuotationTotals, toPublicQuotation } from '../../utils/quotation';
+import { formatDate } from '../../utils/dateFormat';
 
 const PAGE_SIZE = 5;
 
@@ -151,7 +152,7 @@ export function QuotesTable() {
                         onAnimationEnd={handleRowAnimationEnd}
                       >
                         <td className="font-semibold text-mac-ink">{quotation.folio}</td>
-                        <td className="num text-mac-ink-2">{formatDate(quotation.createdAt)}</td>
+                        <td className="num text-mac-ink-2">{formatDate(quotation.createdAt, 'medium')}</td>
                         <td className="max-w-0 truncate font-semibold text-mac-ink" title={quotation.customer.name}>{quotation.customer.name}</td>
                         <td className="max-w-0 truncate text-mac-ink-2" title={quotation.vehicle.year ? `${vehicle} ${quotation.vehicle.year}` : vehicle}>{vehicle}</td>
                         <td>

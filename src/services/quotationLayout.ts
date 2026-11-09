@@ -1,4 +1,5 @@
 import type { PublicQuotation } from '../models/quotation';
+import { addDays, formatDate, parseDate } from '../utils/dateFormat';
 import { formatMoney } from '../utils/money';
 
 /** Design units: px on an A4 sheet at 96 dpi. jsPDF works in mm/pt, so the PDF converts with mm()/pt(). */
@@ -99,19 +100,15 @@ export function formatPhone(raw: string): string {
   return digits.length === 10 ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}` : raw;
 }
 
-export const longDate = (date: Date): string => new Intl.DateTimeFormat('es-MX', {
-  day: 'numeric', month: 'long', year: 'numeric',
-}).format(date);
-
+/** Quotation expiry: the local calendar day of creation plus validityDays (no UTC drift, DST safe). */
 export function validUntil(quotation: Pick<PublicQuotation, 'createdAt' | 'validityDays'>): Date {
-  const date = new Date(quotation.createdAt);
-  date.setDate(date.getDate() + quotation.validityDays);
-  return date;
+  const created = parseDate(quotation.createdAt) ?? new Date();
+  return addDays(created, quotation.validityDays);
 }
 
 export function conditionsFor(quotation: PublicQuotation): string[] {
   return [
-    `Cotización válida hasta el ${longDate(validUntil(quotation))}.`,
+    `Cotización válida hasta el ${formatDate(validUntil(quotation), 'long')}.`,
     'Precios sujetos a revisión y disponibilidad de refacciones.',
     'Cualquier trabajo adicional requiere autorización del cliente.',
     'Garantía aplicable según el servicio o refacción.',

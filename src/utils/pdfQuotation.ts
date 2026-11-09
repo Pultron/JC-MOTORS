@@ -2,10 +2,11 @@ import { jsPDF } from 'jspdf';
 import type { PublicQuotation } from '../models/quotation';
 import {
   BAND_BOTTOM, BAND_TOP, BULLET_INDENT, CARD_LABEL_W, COND_TITLE_H, CONT_HEADER, CONTENT_W, LINE, MARGIN_X,
-  PAGE_H, PAGE_W, cardWidth, conditionsWidth, customerRows, describe, headerHeight, longDate, mm, planificar, pt,
+  PAGE_H, PAGE_W, cardWidth, conditionsWidth, customerRows, describe, headerHeight, mm, planificar, pt,
   rowTextWidth, validUntil, vehicleRows,
 } from '../services/quotationLayout';
 import type { Blocks, CardRowData, Mode, Sheet } from '../services/quotationLayout';
+import { formatDate } from './dateFormat';
 import { formatMoney } from './money';
 import { registerFonts } from './pdfAssets';
 import type { PdfAssets } from './pdfAssets';
@@ -177,8 +178,8 @@ function drawMainHeader(page: Page, quotation: PublicQuotation, assets: PdfAsset
   page.middle(folio, RIGHT - chipW / 2, chipTop, chipH, { size: mode.folioFont, bold: true, color: C.white, align: 'center' });
 
   const datesTop = chipTop + chipH + 8;
-  drawDateLine(page, 'Fecha de emisión: ', longDate(new Date(quotation.createdAt)), datesTop, mode.dateFont, C.navy);
-  drawDateLine(page, 'Válida hasta: ', longDate(validUntil(quotation)), datesTop + mode.dateFont * 1.45, mode.dateFont, C.orangeDark);
+  drawDateLine(page, 'Fecha de emisión: ', formatDate(quotation.createdAt, 'long'), datesTop, mode.dateFont, C.navy);
+  drawDateLine(page, 'Válida hasta: ', formatDate(validUntil(quotation), 'long'), datesTop + mode.dateFont * 1.45, mode.dateFont, C.orangeDark);
   return y + height;
 }
 

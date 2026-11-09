@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { Download, HardDrive, Upload } from 'lucide-react';
 import { StorageUsageBar } from '../components/StorageUsageBar';
+import { formatDate } from '../utils/dateFormat';
 import { Segmented } from '../components/newQuote/primitives/Segmented';
 import { Card } from '../components/newQuote/primitives/Card';
 import { CardHeader } from '../components/newQuote/primitives/CardHeader';
@@ -20,10 +21,9 @@ interface PendingImport {
   backup: BackupFile;
 }
 
-const dateTime = new Intl.DateTimeFormat('es-MX', { dateStyle: 'long', timeStyle: 'short' });
 
-function formatDate(iso: string | null): string {
-  return iso ? dateTime.format(new Date(iso)) : 'Todavía no has exportado un respaldo';
+function formatBackupDate(iso: string | null): string {
+  return iso ? formatDate(iso, 'dateTime') : 'Todavía no has exportado un respaldo';
 }
 
 export function BackupPage() {
@@ -128,7 +128,7 @@ export function BackupPage() {
       <Card as="section">
         <CardHeader icon={<Download size={18} />} title="Exportar respaldo" subtitle="Guarda un archivo con todo tu trabajo." />
         <div className="mac-row"><span className="respaldo-label">Contenido</span><span data-testid="backup-current" className="respaldo-value">{formatSummary(current)}</span></div>
-        <div className="mac-row"><span className="respaldo-label">Último respaldo</span><span data-testid="backup-last" className="respaldo-value">{formatDate(lastBackupAt)}</span></div>
+        <div className="mac-row"><span className="respaldo-label">Último respaldo</span><span data-testid="backup-last" className="respaldo-value">{formatBackupDate(lastBackupAt)}</span></div>
         <div className="flex justify-end px-4 py-3">
           <button type="button" data-testid="backup-export" className="mac-btn mac-btn-primary" disabled={busy} onClick={() => void handleExport()}>
             <Download size={16} aria-hidden="true" />Exportar respaldo
@@ -149,7 +149,7 @@ export function BackupPage() {
         </div>}
         {pending && <>
           <div className="mac-row"><span className="respaldo-label">Archivo</span><span className="respaldo-value">{pending.fileName}</span></div>
-          <div className="mac-row"><span className="respaldo-label">Fecha</span><span className="respaldo-value">{formatDate(pending.backup.exportedAt)}</span></div>
+          <div className="mac-row"><span className="respaldo-label">Fecha</span><span className="respaldo-value">{formatBackupDate(pending.backup.exportedAt)}</span></div>
           <div className="mac-row"><span className="respaldo-label">Contenido</span><span data-testid="backup-summary" className="respaldo-value">{formatSummary(summarizeBackup(pending.backup))}</span></div>
           <div className="mac-row"><span className="respaldo-label">Modo</span>
             <Segmented ariaLabel="Modo de importación" testId="backup-mode" value={mode} onChange={(value) => setMode(value as ImportMode)} options={[{ value: 'merge', label: 'Combinar' }, { value: 'replace', label: 'Reemplazar' }]} />

@@ -136,18 +136,6 @@ export function toPublicQuotation(quotation: Quotation): PublicQuotation {
   };
 }
 
-export function formatDate(date: string): string {
-  return new Intl.DateTimeFormat('es-MX', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(date));
-}
-
-export function getMonthKey(date: string): string {
-  const value = new Date(date);
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}`;
-}
 
 export function createId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `quotation-${Date.now()}-${Math.random().toString(16).slice(2)}`;

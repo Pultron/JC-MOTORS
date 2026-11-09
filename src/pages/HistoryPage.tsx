@@ -13,7 +13,8 @@ import { useQuotations } from '../store/QuotationContext';
 import { localDate } from '../utils/dateRangeUtils';
 import type { DateRange } from '../utils/dateRangeUtils';
 import { formatMoney } from '../utils/money';
-import { calculateQuotationTotals, formatDate, toPublicQuotation } from '../utils/quotation';
+import { calculateQuotationTotals, toPublicQuotation } from '../utils/quotation';
+import { formatDate } from '../utils/dateFormat';
 import '../styles/historial.css';
 
 type StatusFilter = 'Todas' | QuotationStatus;
@@ -172,7 +173,7 @@ export function HistoryPage() {
                         style={{ animationName: tick % 2 === 0 ? 'hiRowInA' : 'hiRowInB', animationDelay: `${Math.min(index, 10) * 35}ms` }}
                       >
                         <td className="hi-folio">{quotation.folio}</td>
-                        <td className="hi-date">{formatDate(quotation.createdAt)}</td>
+                        <td className="hi-date">{formatDate(quotation.createdAt, 'medium')}</td>
                         <td className="hi-client">{quotation.customer.name}</td>
                         <td className="hi-vehicle">{quotation.vehicle.make} {quotation.vehicle.model}</td>
                         <td><span className="hi-badge" data-status={quotation.status} data-testid="hi-badge"><i aria-hidden="true" />{quotation.status}</span></td>
