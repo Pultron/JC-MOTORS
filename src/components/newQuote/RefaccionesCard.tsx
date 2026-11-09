@@ -34,6 +34,7 @@ export function RefaccionesCard({ form, errors, suggestions, totalParts, onAdd, 
       const descError = errors[`item-${item.id}-description`];
       const qtyError = errors[`item-${item.id}-quantity`];
       const priceError = errors[`item-${item.id}-unitPrice`];
+      const zeroPrice = item.unitPrice.trim() !== '' && parseDecimal(item.unitPrice) === 0;
       const amount = roundCurrency(parseDecimal(item.quantity) * parseDecimal(item.unitPrice));
       return <div key={item.id} data-testid={`refaccion-fila-${index}`} className={`border-t border-mac-separator px-4 py-2 ${initialIds.current.has(item.id) ? '' : 'animate-row-in'}`}>
         <div className="flex flex-wrap items-center gap-2">
@@ -43,6 +44,7 @@ export function RefaccionesCard({ form, errors, suggestions, totalParts, onAdd, 
           <output aria-label={`Importe de la refacción ${index + 1}`} data-testid={`refaccion-importe-${index}`} className="tnum w-[112px] text-right text-sm font-medium">{formatMoney(amount)}</output>
           <button type="button" data-testid={`refaccion-eliminar-${index}`} aria-label={`Eliminar refacción ${index + 1}`} className="mac-press flex size-11 items-center justify-center rounded-lg text-mac-ink-2 hover:bg-mac-fill hover:text-mac-danger" onClick={() => onDelete(item.id)}><Trash2 size={17} aria-hidden="true" /></button>
         </div>
+        {zeroPrice && !priceError && <p data-testid={`refaccion-precio-cero-${index}`} className="mac-zero-price">Precio {formatMoney(0)}</p>}
         {(descError || qtyError || priceError) && <p role="alert" className="pt-1 text-xs font-medium text-mac-danger">{descError ?? qtyError ?? priceError}</p>}
       </div>;
     })}

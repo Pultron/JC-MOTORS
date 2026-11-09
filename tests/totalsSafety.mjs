@@ -33,3 +33,9 @@ test('#016-b per-concept cap in the form validation', () => {
   assert.match(validateQuoteForm(form([row('5000000', '3')]), totals)['item-r1-unitPrice'], /máximo/i);
   assert.match(validateQuoteForm(form([row('10')], { laborAmount: '10000000' }), totals).laborAmount, /\$9,999,999\.99/);
 });
+
+test('#016-c zero-price concepts are allowed (not an error) and counted for the save toast', async () => {
+  const { countZeroPriceItems } = await import('../src/utils/quotation.ts');
+  assert.equal(countZeroPriceItems([{ saleUnitPrice: 0 }, { saleUnitPrice: 10 }, { saleUnitPrice: 0 }]), 2);
+  assert.equal(validateQuoteForm(form([row('0')]), totals)['item-r1-unitPrice'], undefined);
+});

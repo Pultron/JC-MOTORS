@@ -12,8 +12,9 @@ import { MAX_CONCEPTS_MESSAGE, validateQuoteForm } from '../services/quoteValida
 import { useCustomers } from '../store/CustomerContext';
 import { useQuotations } from '../store/QuotationContext';
 import { parseDecimal } from '../utils/currency';
-import { AMOUNT_TOO_LARGE_MESSAGE, QuotationAmountError, calculateQuotationTotals, createId } from '../utils/quotation';
+import { AMOUNT_TOO_LARGE_MESSAGE, QuotationAmountError, calculateQuotationTotals, countZeroPriceItems, createId } from '../utils/quotation';
 import type { QuotationTotals } from '../utils/quotation';
+import { formatMoney } from '../utils/money';
 
 function blankItem(description = ''): QuoteDraftItem {
   return { id: createId(), type: 'part', description, quantity: '1', unitPrice: '' };
@@ -239,6 +240,10 @@ export function useCotizacionForm() {
       }
       if (!form.customerId && !customers.some((customer) => normalize(customer.name) === normalize(form.customerName))) {
         createCustomer({ name: form.customerName.trim(), phone: form.phone.trim(), ...(form.email.trim() ? { email: form.email.trim() } : {}), aliases: [] });
+      }
+      const zeroPriced = countZeroPriceItems(input.items);
+      if (zeroPriced > 0) {
+        toast.info({ title: `${zeroPriced} ${zeroPriced === 1 ? 'concepto' : 'conceptos'} en ${formatMoney(0)}`, description: 'La cotización se guardó con conceptos sin costo. Revisa que sea intencional.' });
       }
       if (!editId) {
         if (activeDraft) quoteDraftService.delete(activeDraft.id);

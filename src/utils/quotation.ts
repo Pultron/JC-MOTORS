@@ -22,6 +22,11 @@ export class QuotationAmountError extends Error {
   }
 }
 
+/** How many concepts were explicitly priced at $0.00 (allowed, e.g. courtesy items). */
+export function countZeroPriceItems(items: Array<{ saleUnitPrice: number }>): number {
+  return items.filter((item) => item.saleUnitPrice === 0).length;
+}
+
 /** Same guard as profitCalculationService: cents must be safe integers. */
 function assertSafeCents(amount: number): number {
   if (!Number.isFinite(amount) || !Number.isSafeInteger(Math.round(amount * 100))) throw new QuotationAmountError();
