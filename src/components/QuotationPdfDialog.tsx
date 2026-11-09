@@ -48,7 +48,7 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
     return () => {
       active = false;
     };
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     if (!quotation || !pdfModule || !assets) return;
