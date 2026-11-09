@@ -1,5 +1,5 @@
-const UNIDADES = ['', 'UNO', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE', 'DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE', 'DIECISEIS', 'DIECISIETE', 'DIECIOCHO', 'DIECINUEVE', 'VEINTE'];
-const VEINTES = ['VEINTE', 'VEINTIUNO', 'VEINTIDOS', 'VEINTITRES', 'VEINTICUATRO', 'VEINTICINCO', 'VEINTISEIS', 'VEINTISIETE', 'VEINTIOCHO', 'VEINTINUEVE'];
+const UNIDADES = ['', 'UNO', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE', 'DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE', 'DIECISÉIS', 'DIECISIETE', 'DIECIOCHO', 'DIECINUEVE', 'VEINTE'];
+const VEINTES = ['VEINTE', 'VEINTIUNO', 'VEINTIDÓS', 'VEINTITRÉS', 'VEINTICUATRO', 'VEINTICINCO', 'VEINTISÉIS', 'VEINTISIETE', 'VEINTIOCHO', 'VEINTINUEVE'];
 const DECENAS = ['', '', '', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
 const CENTENAS = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS', 'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'];
 
@@ -21,14 +21,17 @@ function menorDeMil(n: number): string {
   return partes.join(' ');
 }
 
+/** Before a noun (MIL, MILLONES, PESOS) "uno" becomes "un" and "veintiuno" becomes "veintiún". */
+const apocopar = (texto: string) => texto.replace(/VEINTIUNO$/, 'VEINTIÚN').replace(/UNO$/, 'UN');
+
 function enteroALetras(n: number): string {
   if (n === 0) return 'CERO';
   const millones = Math.floor(n / 1_000_000);
   const miles = Math.floor((n % 1_000_000) / 1000);
   const resto = n % 1000;
   const partes: string[] = [];
-  if (millones) partes.push(millones === 1 ? 'UN MILLON' : `${enteroALetras(millones).replace(/UNO$/, 'UN')} MILLONES`);
-  if (miles) partes.push(miles === 1 ? 'MIL' : `${menorDeMil(miles).replace(/UNO$/, 'UN')} MIL`);
+  if (millones) partes.push(millones === 1 ? 'UN MILLÓN' : `${apocopar(enteroALetras(millones))} MILLONES`);
+  if (miles) partes.push(miles === 1 ? 'MIL' : `${apocopar(menorDeMil(miles))} MIL`);
   if (resto) partes.push(menorDeMil(resto));
   return partes.join(' ');
 }
@@ -41,10 +44,11 @@ export function numeroALetras(monto: string | number, moneda = 'MXN'): string {
   const [enteroTexto, decimalesTexto = ''] = String(monto).trim().split('.');
   const entero = Number(enteroTexto || '0');
   const centavos = decimalesTexto.padEnd(2, '0').slice(0, 2);
-  const nombre = moneda === 'MXN' ? 'PESOS' : moneda === 'USD' ? 'DOLARES' : moneda;
+  const nombre = moneda === 'MXN' ? 'PESOS' : moneda === 'USD' ? 'DÓLARES' : moneda;
   const sufijo = moneda === 'MXN' ? 'M.N.' : moneda === 'USD' ? 'USD' : moneda;
-  const unidad = entero === 1 && moneda === 'MXN' ? 'PESO' : nombre;
-  const letras = entero === 1 ? 'UN' : enteroALetras(entero);
+  const unidad = entero === 1 ? (moneda === 'MXN' ? 'PESO' : moneda === 'USD' ? 'DÓLAR' : nombre) : nombre;
+  // The currency name always follows, so the amount takes the apocopated form (VEINTIÚN PESOS, CIENTO UN PESOS).
+  const letras = apocopar(enteroALetras(entero));
   // "UN MILLON DE PESOS": el complemento "DE" aplica a millones exactos.
   const de = entero > 0 && entero % 1_000_000 === 0 ? ' DE' : '';
   return `${letras}${de} ${unidad} ${centavos}/100 ${sufijo}`;
