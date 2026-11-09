@@ -152,6 +152,26 @@ test('pdf multi-sheet: page count equals the planner and the signature is never 
   }
 });
 
+test('#017 total appears once as "$X MXN": no "MXN $", no "$$", no NaN/undefined in the PDF text', () => {
+  for (const [name, data] of [['JC-0006', jc0006()], ['multi-17', quotation(17)]]) {
+    const { text } = pdfText(buildQuotationPdf(data, assets), `money-${name}.pdf`);
+    const totals = text.match(/\$[\d,]+\.\d{2} MXN/g) ?? [];
+    assert.equal(totals.length, 1, `${name}: exactly one formal total, got ${totals.length}`);
+    assert.ok(!/MXN\s*\$/.test(text), `${name}: MXN used as prefix`);
+    assert.ok(!text.includes('$$'), `${name}: doubled symbol`);
+    assert.ok(!/NaN|undefined/.test(text), `${name}: NaN/undefined`);
+  }
+});
+
+test('#017 no source path concatenates "MXN " in front of a formatted amount', () => {
+  const files = ['../src/utils/pdfQuotation.ts', '../src/services/quotationLayout.ts', '../src/components/internalControl/ProfitOverview.tsx',
+    '../src/pages/HistoryPage.tsx', '../src/utils/currencyUtils.ts', '../src/utils/currency.ts', '../src/utils/quotation.ts'];
+  for (const file of files) {
+    const source = readFileSync(new URL(file, import.meta.url), 'utf8');
+    assert.ok(!/['"`]MXN\s*\$?\{|['"`]MXN\s*['"`]\s*\+|`MXN \$/.test(source), `${file} concatenates "MXN " as a prefix`);
+  }
+});
+
 test('phone: 10 digits are formatted, 15 digits are left as typed and rejected by the form', () => {
   assert.equal(formatPhone('6673518806'), '(667) 351-8806');
   assert.equal(formatPhone('123456789012345'), '123456789012345');
