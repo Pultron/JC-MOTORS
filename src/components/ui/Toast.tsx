@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { AnimationEvent, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Info, TriangleAlert, X } from 'lucide-react';
+import logoUrl from '../../assets/jc-motors-logo.png?url';
 
 export type ToastType = 'success' | 'info' | 'warning' | 'error';
 
@@ -135,7 +136,7 @@ function ToastCard({ toast, onDismiss, onRemove }: ToastCardProps) {
   return (
     <div className="toast" data-testid="toast" data-type={toast.type} data-state={toast.state} onAnimationEnd={handleAnimationEnd}>
       <div className="toast-app" aria-hidden="true">
-        <img src="/jc-motors-logo.png" alt="" />
+        <img src={logoUrl} alt="" />
         <Badge type={toast.type} />
       </div>
       <div className="toast-text">

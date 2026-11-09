@@ -18,7 +18,7 @@ const assets = {
   regular: b64('../src/assets/fonts/Inter_400Regular.ttf'),
   bold: b64('../src/assets/fonts/Inter_700Bold.ttf'),
   extraBold: b64('../src/assets/fonts/Inter_800ExtraBold.ttf'),
-  logo: `data:image/png;base64,${b64('../public/jc-motors-logo.png')}`,
+  logo: `data:image/png;base64,${b64('../src/assets/jc-motors-logo.png')}`,
 };
 
 const LONG = 'Reparación completa del sistema de suspensión delantera incluyendo rótulas, bujes, amortiguadores, alineación y balanceo con refacciones originales';

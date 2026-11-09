@@ -1,3 +1,5 @@
+import logoUrl from '../../assets/jc-motors-logo.png?url';
+
 export function JcLogo() {
-  return <img src={`${import.meta.env.BASE_URL}jc-motors-logo.png`} alt="JC Motors" draggable={false} className="sb-logo" />;
+  return <img src={logoUrl} alt="JC Motors" draggable={false} className="sb-logo" />;
 }

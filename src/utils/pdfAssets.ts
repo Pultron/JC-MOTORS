@@ -6,6 +6,8 @@ export interface PdfAssets {
   extraBold: string;
   /** PNG data URL; the PDF still renders without it. */
   logo?: string;
+  /** Why the logo is missing, when it could not be loaded. */
+  logoError?: string;
 }
 
 /** Static TTFs only: jsPDF does not support variable fonts. */

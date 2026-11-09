@@ -10,8 +10,10 @@ export function useQuotationPdfDownload() {
   async function download(quotation: Quotation) {
     try {
       // jsPDF pesa ~160 kB: se carga sólo cuando el usuario pide un PDF.
-      const [{ buildQuotationPdf }, { loadPdfAssets }] = await Promise.all([import('../utils/pdfQuotation'), import('../utils/pdfAssetsLoader')]);
-      const blob = buildQuotationPdf(toPublicQuotation(quotation), await loadPdfAssets()).output('blob');
+      const [{ buildQuotationPdf }, { loadPdfAssets, warnIfLogoMissing }] = await Promise.all([import('../utils/pdfQuotation'), import('../utils/pdfAssetsLoader')]);
+      const assets = await loadPdfAssets();
+      warnIfLogoMissing(assets, toast);
+      const blob = buildQuotationPdf(toPublicQuotation(quotation), assets).output('blob');
       const file = new File([blob], `${quotation.folio}.pdf`, { type: 'application/pdf' });
       const path = await savePdfFile(file, quotation.folio);
       if (path) toast.success({ title: 'PDF guardado', description: `PDF guardado en ${path}` });

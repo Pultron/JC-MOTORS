@@ -5,7 +5,8 @@ import monoSemiBoldUrl from '../assets/fonts/IBMPlexMono-SemiBold.ttf?url';
 import sansBoldUrl from '../assets/fonts/IBMPlexSans-Bold.ttf?url';
 import sansRegularUrl from '../assets/fonts/IBMPlexSans-Regular.ttf?url';
 import type { Invoice, InvoiceConcepto, InvoiceImpuesto } from '../models/invoice';
-import { bufferToBase64 } from '../utils/base64';
+import { memoizeUntilFailure } from '../utils/pdfAssetsCore';
+import { fetchBase64, loadPdfLogo } from '../utils/pdfAssetsLoader';
 import { formatearFolio, formatFechaHora, formatMoney, formatSat, nombreArchivoFactura, urlVerificacionSat } from '../utils/invoiceFormat';
 import { numeroALetras } from '../utils/numeroALetras';
 import {
@@ -31,43 +32,19 @@ const LIMITE_Y = 283;
 const Y_INICIO = 20;
 
 export interface PdfTextTrace { page: number; text: string }
-export interface InvoicePdfResult { file: File; pages: number; trace: PdfTextTrace[]; nombre: string }
+export interface InvoicePdfResult { file: File; pages: number; trace: PdfTextTrace[]; nombre: string; /** Set when the logo could not be loaded and the PDF was generated without it. */ logoError?: string }
 
 interface Ctx { doc: jsPDF; y: number; trace: PdfTextTrace[] }
 
 // ---------------------------------------------------------------- recursos
-interface Assets { sans: string; sansBold: string; mono: string; monoBold: string; logo: string }
-let assetsPromise: Promise<Assets> | undefined;
+interface Assets { sans: string; sansBold: string; mono: string; monoBold: string }
 
-async function fetchBase64(url: string): Promise<string> {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`No se pudo cargar el recurso ${url}`);
-  return bufferToBase64(await response.arrayBuffer());
-}
-
-/** El PNG de marca pesa casi 1 MB: se reduce a 320 px antes de incrustarlo en cada PDF. */
-async function loadLogo(): Promise<string> {
-  const response = await fetch('/jc-motors-logo.png');
-  if (!response.ok) throw new Error('No se pudo cargar el logo');
-  const bitmap = await createImageBitmap(await response.blob());
-  const size = 320;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const context = canvas.getContext('2d');
-  if (!context) throw new Error('No se pudo preparar el logo');
-  context.drawImage(bitmap, 0, 0, size, size);
-  return canvas.toDataURL('image/png');
-}
-
-function loadAssets(): Promise<Assets> {
-  assetsPromise ??= Promise.all([
-    fetchBase64(sansRegularUrl), fetchBase64(sansBoldUrl), fetchBase64(monoRegularUrl), fetchBase64(monoSemiBoldUrl), loadLogo(),
-  ])
-    .then(([sans, sansBold, mono, monoBold, logo]) => ({ sans, sansBold, mono, monoBold, logo }))
-    .catch((error) => { assetsPromise = undefined; throw error; });
-  return assetsPromise;
-}
+const loadAssets = memoizeUntilFailure(async (): Promise<Assets> => {
+  const [sans, sansBold, mono, monoBold] = await Promise.all([
+    fetchBase64(sansRegularUrl), fetchBase64(sansBoldUrl), fetchBase64(monoRegularUrl), fetchBase64(monoSemiBoldUrl),
+  ]);
+  return { sans, sansBold, mono, monoBold };
+});
 
 // ---------------------------------------------------------------- helpers de dibujo
 type Familia = 'PlexSans' | 'PlexMono' | 'courier';
@@ -139,9 +116,9 @@ function tituloSeccion(ctx: Ctx, valor: string, x = MARGEN, ancho = ANCHO) {
 }
 
 // ---------------------------------------------------------------- bloques
-function dibujarEncabezado(ctx: Ctx, invoice: Invoice, logo: string) {
+function dibujarEncabezado(ctx: Ctx, invoice: Invoice, logo: string | undefined) {
   const { doc } = ctx;
-  doc.addImage(logo, 'PNG', MARGEN, 5.5, 28, 28);
+  if (logo) doc.addImage(logo, 'PNG', MARGEN, 5.5, 28, 28);
 
   fuente(ctx, 'PlexSans', 'bold', 15, NAVY);
   texto(ctx, 'FACTURA', DERECHA, 18, { align: 'right' });
@@ -461,7 +438,7 @@ function dibujarPies(ctx: Ctx) {
 
 // ---------------------------------------------------------------- API
 export async function generarFacturaPdf(invoice: Invoice): Promise<InvoicePdfResult> {
-  const assets = await loadAssets();
+  const [assets, logo] = await Promise.all([loadAssets(), loadPdfLogo()]);
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   doc.addFileToVFS('IBMPlexSans-Regular.ttf', assets.sans);
   doc.addFont('IBMPlexSans-Regular.ttf', 'PlexSans', 'normal');
@@ -476,7 +453,7 @@ export async function generarFacturaPdf(invoice: Invoice): Promise<InvoicePdfRes
 
   const ctx: Ctx = { doc, y: 0, trace: [] };
   bandaSuperior(ctx);
-  dibujarEncabezado(ctx, invoice, assets.logo);
+  dibujarEncabezado(ctx, invoice, logo.logo);
   dibujarRejilla(ctx, invoice);
   dibujarConceptos(ctx, invoice);
   dibujarPagoYTotales(ctx, invoice);
@@ -486,5 +463,5 @@ export async function generarFacturaPdf(invoice: Invoice): Promise<InvoicePdfRes
   dibujarPies(ctx);
 
   const file = new File([doc.output('blob')], nombre, { type: 'application/pdf' });
-  return { file, pages: doc.getNumberOfPages(), trace: ctx.trace, nombre };
+  return { file, pages: doc.getNumberOfPages(), trace: ctx.trace, nombre, ...(logo.error ? { logoError: logo.error } : {}) };
 }

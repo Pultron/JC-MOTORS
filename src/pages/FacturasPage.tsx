@@ -15,6 +15,7 @@ import { base64ToBytes } from '../utils/base64';
 import { rangeLabel } from '../utils/dateRangeUtils';
 import type { DateRange } from '../utils/dateRangeUtils';
 import { formatearFolio, formatMoney, nombreArchivoFactura } from '../utils/invoiceFormat';
+import { warnIfLogoMissing } from '../utils/pdfAssetsCore';
 import { savePdfFile } from '../utils/savePdfFile';
 import '../styles/facturas.css';
 
@@ -140,7 +141,8 @@ export function FacturasPage() {
     if (!selected || busy) return;
     setBusy(true);
     try {
-      const { file, nombre } = await generarFacturaPdf(selected);
+      const { file, nombre, logoError } = await generarFacturaPdf(selected);
+      warnIfLogoMissing({ logoError }, toast);
       const path = await savePdfFile(file, nombre.replace(/\.pdf$/, ''), 'save_invoice_pdf');
       if (path !== null) toast.success({ title: 'PDF de la factura guardado', description: path ?? file.name });
     } catch (error) {

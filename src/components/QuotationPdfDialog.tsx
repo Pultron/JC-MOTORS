@@ -4,6 +4,7 @@ import { Button } from './Button';
 import { useToast } from './ui/Toast';
 import type { PublicQuotation } from '../models/quotation';
 import type { PdfAssets } from '../utils/pdfAssets';
+import { warnIfLogoMissing } from '../utils/pdfAssetsCore';
 import { savePdfFile } from '../utils/savePdfFile';
 
 type PdfModule = typeof import('../utils/pdfQuotation');
@@ -38,6 +39,7 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
       .then(([module, loaded]) => {
         if (!active) return;
         setPdfModule(module);
+        warnIfLogoMissing(loaded, toast);
         setAssets(loaded);
       })
       .catch((cause) => {

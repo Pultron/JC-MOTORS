@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
+import logoUrl from '../../assets/jc-motors-logo.png?url';
 import type { Invoice, InvoiceImpuesto } from '../../models/invoice';
 import {
   CLAVE_UNIDAD, EXPORTACION, FORMA_PAGO, IMPUESTO, METODO_PAGO, OBJETO_IMP, REGIMEN_FISCAL, TIPO_COMPROBANTE, USO_CFDI, conDescripcion,
@@ -54,7 +55,7 @@ export function InvoiceSheet({ invoice }: { invoice: Invoice }) {
       <div className="inv-band"><span /><span /></div>
       <div className="inv-body">
         <header className="inv-head">
-          <img src="/jc-motors-logo.png" alt="JC Motors" className="inv-logo" />
+          <img src={logoUrl} alt="JC Motors" className="inv-logo" />
           <div className="inv-brandblock" />
           <div className="inv-title">
             <strong>FACTURA</strong>
