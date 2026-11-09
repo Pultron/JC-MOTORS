@@ -1,9 +1,11 @@
 import { useRef } from 'react';
 import { Package, Plus, Trash2 } from 'lucide-react';
 import type { QuoteDraftItem, QuoteFormData } from '../../models/quoteDraft';
+import { CONCEPT_LIMIT_MESSAGE, conceptCounterLevel } from '../../utils/conceptLimit';
 import { parseDecimal, sanitizeDecimalInput } from '../../utils/currency';
 import { formatMoney } from '../../utils/money';
 import { roundCurrency } from '../../utils/quotation';
+import { MAX_CONCEPTS } from '../../services/quotationLayout';
 import { SuggestionInput } from '../ui/SuggestionInput';
 import { Card } from './primitives/Card';
 import { CardHeader } from './primitives/CardHeader';
@@ -21,8 +23,9 @@ interface Props {
 export function RefaccionesCard({ form, errors, suggestions, totalParts, onAdd, onUpdate, onDelete }: Props) {
   // Solo las filas agregadas después del primer render se animan al entrar.
   const initialIds = useRef(new Set(form.items.map((item) => item.id)));
+  const atLimit = form.items.length >= MAX_CONCEPTS;
   return <Card delayMs={70} className="@container">
-    <CardHeader icon={<Package size={18} />} title="Refacciones y materiales" subtitle="Agrega las refacciones y materiales a cotizar." />
+    <CardHeader icon={<Package size={18} />} title="Refacciones y materiales" subtitle="Agrega las refacciones y materiales a cotizar." trailing={<span data-testid="contador-conceptos" data-level={conceptCounterLevel(form.items.length)} className="mac-concept-counter" aria-live="polite">Conceptos {form.items.length}/{MAX_CONCEPTS}</span>} />
     <div aria-hidden="true" className="hidden items-center gap-2 border-t border-mac-separator bg-mac-header-cols px-4 py-2 text-xs font-medium text-mac-ink-2 @[640px]:flex">
       <span className="min-w-0 flex-[1_1_220px]">Descripción</span>
       <span className="w-[72px]">Cantidad</span>
@@ -50,7 +53,10 @@ export function RefaccionesCard({ form, errors, suggestions, totalParts, onAdd, 
     })}
     {errors.items && <p role="alert" className="border-t border-mac-separator px-4 py-2 text-xs font-medium text-mac-danger">{errors.items}</p>}
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-mac-separator px-4">
-      <button type="button" data-testid="refaccion-agregar" className="mac-press flex h-11 items-center gap-1.5 rounded-lg px-1 text-sm font-semibold text-mac-accent-text hover:text-mac-accent-hover" onClick={() => onAdd()}><Plus size={16} aria-hidden="true" />Agregar refacción</button>
+      <div className="flex flex-wrap items-center gap-x-3">
+        <button type="button" data-testid="refaccion-agregar" disabled={atLimit} aria-describedby={atLimit ? "limite-conceptos" : undefined} className="mac-press flex h-11 items-center gap-1.5 rounded-lg px-1 text-sm font-semibold text-mac-accent-text hover:text-mac-accent-hover disabled:cursor-not-allowed disabled:opacity-50" onClick={() => onAdd()}><Plus size={16} aria-hidden="true" />Agregar refacción</button>
+        {atLimit && <p id="limite-conceptos" data-testid="limite-conceptos" className="text-xs font-medium text-mac-danger">{CONCEPT_LIMIT_MESSAGE}</p>}
+      </div>
       <p className="text-sm text-mac-ink-2">Total refacciones <strong data-testid="refacciones-total" className="tnum ml-1.5 font-bold text-mac-ink">{formatMoney(totalParts)}</strong></p>
     </div>
   </Card>;
