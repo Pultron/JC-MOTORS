@@ -352,3 +352,53 @@ export function planificar(doc: MeasureDoc, quotation: PublicQuotation): Plan {
   }
   return { modo: mode, blocks, hojas };
 }
+
+// ---------------------------------------------------------------- footer contacts
+export const FOOTER_ICON_OFFSET = 26;
+export const FOOTER_MIN_GAP = 20;
+
+export interface FooterContactInput {
+  /** Widest address line, in design px at the base font size. */
+  addressWidth: number;
+  /** Text widths in design px; 0 or undefined when the datum is missing. */
+  phoneWidth?: number;
+  emailWidth?: number;
+}
+
+export interface FooterContactLayout {
+  /** 'row': address, phone and email on one line. 'stacked': phone drops under the email, right-aligned. */
+  mode: 'row' | 'stacked';
+  /** Font scale (1 = normal); only below 1 when even the stacked layout would overlap. */
+  scale: number;
+  /** Row mode only: x of the phone icon (the text follows at x + FOOTER_ICON_OFFSET). */
+  phoneX?: number;
+}
+
+/**
+ * Places the footer contacts from measured text widths, so nothing is hard-coded and nothing overlaps.
+ * The phone is centred in the free space between address and email; if it does not fit there it moves to the line below.
+ */
+export function layoutFooterContacts({ addressWidth, phoneWidth = 0, emailWidth = 0 }: FooterContactInput): FooterContactLayout {
+  const right = MARGIN_X + CONTENT_W;
+  const offset = FOOTER_ICON_OFFSET;
+  const rowFit = (scale: number): { free: number; block: number; lead: number } => {
+    const lead = MARGIN_X + offset + addressWidth * scale;
+    const emailLeft = emailWidth ? right - emailWidth * scale - offset : right;
+    return { free: emailLeft - lead, block: phoneWidth * scale + offset, lead };
+  };
+
+  if (!phoneWidth) return { mode: 'row', scale: 1 };
+  const base = rowFit(1);
+  if (base.free >= base.block + 2 * FOOTER_MIN_GAP) return { mode: 'row', scale: 1, phoneX: base.lead + (base.free - base.block) / 2 };
+
+  if (emailWidth) {
+    const rightColumn = Math.max(emailWidth, phoneWidth) + offset;
+    if (right - rightColumn - (MARGIN_X + offset + addressWidth) >= FOOTER_MIN_GAP) return { mode: 'stacked', scale: 1 };
+    const scale = Math.min(1, Math.max(0.6, (CONTENT_W - 2 * offset - FOOTER_MIN_GAP) / (addressWidth + Math.max(emailWidth, phoneWidth))));
+    return { mode: 'stacked', scale };
+  }
+
+  const scale = Math.min(1, Math.max(0.6, (CONTENT_W - 2 * offset - 2 * FOOTER_MIN_GAP) / (addressWidth + phoneWidth)));
+  const fit = rowFit(scale);
+  return { mode: 'row', scale, phoneX: fit.lead + (fit.free - fit.block) / 2 };
+}

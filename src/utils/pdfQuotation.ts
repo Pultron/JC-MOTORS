@@ -1,8 +1,8 @@
 import { jsPDF } from 'jspdf';
 import type { PublicQuotation } from '../models/quotation';
 import {
-  BAND_BOTTOM, BAND_TOP, BULLET_INDENT, CARD_LABEL_W, COND_TITLE_H, CONT_HEADER, CONTENT_W, LINE, MARGIN_X,
-  PAGE_H, PAGE_W, cardWidth, conditionsWidth, customerRows, headerHeight, mm, planificar, pt,
+  BAND_BOTTOM, BAND_TOP, BULLET_INDENT, CARD_LABEL_W, COND_TITLE_H, CONT_HEADER, CONTENT_W, FOOTER_ICON_OFFSET, LINE, MARGIN_X,
+  PAGE_H, PAGE_W, cardWidth, conditionsWidth, customerRows, headerHeight, layoutFooterContacts, mm, planificar, pt,
   rowTextWidth, validUntil, vehicleRows,
 } from '../services/quotationLayout';
 import type { Blocks, CardRowData, Mode, Sheet } from '../services/quotationLayout';
@@ -341,18 +341,39 @@ function drawFooter(page: Page, mode: Mode, blocks: Blocks, sheetNumber: number,
   const rowH = 2 * 13 * 1.4;
   const infoSize = 13;
   const iconSize = 18;
+  const address = addressLines(business.direccion);
+  const phone = business.telefonos[0];
+  const measure = (text: string | undefined) => (text ? page.width(text, { size: infoSize }) : 0);
+  const layout = layoutFooterContacts({
+    addressWidth: Math.max(0, ...address.map((line) => measure(line))),
+    phoneWidth: measure(phone),
+    emailWidth: measure(business.correo),
+  });
+  const size = infoSize * layout.scale;
   const iconY = rowTop + (rowH - iconSize) / 2;
   page.icon('pin', MARGIN_X, iconY, iconSize, C.orange);
-  page.text(addressLines(business.direccion), MARGIN_X + 26, rowTop, { size: infoSize, color: C.text2 });
-  const phone = business.telefonos[0];
-  if (phone) {
-    page.icon('phone', 330, iconY, iconSize, C.orange);
-    page.middle(phone, 330 + 26, rowTop, rowH, { size: infoSize, color: C.text2 });
-  }
-  if (business.correo) {
-    const emailW = page.width(business.correo, { size: infoSize });
-    page.icon('mail', RIGHT - emailW - 26, iconY, iconSize, C.orange);
-    page.middle(business.correo, RIGHT, rowTop, rowH, { size: infoSize, color: C.text2, align: 'right' });
+  page.text(address, MARGIN_X + FOOTER_ICON_OFFSET, rowTop, { size, color: C.text2 });
+  if (layout.mode === 'row') {
+    if (phone && layout.phoneX !== undefined) {
+      page.icon('phone', layout.phoneX, iconY, iconSize, C.orange);
+      page.middle(phone, layout.phoneX + FOOTER_ICON_OFFSET, rowTop, rowH, { size, color: C.text2 });
+    }
+    if (business.correo) {
+      const emailW = page.width(business.correo, { size });
+      page.icon('mail', RIGHT - emailW - FOOTER_ICON_OFFSET, iconY, iconSize, C.orange);
+      page.middle(business.correo, RIGHT, rowTop, rowH, { size, color: C.text2, align: 'right' });
+    }
+  } else {
+    // The phone does not fit beside the address and the email: it goes on the line below the email, right-aligned.
+    const lineH = rowH / 2;
+    const small = iconSize * 0.8;
+    const lines: ['mail' | 'phone', string | undefined][] = [['mail', business.correo], ['phone', phone]];
+    lines.forEach(([icon, text], index) => {
+      if (!text) return;
+      const top = rowTop + index * lineH;
+      page.icon(icon, RIGHT - page.width(text, { size }) - FOOTER_ICON_OFFSET, top + (lineH - small) / 2, small, C.orange);
+      page.middle(text, RIGHT, top, lineH, { size, color: C.text2, align: 'right' });
+    });
   }
 
   const noteTop = rowTop + rowH + mode.noteT;
