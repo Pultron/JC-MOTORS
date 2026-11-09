@@ -1,3 +1,4 @@
+import { isBusinessInfo } from '../config/businessInfo';
 import { migrateStorageKeys } from './migrateStorageKeys';
 import { getStorage, isQuotaError, listKeys, readRaw, removeRaw, writeRaw } from './safeStorage';
 import { APP_KEY_PREFIXES, BACKUP_EXPORT_KEYS, BACKUP_PREFIX, STORAGE_KEYS } from './storageKeys';
@@ -109,6 +110,11 @@ function validateClave(key: string, raw: string): void {
   }
   if (key === STORAGE_KEYS.sidebarTheme && raw !== 'light' && raw !== 'dark') {
     throw new BackupError('El archivo contiene una preferencia no válida.');
+  }
+  if (key === STORAGE_KEYS.businessInfo) {
+    let parsed: unknown;
+    try { parsed = JSON.parse(raw); } catch { throw new BackupError('El archivo contiene datos del taller dañados.'); }
+    if (!isBusinessInfo(parsed)) throw new BackupError('El archivo contiene datos del taller con un formato no válido.');
   }
 }
 
@@ -287,6 +293,9 @@ export function applyBackup(backup: BackupFile, mode: ImportMode): ImportResult 
         }
       } else if (key === STORAGE_KEYS.sidebarTheme) {
         if (mode === 'replace' && incoming !== undefined) write(key, incoming);
+      } else if (key === STORAGE_KEYS.businessInfo) {
+        // Merge keeps the workshop data already on this computer; it only fills a missing one.
+        if (incoming !== undefined && (mode === 'replace' || local === null)) write(key, incoming);
       }
     }
 

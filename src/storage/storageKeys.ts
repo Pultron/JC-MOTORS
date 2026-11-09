@@ -12,6 +12,8 @@ export const STORAGE_KEYS = {
   /** Consecutivo de COTIZACIONES: guarda {"lastNumber": n}. Distinto del de facturas. */
   quotationFolio: 'jc-motors:quotation-folio:v1',
   sidebarTheme: 'jc-motors:sidebar-theme:v1',
+  /** Datos de contacto del taller que se imprimen en la cotización. */
+  businessInfo: 'jc-motors:business-info:v1',
   migration: 'jc-motors:meta:migration:v1',
   /** Versión de esquema por dominio: {"quotations": 1}. Solo se normaliza y reescribe cuando es menor a la actual. */
   schema: 'jc-motors:meta:schema:v1',
@@ -28,6 +30,7 @@ export const BACKUP_EXPORT_KEYS: readonly string[] = [
   STORAGE_KEYS.invoiceFolio,
   STORAGE_KEYS.quotationFolio,
   STORAGE_KEYS.sidebarTheme,
+  STORAGE_KEYS.businessInfo,
 ];
 
 export const BACKUP_PREFIX = 'jc-motors:backup:';

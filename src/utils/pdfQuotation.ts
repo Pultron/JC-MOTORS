@@ -6,6 +6,8 @@ import {
   rowTextWidth, validUntil, vehicleRows,
 } from '../services/quotationLayout';
 import type { Blocks, CardRowData, Mode, Sheet } from '../services/quotationLayout';
+import { DEFAULT_BUSINESS_INFO, addressLines, loadBusinessInfo } from '../config/businessInfo';
+import type { BusinessInfo } from '../config/businessInfo';
 import { formatDate } from './dateFormat';
 import { formatMoney } from './money';
 import { registerFonts } from './pdfAssets';
@@ -13,11 +15,6 @@ import type { PdfAssets } from './pdfAssets';
 import { drawIcon } from './pdfIcons';
 import type { IconName } from './pdfIcons';
 
-const BUSINESS_CONTACT = {
-  addressLines: ['Av. Río Ometepec #1136,', 'Col. Morelos, Culiacán, Sin.'],
-  phone: '(667) 351-8806',
-  email: 'JCMOTORSCLN@gmail.com',
-} as const;
 
 const C = {
   navy: '#13294B', orange: '#F97316', orangeDark: '#C2410C', orangeLight: '#FF8A3D',
@@ -103,19 +100,20 @@ export function buildQuotationPdf(quotation: PublicQuotation, assets: PdfAssets)
   const plan = planificar(doc, quotation);
   const blocks = describe(doc, quotation, plan.modo);
   const page = new Page(doc);
+  const business = loadBusinessInfo();
 
   plan.hojas.forEach((sheet, index) => {
     if (index > 0) doc.addPage();
     drawBands(page);
     let y = BAND_TOP + plan.modo.padTop;
     if (index === 0) {
-      y = drawMainHeader(page, quotation, assets, plan.modo, y);
+      y = drawMainHeader(page, quotation, assets, plan.modo, y, business);
       y = drawSeparator(page, plan.modo, y);
       y = drawCards(page, quotation, plan.modo, blocks, y);
       y += plan.modo.tableMargin;
       y = drawSectionTitle(page, 'SERVICIOS Y REFACCIONES', plan.modo.sectionFont, y);
     } else {
-      drawContinuationHeader(page, quotation, assets, index + 1, plan.hojas.length, y);
+      drawContinuationHeader(page, quotation, assets, index + 1, plan.hojas.length, y, business);
       y = drawSeparator(page, plan.modo, y + CONT_HEADER);
     }
     y = drawTable(page, plan.modo, sheet, y);
@@ -128,7 +126,7 @@ export function buildQuotationPdf(quotation: PublicQuotation, assets: PdfAssets)
     } else {
       page.text('Continúa en la siguiente hoja →', RIGHT, PAGE_H - BAND_BOTTOM - blocks.footer - 28, { size: 11, color: C.muted, align: 'right' });
     }
-    drawFooter(page, plan.modo, blocks, index + 1, plan.hojas.length);
+    drawFooter(page, plan.modo, blocks, index + 1, plan.hojas.length, business);
   });
   return doc;
 }
@@ -156,7 +154,7 @@ function drawDateLine(page: Page, label: string, value: string, top: number, siz
   page.text(label, RIGHT - valueWidth, top, { size, color: C.muted, align: 'right' });
 }
 
-function drawMainHeader(page: Page, quotation: PublicQuotation, assets: PdfAssets, mode: Mode, y: number): number {
+function drawMainHeader(page: Page, quotation: PublicQuotation, assets: PdfAssets, mode: Mode, y: number, business: BusinessInfo): number {
   const height = headerHeight(mode);
   const logoY = y + (height - mode.logo) / 2;
   drawLogo(page, assets, MARGIN_X, logoY, mode.logo);
@@ -166,7 +164,7 @@ function drawMainHeader(page: Page, quotation: PublicQuotation, assets: PdfAsset
   const subtitleSize = 13;
   const blockH = brandH + 4 + subtitleSize * 1.3;
   const blockTop = logoY + (mode.logo - blockH) / 2;
-  page.text('JC MOTORS', textX, blockTop, { size: mode.brand, font: 'InterXB', color: C.navy });
+  page.text(business.nombre, textX, blockTop, { size: mode.brand, font: 'InterXB', color: C.navy });
   page.text('Servicio y mantenimiento automotriz', textX, blockTop + brandH + 4, { size: subtitleSize, color: C.muted });
 
   page.text('COTIZACIÓN', RIGHT, y, { size: mode.title, font: 'InterXB', color: C.navy, align: 'right' });
@@ -183,11 +181,11 @@ function drawMainHeader(page: Page, quotation: PublicQuotation, assets: PdfAsset
   return y + height;
 }
 
-function drawContinuationHeader(page: Page, quotation: PublicQuotation, assets: PdfAssets, sheetNumber: number, sheets: number, y: number): void {
+function drawContinuationHeader(page: Page, quotation: PublicQuotation, assets: PdfAssets, sheetNumber: number, sheets: number, y: number, business: BusinessInfo): void {
   const logo = 36;
   const logoY = y + (CONT_HEADER - logo) / 2;
   drawLogo(page, assets, MARGIN_X, logoY, logo);
-  page.middle('JC MOTORS', MARGIN_X + logo + 12, logoY, logo, { size: 16, font: 'InterXB', color: C.navy });
+  page.middle(business.nombre, MARGIN_X + logo + 12, logoY, logo, { size: 16, font: 'InterXB', color: C.navy });
   page.text('COTIZACIÓN', RIGHT, y + 8, { size: 14, bold: true, color: C.navy, align: 'right' });
   page.text(`Folio: ${quotation.folio} · Hoja ${sheetNumber} de ${sheets}`, RIGHT, y + 8 + 14 * LINE + 4, { size: 12, color: C.muted, align: 'right' });
 }
@@ -334,7 +332,7 @@ function drawAuthorization(page: Page, mode: Mode, blocks: Blocks, blockEnd: num
   page.hline(dateX + dateW + 8, RIGHT - mode.authPadX, lineY, C.sep, 1.2);
 }
 
-function drawFooter(page: Page, mode: Mode, blocks: Blocks, sheetNumber: number, sheets: number): void {
+function drawFooter(page: Page, mode: Mode, blocks: Blocks, sheetNumber: number, sheets: number, business: BusinessInfo): void {
   const top = PAGE_H - BAND_BOTTOM - blocks.footer;
   const lineY = top + mode.footPadT;
   page.hline(MARGIN_X, RIGHT, lineY, C.sep);
@@ -345,16 +343,21 @@ function drawFooter(page: Page, mode: Mode, blocks: Blocks, sheetNumber: number,
   const iconSize = 18;
   const iconY = rowTop + (rowH - iconSize) / 2;
   page.icon('pin', MARGIN_X, iconY, iconSize, C.orange);
-  page.text([...BUSINESS_CONTACT.addressLines], MARGIN_X + 26, rowTop, { size: infoSize, color: C.text2 });
-  page.icon('phone', 330, iconY, iconSize, C.orange);
-  page.middle(BUSINESS_CONTACT.phone, 330 + 26, rowTop, rowH, { size: infoSize, color: C.text2 });
-  const emailW = page.width(BUSINESS_CONTACT.email, { size: infoSize });
-  page.icon('mail', RIGHT - emailW - 26, iconY, iconSize, C.orange);
-  page.middle(BUSINESS_CONTACT.email, RIGHT, rowTop, rowH, { size: infoSize, color: C.text2, align: 'right' });
+  page.text(addressLines(business.direccion), MARGIN_X + 26, rowTop, { size: infoSize, color: C.text2 });
+  const phone = business.telefonos[0];
+  if (phone) {
+    page.icon('phone', 330, iconY, iconSize, C.orange);
+    page.middle(phone, 330 + 26, rowTop, rowH, { size: infoSize, color: C.text2 });
+  }
+  if (business.correo) {
+    const emailW = page.width(business.correo, { size: infoSize });
+    page.icon('mail', RIGHT - emailW - 26, iconY, iconSize, C.orange);
+    page.middle(business.correo, RIGHT, rowTop, rowH, { size: infoSize, color: C.text2, align: 'right' });
+  }
 
   const noteTop = rowTop + rowH + mode.noteT;
   const note = { size: 12, color: C.muted } as const;
-  page.text('Gracias por confiar en JC Motors.', MARGIN_X, noteTop, note);
+  page.text(`Gracias por confiar en ${business.nombre === DEFAULT_BUSINESS_INFO.nombre ? 'JC Motors' : business.nombre}.`, MARGIN_X, noteTop, note);
   let noteRight = RIGHT;
   if (sheets > 1) {
     const label = `Hoja ${sheetNumber} de ${sheets}`;

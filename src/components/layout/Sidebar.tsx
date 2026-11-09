@@ -1,4 +1,4 @@
-import { ChartNoAxesColumn, DatabaseBackup, FilePlus2, FileText, Gauge, History, UsersRound } from 'lucide-react';
+import { ChartNoAxesColumn, DatabaseBackup, FilePlus2, FileText, Gauge, History, Store, UsersRound } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router';
 import { useSidebarTheme } from '../../hooks/useSidebarTheme';
 import '../../styles/sidebar.css';
@@ -11,6 +11,7 @@ const navigation = [
   { label: 'Control interno', to: '/control-interno', icon: ChartNoAxesColumn },
   { label: 'Clientes', to: '/clientes', icon: UsersRound },
   { label: 'Facturas', to: '/facturas', icon: FileText },
+  { label: 'Datos del taller', to: '/datos-del-taller', icon: Store },
   { label: 'Respaldo', to: '/respaldo', icon: DatabaseBackup },
 ];
 
