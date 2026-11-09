@@ -12,7 +12,8 @@ import { MAX_CONCEPTS_MESSAGE, validateQuoteForm } from '../services/quoteValida
 import { useCustomers } from '../store/CustomerContext';
 import { useQuotations } from '../store/QuotationContext';
 import { parseDecimal } from '../utils/currency';
-import { calculateQuotationTotals, createId } from '../utils/quotation';
+import { AMOUNT_TOO_LARGE_MESSAGE, QuotationAmountError, calculateQuotationTotals, createId } from '../utils/quotation';
+import type { QuotationTotals } from '../utils/quotation';
 
 function blankItem(description = ''): QuoteDraftItem {
   return { id: createId(), type: 'part', description, quantity: '1', unitPrice: '' };
@@ -92,16 +93,28 @@ export function useCotizacionForm() {
     setEditReady(true);
   }, [editId, isLoading, quotationToEdit, navigate]);
 
-  const totals = useMemo(() => {
+  const { totals, amountOverflow } = useMemo((): { totals: QuotationTotals; amountOverflow: boolean } => {
     const labor = parseDecimal(form.laborAmount);
-    return calculateQuotationTotals(
-      [
-        ...form.items.map((item) => ({ type: item.type, quantity: parseDecimal(item.quantity), saleUnitPrice: parseDecimal(item.unitPrice) })),
-        ...(labor > 0 ? [{ type: 'labor' as const, quantity: 1, saleUnitPrice: labor }] : []),
-      ],
-      form.laborDiscountType, Number(form.laborDiscountValue) || 0, form.ivaEnabled,
-    );
+    try {
+      return {
+        amountOverflow: false,
+        totals: calculateQuotationTotals(
+          [
+            ...form.items.map((item) => ({ type: item.type, quantity: parseDecimal(item.quantity), saleUnitPrice: parseDecimal(item.unitPrice) })),
+            ...(labor > 0 ? [{ type: 'labor' as const, quantity: 1, saleUnitPrice: labor }] : []),
+          ],
+          form.laborDiscountType, Number(form.laborDiscountValue) || 0, form.ivaEnabled,
+        ),
+      };
+    } catch (error) {
+      if (!(error instanceof QuotationAmountError)) throw error;
+      return { amountOverflow: true, totals: { subtotalRefacciones: 0, subtotalManoObra: 0, laborDiscount: 0, subtotalNeto: 0, ivaAmount: 0, total: 0 } };
+    }
   }, [form.items, form.laborAmount, form.laborDiscountType, form.laborDiscountValue, form.ivaEnabled]);
+
+  useEffect(() => {
+    if (amountOverflow) toast.error({ title: AMOUNT_TOO_LARGE_MESSAGE, description: 'Revisa cantidades y precios; el total no se puede calcular.' });
+  }, [amountOverflow, toast]);
 
   const suggestions = useMemo(() => Array.from(new Set([
     ...frequentConcepts.map((concept) => concept.description),
@@ -193,6 +206,10 @@ export function useCotizacionForm() {
   function validate(): boolean {
     const next = validateQuoteForm(form, totals);
     setErrors(next);
+    if (amountOverflow) {
+      toast.error({ title: AMOUNT_TOO_LARGE_MESSAGE });
+      return false;
+    }
     return Object.keys(next).length === 0;
   }
 
@@ -229,8 +246,9 @@ export function useCotizacionForm() {
         setDirty(false);
       }
       navigate('/historial');
-    } catch {
-      toast.error({ title: 'Error al guardar', description: 'No se pudo guardar la cotización. Inténtalo de nuevo.' });
+    } catch (error) {
+      if (error instanceof QuotationAmountError) toast.error({ title: AMOUNT_TOO_LARGE_MESSAGE });
+      else toast.error({ title: 'Error al guardar', description: 'No se pudo guardar la cotización. Inténtalo de nuevo.' });
     } finally {
       setBusy(false);
     }

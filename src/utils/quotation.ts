@@ -9,6 +9,25 @@ import { roundCurrency } from './money';
 
 export const IVA_RATE = 0.16;
 
+/** Highest amount accepted for a single concept (unit price, labor or quantity x price). */
+export const MAX_CONCEPT_AMOUNT = 9_999_999.99;
+
+export const AMOUNT_TOO_LARGE_MESSAGE = 'El monto es demasiado grande';
+
+/** Thrown when a quotation amount cannot be represented exactly in integer cents. */
+export class QuotationAmountError extends Error {
+  constructor(message = AMOUNT_TOO_LARGE_MESSAGE) {
+    super(message);
+    this.name = 'QuotationAmountError';
+  }
+}
+
+/** Same guard as profitCalculationService: cents must be safe integers. */
+function assertSafeCents(amount: number): number {
+  if (!Number.isFinite(amount) || !Number.isSafeInteger(Math.round(amount * 100))) throw new QuotationAmountError();
+  return amount;
+}
+
 export interface QuotationTotals {
   subtotalRefacciones: number;
   subtotalManoObra: number;
@@ -34,14 +53,11 @@ export function calculateQuotationTotals(
   const subtotalNeto = roundCurrency(subtotalRefacciones + subtotalManoObra - laborDiscount);
   const ivaAmount = includeVat ? roundCurrency(subtotalNeto * IVA_RATE) : 0;
 
-  return {
-    subtotalRefacciones,
-    subtotalManoObra,
-    laborDiscount,
-    subtotalNeto,
-    ivaAmount,
-    total: roundCurrency(subtotalNeto + ivaAmount),
-  };
+  const total = roundCurrency(subtotalNeto + ivaAmount);
+  // Item amounts feed the subtotals, so an unsafe item always surfaces in one of these figures.
+  [subtotalRefacciones, subtotalManoObra, laborDiscount, subtotalNeto, ivaAmount, total].forEach(assertSafeCents);
+
+  return { subtotalRefacciones, subtotalManoObra, laborDiscount, subtotalNeto, ivaAmount, total };
 }
 
 export function calculateDiscount(subtotal: number, type: DiscountType, value: number): number {
