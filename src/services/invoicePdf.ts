@@ -373,7 +373,7 @@ function dibujarPagoYTotales(ctx: Ctx, invoice: Invoice) {
   fuente(ctx, 'PlexSans', 'bold', 7, '#FFFFFF');
   texto(ctx, 'TOTAL', xTot + 3, yt + 6.8);
   fuente(ctx, 'PlexSans', 'bold', 11, TOTAL_ORANGE);
-  texto(ctx, `$${formatMoney(invoice.total)}`, DERECHA - 3, yt + 7.2, { align: 'right' });
+  texto(ctx, formatMoney(invoice.total), DERECHA - 3, yt + 7.2, { align: 'right' });
 
   ctx.y = y0 + alto + 6;
 }

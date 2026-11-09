@@ -202,7 +202,7 @@ export function FacturasPage() {
               <button type="button" data-testid="invoice-row" data-uuid={invoice.uuid} data-selected={invoice.uuid === selectedUuid} onClick={() => select(invoice.uuid)}>
                 <span className="fac-row-top"><span className="fac-row-uuid">Nº {formatearFolio(invoice.folio)}{invoice.selloIncompleto && <span className="fac-dot-warn" title="El sello digital no se extrajo completo; el PDF generado no será válido para imprimir" data-testid="row-sello-dot" />}</span><span className="fac-row-date">{formatDate(invoice.fechaEmision)}</span></span>
                 <span className="fac-row-name">{invoice.receptor.nombre}</span>
-                <span className="fac-row-bottom"><Estado estado={invoice.estado} /><strong>${formatMoney(invoice.total)}</strong></span>
+                <span className="fac-row-bottom"><Estado estado={invoice.estado} /><strong>{formatMoney(invoice.total)}</strong></span>
               </button>
             </li>
           ))}

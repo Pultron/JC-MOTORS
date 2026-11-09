@@ -1,12 +1,12 @@
+import { formatMoneyText } from './money';
+
 /**
- * Formato de presentación para valores fiscales. Trabaja sobre el TEXTO del XML:
- * solo agrega separadores de miles y completa a 2 decimales; nunca redondea ni recalcula.
+ * Monto fiscal con "$" ("$1,234.50"). Delgado sobre el módulo de dinero: trabaja sobre el TEXTO del XML,
+ * solo agrega separadores de miles y completa a `decimals` (2 por defecto) como mínimo; nunca redondea
+ * ni recalcula, así que un valor con 6 decimales conserva los 6.
  */
-export function formatMoney(value: string): string {
-  if (!value) return '';
-  const [entero, decimales = ''] = value.split('.');
-  const miles = entero.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return `${miles}.${decimales.padEnd(2, '0')}`;
+export function formatMoney(value: string, decimals = 2): string {
+  return formatMoneyText(value, 'display', decimals);
 }
 
 /** Cantidad tal como viene en el CFDI: solo agrupa miles, sin agregar ni quitar decimales. */

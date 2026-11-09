@@ -146,7 +146,7 @@ export function InvoiceSheet({ invoice }: { invoice: Invoice }) {
           <div className="inv-totals">
             <div><span>Subtotal</span><span>{formatMoney(invoice.subtotal)}</span></div>
             {totalesFilas.map((fila, i) => <div key={i}><span>{fila.label}</span><span>{fila.value}</span></div>)}
-            <div className="inv-total"><span>TOTAL</span><strong data-testid="invoice-total">${formatMoney(invoice.total)}</strong></div>
+            <div className="inv-total"><span>TOTAL</span><strong data-testid="invoice-total">{formatMoney(invoice.total)}</strong></div>
           </div>
         </section>
 
