@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { LOGO_MISSING_TITLE, createLogoLoader, createPdfAssetsLoader, warnIfLogoMissing } from '../src/utils/pdfAssetsCore.ts';
+import { LOGO_MISSING_TITLE, createLogoLoader, createPdfAssetsLoader, scheduleWhenIdle, warnIfLogoMissing } from '../src/utils/pdfAssetsCore.ts';
 
 const fonts = { regular: 'r', bold: 'b', extraBold: 'x' };
 
@@ -35,4 +35,46 @@ test('#021 un fallo del logo no se queda en caché: el siguiente PDF lo intenta 
   assert.equal((await loadLogo()).logo, 'data:image/png;base64,AAA');
   assert.equal((await loadLogo()).logo, 'data:image/png;base64,AAA');
   assert.equal(attempts, 2);
+});
+
+test('#035 abrir y cerrar el diálogo 5 veces no vuelve a cargar ni decodificar fuentes ni logo', async () => {
+  let fontFetches = 0;
+  let logoDecodes = 0;
+  const loadPdfAssets = createPdfAssetsLoader(
+    async () => { fontFetches += 1; return fonts; },
+    createLogoLoader(async () => { logoDecodes += 1; return 'data:image/png;base64,AAA'; }),
+  );
+  for (let open = 0; open < 5; open += 1) {
+    const assets = await loadPdfAssets();
+    assert.equal(assets.logo, 'data:image/png;base64,AAA');
+  }
+  assert.equal(fontFetches, 1);
+  assert.equal(logoDecodes, 1);
+});
+
+test('#035 aperturas simultáneas comparten la misma carga', async () => {
+  let fontFetches = 0;
+  const loadPdfAssets = createPdfAssetsLoader(async () => { fontFetches += 1; return fonts; }, async () => ({ logo: 'l' }));
+  await Promise.all([loadPdfAssets(), loadPdfAssets(), loadPdfAssets()]);
+  assert.equal(fontFetches, 1);
+});
+
+test('#035 si las fuentes fallan no se guarda el fallo para siempre', async () => {
+  let fontFetches = 0;
+  const loadPdfAssets = createPdfAssetsLoader(async () => {
+    fontFetches += 1;
+    if (fontFetches === 1) throw new Error('sin red');
+    return fonts;
+  }, async () => ({ logo: 'l' }));
+  await assert.rejects(loadPdfAssets(), /sin red/);
+  assert.equal((await loadPdfAssets()).regular, 'r');
+  await loadPdfAssets();
+  assert.equal(fontFetches, 2);
+});
+
+test('#035 el precargado usa requestIdleCallback y, si no existe, un setTimeout', () => {
+  const calls = [];
+  scheduleWhenIdle(() => {}, { requestIdleCallback: (_cb, options) => calls.push(['idle', options.timeout]), setTimeout: () => calls.push(['timeout']) });
+  scheduleWhenIdle(() => {}, { setTimeout: (_cb, ms) => calls.push(['timeout', ms]) });
+  assert.deepEqual(calls, [['idle', 5000], ['timeout', 1500]]);
 });

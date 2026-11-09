@@ -47,3 +47,14 @@ export function createPdfAssetsLoader(loadFonts: () => Promise<PdfFonts>, loadLo
 export function warnIfLogoMissing(result: { logoError?: string }, toast: { warning: (input: { title: string }) => void }): void {
   if (result.logoError) toast.warning({ title: LOGO_MISSING_TITLE });
 }
+
+interface IdleHost {
+  requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => unknown;
+  setTimeout: (callback: () => void, ms: number) => unknown;
+}
+
+/** Runs a task when the browser is idle (requestIdleCallback), falling back to a short timeout. */
+export function scheduleWhenIdle(task: () => void, host: IdleHost = globalThis as unknown as IdleHost): void {
+  if (typeof host.requestIdleCallback === 'function') host.requestIdleCallback(task, { timeout: 5000 });
+  else host.setTimeout(task, 1500);
+}
