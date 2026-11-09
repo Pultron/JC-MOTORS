@@ -14,6 +14,7 @@ import { useQuotations } from '../store/QuotationContext';
 import { parseDecimal } from '../utils/currency';
 import { AMOUNT_TOO_LARGE_MESSAGE, QuotationAmountError, calculateQuotationTotals, countZeroPriceItems, createId } from '../utils/quotation';
 import type { QuotationTotals } from '../utils/quotation';
+import { buildQuotationInput } from '../services/quotationFromForm';
 import { formatMoney } from '../utils/money';
 
 function blankItem(description = ''): QuoteDraftItem {
@@ -216,19 +217,7 @@ export function useCotizacionForm() {
 
   async function submit() {
     if (!validate()) return;
-    const labor = parseDecimal(form.laborAmount);
-    const input: CreateQuotationInput = {
-      ...(activeDraft ? { preferredFolio: activeDraft.folio } : {}),
-      ...(form.customerId ? { customerId: form.customerId } : {}),
-      customer: { name: form.customerName.trim(), phone: form.phone.trim(), ...(form.email.trim() ? { email: form.email.trim() } : {}) },
-      vehicle: { make: form.make.trim(), model: form.model.trim(), ...(form.year ? { year: Number(form.year) } : {}), plates: form.plates.trim().toUpperCase() },
-      items: [
-        ...form.items.filter((item) => item.description.trim() || String(item.unitPrice).trim()).map((item) => ({ id: item.id, type: item.type, description: item.description.trim(), quantity: Number(item.quantity), saleUnitPrice: Number(item.unitPrice) })),
-        ...(labor > 0 ? [{ id: createId(), type: 'labor' as const, description: 'Mano de obra', quantity: 1, saleUnitPrice: labor }] : []),
-      ],
-      laborDiscountType: form.laborDiscountType, laborDiscountValue: Number(form.laborDiscountValue), includeVat: form.ivaEnabled,
-      validityDays: Number(form.validityDays), publicNotes: form.publicNotes.trim(), customerNotes: form.customerNotes.trim(),
-    };
+    const input: CreateQuotationInput = buildQuotationInput(form, activeDraft?.folio);
     setBusy(true);
     try {
       const quote = editId

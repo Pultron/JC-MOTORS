@@ -22,6 +22,11 @@ export class QuotationAmountError extends Error {
   }
 }
 
+/** Stored items: the rounded amount is always derived from quantity x unit price. */
+export function buildQuotationItems(items: Array<Omit<QuotationItem, 'amount'>>): QuotationItem[] {
+  return items.map((item) => ({ ...item, amount: roundCurrency(item.quantity * item.saleUnitPrice) }));
+}
+
 /** How many concepts were explicitly priced at $0.00 (allowed, e.g. courtesy items). */
 export function countZeroPriceItems(items: Array<{ saleUnitPrice: number }>): number {
   return items.filter((item) => item.saleUnitPrice === 0).length;

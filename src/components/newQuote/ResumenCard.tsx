@@ -32,7 +32,7 @@ const PROMOTION_OPTIONS = [
 ];
 
 export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChange, onSaveDraft, onClear, submitLabel = 'Guardar cotización' }: Props) {
-  const sheets = useQuotationSheetCount(form, totals);
+  const sheets = useQuotationSheetCount(form);
   const discountValue = Number(form.laborDiscountValue) || 0;
   const promotionValue = form.laborDiscountType === 'percentage' && PROMOTION_OPTIONS.some((option) => Number(option.value) === discountValue)
     ? String(discountValue)

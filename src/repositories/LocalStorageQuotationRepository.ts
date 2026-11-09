@@ -7,7 +7,7 @@ import type {
   QuotationStatus,
   Vehicle,
 } from '../models/quotation';
-import { calculateQuotationTotals, createId, roundCurrency, validateDiscount } from '../utils/quotation';
+import { buildQuotationItems, calculateQuotationTotals, createId, roundCurrency, validateDiscount } from '../utils/quotation';
 import type { QuotationRepository } from './QuotationRepository';
 import { ensureQuotationFolioAtLeast, nextFolio, reservedDraftFolios } from '../services/folioService';
 import { parseGuardedJson, quarantineCorrupt } from '../storage/corruptBackup';
@@ -79,10 +79,7 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
   }
 
   async create(input: CreateQuotationInput): Promise<Quotation> {
-    const items = input.items.map((item) => ({
-      ...item,
-      amount: roundCurrency(item.quantity * item.saleUnitPrice),
-    }));
+    const items = buildQuotationItems(input.items);
     const totals = calculateQuotationTotals(items, input.laborDiscountType, input.laborDiscountValue, input.includeVat);
     const discountError = validateDiscount(totals.subtotalManoObra, input.laborDiscountType, input.laborDiscountValue);
     if (discountError) throw new Error(discountError);
@@ -118,10 +115,7 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
     const original = quotations.find((entry) => entry.id === id);
     if (!original || original.status !== 'Pendiente') return undefined;
 
-    const items = input.items.map((item) => ({
-      ...item,
-      amount: roundCurrency(item.quantity * item.saleUnitPrice),
-    }));
+    const items = buildQuotationItems(input.items);
     const totals = calculateQuotationTotals(items, input.laborDiscountType, input.laborDiscountValue, input.includeVat);
     const discountError = validateDiscount(totals.subtotalManoObra, input.laborDiscountType, input.laborDiscountValue);
     if (discountError) throw new Error(discountError);
