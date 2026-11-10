@@ -15,6 +15,7 @@ import { parseDecimal } from '../utils/currency';
 import { AMOUNT_TOO_LARGE_MESSAGE, QuotationAmountError, calculateQuotationTotals, countZeroPriceItems, createId } from '../utils/quotation';
 import type { QuotationTotals } from '../utils/quotation';
 import { buildQuotationInput } from '../services/quotationFromForm';
+import { focusFirstInvalid } from '../utils/focusFirstInvalid';
 import { formatMoney } from '../utils/money';
 import { amountValue, formatPhone, normalizePhone, parseDecimalStrict, phoneForStorage, PHONE_DIGITS } from '../validation/fields';
 
@@ -96,6 +97,8 @@ export function useCotizacionForm() {
   // Errors appear after the user leaves a field (blur) or after a failed submit, then stay live until fixed.
   const [touched, setTouched] = useState<Record<string, true>>({});
   const [limitError, setLimitError] = useState('');
+  // Bumped after a failed submit; the effect below runs once the errors are rendered.
+  const [focusRequest, setFocusRequest] = useState(0);
   const [busy, setBusy] = useState(false);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [dirty, setDirty] = useState(false);
@@ -132,6 +135,10 @@ export function useCotizacionForm() {
     if (limitError) visible.items = limitError;
     return visible;
   }, [allErrors, touched, limitError]);
+
+  useEffect(() => {
+    if (focusRequest > 0) focusFirstInvalid();
+  }, [focusRequest]);
 
   function touch(...keys: string[]) {
     setTouched((current) => keys.every((key) => current[key]) ? current : { ...current, ...Object.fromEntries(keys.map((key) => [key, true as const])) });
@@ -262,6 +269,7 @@ export function useCotizacionForm() {
     const clean = normalizeQuoteForm(form);
     if (!validate(clean)) {
       setForm(clean);
+      setFocusRequest((current) => current + 1);
       return;
     }
     const input: CreateQuotationInput = buildQuotationInput(clean, activeDraft?.folio);
