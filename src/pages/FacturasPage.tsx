@@ -202,7 +202,7 @@ export function FacturasPage() {
           {visibles.map((invoice, i) => (
             <li key={invoice.uuid} style={{ animationDelay: `${i * 50}ms` }} className={flashUuid === invoice.uuid ? 'is-flash' : undefined}>
               <button type="button" data-testid="invoice-row" data-uuid={invoice.uuid} data-selected={invoice.uuid === selectedUuid} onClick={() => select(invoice.uuid)}>
-                <span className="fac-row-top"><span className="fac-row-uuid">Nº {formatearFolio(invoice.folio)}{invoice.selloIncompleto && <span className="fac-dot-warn" title="El sello digital no se extrajo completo; el PDF generado no será válido para imprimir" data-testid="row-sello-dot" />}</span><span className="fac-row-date">{formatDate(invoice.fechaEmision, 'medium')}</span></span>
+                <span className="fac-row-top"><span className="fac-row-uuid">Nº {formatearFolio(invoice.folio)}{invoice.selloIncompleto && <span className="fac-dot-warn" title="El sello digital no se extrajo completo; el PDF generado no será válido para imprimir" data-testid="row-sello-dot" />}{invoice.rfcInvalido && <span className="fac-dot-warn" title="El RFC del emisor o del receptor no tiene un formato válido; revísalo en la factura original" data-testid="row-rfc-dot" />}</span><span className="fac-row-date">{formatDate(invoice.fechaEmision, 'medium')}</span></span>
                 <span className="fac-row-name">{invoice.receptor.nombre}</span>
                 <span className="fac-row-bottom"><Estado estado={invoice.estado} /><strong>{formatMoney(invoice.total)}</strong></span>
               </button>
