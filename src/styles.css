@@ -201,6 +201,17 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .mac-option-detail { display: block; font-size: 12px; line-height: 16px; color: var(--color-mac-ink-2); }
 .mac-option[data-active="true"] .mac-option-detail { color: rgb(255 255 255 / 82%); }
 .mac-option-separator { height: 1px; margin: 4px 10px; background: rgb(60 60 67 / 18%); list-style: none; }
+/* Email domain suggestions (EmailInput) and quote templates popover: compact variants of the shared listbox. */
+:root { --jc-pop-bg: rgb(255 255 255); --jc-pop-ink: var(--color-mac-ink); --jc-pop-ink-2: var(--color-mac-ink-2); --jc-pop-border: rgb(60 60 67 / 18%); --jc-pop-hover: var(--color-mac-fill); }
+@media (prefers-color-scheme: dark) {
+  :root { --jc-pop-bg: rgb(44 44 46); --jc-pop-ink: rgb(245 245 247); --jc-pop-ink-2: rgb(174 174 178); --jc-pop-border: rgb(255 255 255 / 16%); --jc-pop-hover: rgb(255 255 255 / 10%); }
+}
+.jc-suggest-pop { max-width: 300px; padding: 4px; border-color: var(--jc-pop-border); background: var(--jc-pop-bg); color: var(--jc-pop-ink); }
+.jc-suggest-pop .mac-option { min-height: 32px; }
+.jc-suggest-pop .mac-option:not([data-active="true"]) { color: var(--jc-pop-ink); }
+.jc-suggest-pop .mac-option[data-kind="typo"] { gap: 10px; }
+.jc-suggest-apply { flex: none; padding: 2px 9px; border-radius: 6px; background: var(--color-mac-tint); color: var(--color-mac-accent-text); font-size: 12px; font-weight: 600; }
+.jc-suggest-pop .mac-option[data-active="true"] .jc-suggest-apply { background: rgb(255 255 255 / 26%); color: rgb(255 255 255); }
 .mac-option-empty { margin: 0; padding: 8px 12px; font-size: 12px; color: var(--color-mac-ink-2); }
 .mac-option-action { display: block; width: 100%; margin-top: 4px; padding: 8px 12px; border: 0; border-top: 1px solid rgb(60 60 67 / 18%); border-radius: 8px; background: transparent; color: var(--color-mac-accent-text); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
 .mac-option-action:hover { background: var(--color-mac-tint); }

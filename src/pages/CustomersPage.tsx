@@ -7,6 +7,7 @@ import { useDuplicateCustomerPrompt } from '../hooks/useDuplicateCustomerPrompt'
 import { customersNamed, resolveCustomerSave } from '../services/customerMatching';
 import { useCustomers } from '../store/CustomerContext';
 import { FieldError, errorIdFor } from '../components/ui/FieldError';
+import { EmailInput } from '../components/ui/EmailInput';
 import { focusFirstInvalid } from '../utils/focusFirstInvalid';
 import {
   PHONE_DIGITS, PHONE_MAX_LENGTH, formatPhone, normalizeEmail, normalizePhone, phoneForStorage, phoneFromPaste,
@@ -311,7 +312,7 @@ export function CustomersPage() {
               <div className="cli-row" data-invalid={emailError ? 'true' : undefined}>
                 <label htmlFor="cli-email" className="cli-label">Correo</label>
                 <div className="cli-field">
-                  <input id="cli-email" data-testid="cli-email" className="cli-input" type="email" value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: stripLineBreaks(event.target.value) }))} onBlur={blurEmail} aria-invalid={emailError ? 'true' : undefined} aria-describedby={errorIdFor('cli-email', emailError)} placeholder="cliente@correo.com" autoComplete="off" />
+                  <EmailInput id="cli-email" data-testid="cli-email" anchorSelector=".cli-field" className="cli-input" value={draft.email} onValueChange={(email) => setDraft((current) => ({ ...current, email: stripLineBreaks(email) }))} onBlur={blurEmail} aria-invalid={emailError ? 'true' : undefined} aria-describedby={errorIdFor('cli-email', emailError)} placeholder="cliente@correo.com" autoComplete="off" />
                   <FieldError id="cli-email-error" message={emailError} />
                 </div>
                 <span className="cli-aux">Opcional</span>

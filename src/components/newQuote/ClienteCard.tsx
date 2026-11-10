@@ -6,6 +6,7 @@ import { Card } from './primitives/Card';
 import { CardHeader } from './primitives/CardHeader';
 import { PHONE_MAX_LENGTH, phoneFromPaste, sanitizePhoneInput } from '../../validation/fields';
 import { errorIdFor } from '../ui/FieldError';
+import { EmailInput } from '../ui/EmailInput';
 import { FormRow } from './primitives/FormRow';
 import { SearchCombobox } from './SearchCombobox';
 
@@ -39,7 +40,7 @@ export function ClienteCard({ form, errors, customers, onChange, onCustomerChang
       </FormRow>
       <div className="overflow-hidden rounded-b-[14px]">
         <FormRow label="Correo" htmlFor={emailId} error={errors.email}>
-          <input id={emailId} data-testid="cliente-correo" type="email" className="mac-row-input" aria-invalid={Boolean(errors.email)} aria-describedby={errorIdFor(emailId, errors.email)} onBlur={() => onBlurField('email')} value={form.email} onChange={(event) => onChange('email', event.target.value)} placeholder="cliente@correo.com" />
+          <EmailInput id={emailId} data-testid="cliente-correo" anchorSelector=".mac-row" className="mac-row-input" aria-invalid={Boolean(errors.email)} aria-describedby={errorIdFor(emailId, errors.email)} onBlur={() => onBlurField('email')} value={form.email} onValueChange={(value) => onChange('email', value)} placeholder="cliente@correo.com" />
         </FormRow>
       </div>
     </Card>
