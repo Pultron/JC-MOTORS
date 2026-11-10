@@ -3,7 +3,7 @@ import type { QuotationTotals } from '../utils/quotation';
 import { formatMoney } from '../utils/money';
 import { MAX_CONCEPT_AMOUNT, roundCurrency, validateDiscount } from '../utils/quotation';
 import { MAX_CONCEPTS } from './quotationLayout';
-import { normalizeEmail, parseDecimalStrict, sanitizeSingleLine, validatePhone, validateQuantity, validateYear } from '../validation/fields';
+import { normalizeEmail, normalizePlates, parseDecimalStrict, sanitizeSingleLine, validatePhone, validatePlates, validateQuantity, validateYear } from '../validation/fields';
 
 export const MAX_CONCEPTS_MESSAGE = `Máximo ${MAX_CONCEPTS} conceptos por cotización. Divídela en dos.`;
 export const MAX_CONCEPT_AMOUNT_MESSAGE = `El monto máximo por concepto es ${formatMoney(MAX_CONCEPT_AMOUNT)}.`;
@@ -16,6 +16,8 @@ export function validateQuoteForm(form: QuoteFormData, totals: QuotationTotals):
   if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = 'Escribe un correo válido.';
   if (!form.make.trim()) errors.make = 'Selecciona o escribe una marca.';
   if (!form.model.trim()) errors.model = 'Selecciona o escribe un modelo.';
+  const plates = validatePlates(form.plates);
+  if (!plates.ok) errors.plates = plates.mensaje ?? 'Escribe unas placas válidas.';
   if (form.year) {
     const year = validateYear(Number(form.year));
     if (!year.ok) errors.year = year.mensaje ?? 'Elige un año válido.';
@@ -60,7 +62,7 @@ export function normalizeQuoteForm(form: QuoteFormData): QuoteFormData {
     email: normalizeEmail(sanitizeSingleLine(form.email)),
     make: sanitizeSingleLine(form.make),
     model: sanitizeSingleLine(form.model),
-    plates: sanitizeSingleLine(form.plates),
+    plates: normalizePlates(form.plates),
     laborAmount: money(form.laborAmount ?? ''),
     items: form.items.map((item): QuoteDraftItem => ({ ...item, description: sanitizeSingleLine(item.description), unitPrice: money(item.unitPrice) })),
   };

@@ -88,3 +88,13 @@ test('#011 single-line fields lose tabs, newlines and repeated spaces; notes kee
   assert.equal(form.items[0].description, 'Filtro de aceite');
   assert.equal(form.customerNotes, 'Línea 1\nLínea 2');
 });
+
+test('#012 plates: optional, min 3 chars, saved uppercase, letters/digits/hyphen/space only', async () => {
+  const { sanitizePlatesInput } = await import('../src/validation/fields.ts');
+  assert.equal(validateQuoteForm(baseForm({ plates: '' }), totals).plates, undefined);
+  assert.ok(validateQuoteForm(baseForm({ plates: 'ab' }), totals).plates);
+  assert.equal(validateQuoteForm(baseForm({ plates: 'abc-123-a' }), totals).plates, undefined);
+  assert.ok(validateQuoteForm(baseForm({ plates: 'ABC#123' }), totals).plates);
+  assert.equal(sanitizePlatesInput('abc#-12 3\t'), 'ABC-12 3 ');
+  assert.equal(buildQuotationInput(normalizeQuoteForm(baseForm({ plates: ' abc-123-a ' }))).vehicle.plates, 'ABC-123-A');
+});

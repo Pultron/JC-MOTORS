@@ -2,7 +2,7 @@ import { useId } from 'react';
 import { Car } from 'lucide-react';
 import type { QuoteFormData } from '../../models/quoteDraft';
 import { getVehicleModels, vehicleBrands } from '../../services/vehicleCatalog';
-import { MAX_YEAR, MIN_YEAR } from '../../validation/fields';
+import { MAX_YEAR, MIN_YEAR, sanitizePlatesInput } from '../../validation/fields';
 import { errorIdFor } from '../ui/FieldError';
 import { Select } from '../ui/Select';
 import { Card } from './primitives/Card';
@@ -38,7 +38,7 @@ export function VehiculoCard({ form, errors, onChange, onBlurField, onCommitText
       </FormRow>
       <div className="overflow-hidden rounded-b-[14px]">
         <FormRow label="Placas" htmlFor={platesId} error={errors.plates}>
-          <input id={platesId} data-testid="vehiculo-placas" className="mac-row-input uppercase" aria-invalid={Boolean(errors.plates)} aria-describedby={errorIdFor(platesId, errors.plates)} onBlur={() => onBlurField('plates')} value={form.plates} maxLength={16} onChange={(event) => onChange('plates', event.target.value.toLocaleUpperCase('es-MX'))} placeholder="ABC-123-A" />
+          <input id={platesId} data-testid="vehiculo-placas" className="mac-row-input uppercase" aria-invalid={Boolean(errors.plates)} aria-describedby={errorIdFor(platesId, errors.plates)} onBlur={() => onBlurField('plates')} value={form.plates} maxLength={16} onChange={(event) => onChange('plates', sanitizePlatesInput(event.target.value))} placeholder="ABC-123-A" />
         </FormRow>
       </div>
     </Card>

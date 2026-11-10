@@ -17,7 +17,7 @@ import type { QuotationTotals } from '../utils/quotation';
 import { buildQuotationInput } from '../services/quotationFromForm';
 import { focusFirstInvalid } from '../utils/focusFirstInvalid';
 import { formatMoney } from '../utils/money';
-import { amountValue, formatPhone, normalizeEmail, sanitizeSingleLine, stripLineBreaks, normalizePhone, parseDecimalStrict, phoneForStorage, PHONE_DIGITS } from '../validation/fields';
+import { amountValue, formatPhone, normalizeEmail, normalizePlates, sanitizeSingleLine, stripLineBreaks, normalizePhone, parseDecimalStrict, phoneForStorage, PHONE_DIGITS } from '../validation/fields';
 
 function blankItem(description = ''): QuoteDraftItem {
   return { id: createId(), type: 'part', description, quantity: '1', unitPrice: '' };
@@ -211,7 +211,7 @@ export function useCotizacionForm() {
     touch(key);
     if (key === 'email' || key === 'plates') {
       setForm((current) => {
-        const clean = key === 'email' ? normalizeEmail(sanitizeSingleLine(current.email)) : sanitizeSingleLine(current.plates);
+        const clean = key === 'email' ? normalizeEmail(sanitizeSingleLine(current.email)) : normalizePlates(current.plates);
         return clean === current[key] ? current : { ...current, [key]: clean };
       });
     }

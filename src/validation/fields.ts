@@ -106,6 +106,11 @@ export function normalizePlates(text: string): string {
   return sanitizeSingleLine(text).toLocaleUpperCase('es-MX');
 }
 
+/** While typing: uppercase and only letters, digits, hyphen and space. */
+export function sanitizePlatesInput(text: string): string {
+  return stripLineBreaks(text).toLocaleUpperCase('es-MX').replace(/[^\p{L}\d\- ]/gu, '');
+}
+
 export function validatePlates(text: string): FieldResult {
   const plates = normalizePlates(text);
   if (!plates) return OK;
