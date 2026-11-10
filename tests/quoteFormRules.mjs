@@ -19,3 +19,22 @@ test('#006 year uses the single MIN_YEAR/MAX_YEAR range', () => {
   assert.match(validateQuoteForm(baseForm({ year: String(MIN_YEAR - 1) }), totals).year, new RegExp(String(MIN_YEAR)));
   assert.ok(validateQuoteForm(baseForm({ year: String(MAX_YEAR + 1) }), totals).year);
 });
+
+const item = (overrides) => ({ id: 'a', type: 'part', description: 'Filtro', quantity: '1', unitPrice: '100', ...overrides });
+
+test('#007 a part needs a whole quantity >= 1; labor/service accepts up to 2 decimals', () => {
+  assert.equal(validateQuoteForm(baseForm({ items: [item({ quantity: '3' })] }), totals)['item-a-quantity'], undefined);
+  assert.match(validateQuoteForm(baseForm({ items: [item({ quantity: '1.5' })] }), totals)['item-a-quantity'], /entero/);
+  assert.ok(validateQuoteForm(baseForm({ items: [item({ quantity: '0' })] }), totals)['item-a-quantity']);
+  assert.ok(validateQuoteForm(baseForm({ items: [item({ quantity: '' })] }), totals)['item-a-quantity']);
+  assert.equal(validateQuoteForm(baseForm({ items: [item({ type: 'labor', quantity: '1.5' })] }), totals)['item-a-quantity'], undefined);
+  assert.ok(validateQuoteForm(baseForm({ items: [item({ type: 'labor', quantity: '1.555' })] }), totals)['item-a-quantity']);
+});
+
+test('#007 switching a decimal service row to part errors on that row and keeps the data', () => {
+  const row = item({ type: 'labor', quantity: '1.5' });
+  assert.equal(validateQuoteForm(baseForm({ items: [row] }), totals)['item-a-quantity'], undefined);
+  const switched = { ...row, type: 'part' };
+  assert.ok(validateQuoteForm(baseForm({ items: [switched] }), totals)['item-a-quantity']);
+  assert.equal(switched.quantity, '1.5');
+});
