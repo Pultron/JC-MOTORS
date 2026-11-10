@@ -1,6 +1,7 @@
 import type { CreateQuotationInput, PublicQuotation, Quotation } from '../models/quotation';
 import type { QuoteFormData } from '../models/quoteDraft';
 import { parseDecimal } from '../utils/currency';
+import { phoneForStorage } from '../validation/fields';
 import { buildQuotationItems, createId, toPublicQuotation } from '../utils/quotation';
 
 /** Numeric field coming from a text input; unparsable text counts as 0 so the preview never breaks. */
@@ -18,7 +19,7 @@ export function buildQuotationInput(form: QuoteFormData, preferredFolio?: string
   return {
     ...(preferredFolio ? { preferredFolio } : {}),
     ...(form.customerId ? { customerId: form.customerId } : {}),
-    customer: { name: form.customerName.trim(), phone: form.phone.trim(), ...(form.email.trim() ? { email: form.email.trim() } : {}) },
+    customer: { name: form.customerName.trim(), phone: phoneForStorage(form.phone), ...(form.email.trim() ? { email: form.email.trim() } : {}) },
     vehicle: { make: form.make.trim(), model: form.model.trim(), ...(form.year ? { year: Number(form.year) } : {}), plates: form.plates.trim().toUpperCase() },
     items: [
       ...form.items

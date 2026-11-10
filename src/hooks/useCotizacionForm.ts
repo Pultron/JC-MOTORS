@@ -16,6 +16,7 @@ import { AMOUNT_TOO_LARGE_MESSAGE, QuotationAmountError, calculateQuotationTotal
 import type { QuotationTotals } from '../utils/quotation';
 import { buildQuotationInput } from '../services/quotationFromForm';
 import { formatMoney } from '../utils/money';
+import { formatPhone, normalizePhone, phoneForStorage, PHONE_DIGITS } from '../validation/fields';
 
 function blankItem(description = ''): QuoteDraftItem {
   return { id: createId(), type: 'part', description, quantity: '1', unitPrice: '' };
@@ -47,7 +48,7 @@ function formFromQuotation(quotation: Quotation): QuoteFormData {
   }));
   const laborAmount = quotation.items.filter((item) => item.type === 'labor').reduce((sum, item) => sum + item.amount, 0);
   return {
-    customerId: quotation.customerId ?? '', customerName: quotation.customer.name, phone: quotation.customer.phone,
+    customerId: quotation.customerId ?? '', customerName: quotation.customer.name, phone: formatPhone(quotation.customer.phone),
     email: quotation.customer.email ?? '', make: quotation.vehicle.make, model: quotation.vehicle.model,
     year: quotation.vehicle.year ? String(quotation.vehicle.year) : '', plates: quotation.vehicle.plates,
     items: parts.length ? parts : [blankItem('')], laborAmount: displayLaborAmount(String(laborAmount)),
@@ -157,7 +158,7 @@ export function useCotizacionForm() {
     const match = customers.find((customer) => normalize(customer.name) === normalize(value)
       || customer.aliases.some((alias) => normalize(alias) === normalize(value)));
     setForm((current) => match ? {
-      ...current, customerId: match.id, customerName: match.name, phone: match.phone, email: match.email ?? '',
+      ...current, customerId: match.id, customerName: match.name, phone: formatPhone(match.phone), email: match.email ?? '',
     } : { ...current, customerId: '', customerName: value, ...(current.customerId ? { phone: '', email: '' } : {}) });
     setErrors((current) => ({ ...current, customerName: '' }));
     setDirty(true);
@@ -166,9 +167,17 @@ export function useCotizacionForm() {
   function selectCustomer(id: string) {
     const customer = customers.find((item) => item.id === id);
     if (!customer) return;
-    setForm((current) => ({ ...current, customerId: id, customerName: customer.name, phone: customer.phone, email: customer.email ?? '' }));
+    setForm((current) => ({ ...current, customerId: id, customerName: customer.name, phone: formatPhone(customer.phone), email: customer.email ?? '' }));
     setErrors((current) => ({ ...current, customerName: '' }));
     setDirty(true);
+  }
+
+  /** Blur normalizations: a valid phone is shown as (667) 351-8806. */
+  function blurField(key: 'phone') {
+    if (key === 'phone') {
+      const digits = normalizePhone(form.phone);
+      if (digits.length === PHONE_DIGITS && form.phone !== formatPhone(digits)) setForm((current) => ({ ...current, phone: formatPhone(digits) }));
+    }
   }
 
   function addItem(description = '') {
@@ -228,7 +237,7 @@ export function useCotizacionForm() {
         return;
       }
       if (!form.customerId && !customers.some((customer) => normalize(customer.name) === normalize(form.customerName))) {
-        createCustomer({ name: form.customerName.trim(), phone: form.phone.trim(), ...(form.email.trim() ? { email: form.email.trim() } : {}), aliases: [] });
+        createCustomer({ name: form.customerName.trim(), phone: phoneForStorage(form.phone), ...(form.email.trim() ? { email: form.email.trim() } : {}), aliases: [] });
       }
       const zeroPriced = countZeroPriceItems(input.items);
       if (zeroPriced > 0) {
@@ -310,7 +319,7 @@ export function useCotizacionForm() {
     editId, quotationToEdit, drafts, activeDraft, recovery,
     isLoadingEdit: Boolean(editId) && (!editReady || loadedEditId.current !== editId || isLoading),
     isSaved: !dirty && (Boolean(activeDraft) || Boolean(editId)),
-    updateField, updateCustomer, selectCustomer, addItem, updateItem, deleteItem, setLaborAmount,
+    updateField, blurField, updateCustomer, selectCustomer, addItem, updateItem, deleteItem, setLaborAmount,
     submit, saveDraft, clearForm, openDraft, deleteDraft, recoverTemporary, discardTemporary,
   };
 }

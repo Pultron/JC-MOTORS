@@ -4,6 +4,7 @@ import { Mail, Pencil, Phone, Plus, Search, Trash2, UserRound, UsersRound, X } f
 import { useToast } from '../components/ui/Toast';
 import type { CustomerProfile, CustomerProfileInput } from '../models/quotation';
 import { useCustomers } from '../store/CustomerContext';
+import { formatPhone } from '../validation/fields';
 import '../styles/clientes.css';
 
 interface CustomerDraft {
@@ -297,7 +298,7 @@ export function CustomersPage() {
                     <h3>{customer.name}{editingId === customer.id && <span className="cli-editing-badge">Editando</span>}</h3>
                     {(customer.phone || customer.email) && (
                       <div className="cli-contact">
-                        {customer.phone && <span><Phone size={13} aria-hidden="true" />{customer.phone}</span>}
+                        {customer.phone && <span><Phone size={13} aria-hidden="true" />{formatPhone(customer.phone)}</span>}
                         {customer.email && <span><Mail size={13} aria-hidden="true" />{customer.email}</span>}
                       </div>
                     )}

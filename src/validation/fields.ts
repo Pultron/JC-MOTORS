@@ -19,6 +19,7 @@ export const MAX_YEAR = new Date().getFullYear() + 1;
 export const PHONE_REQUIRED = false;
 export const PHONE_DIGITS = 10;
 export const PLATES_MIN_LENGTH = 3;
+export const PHONE_MAX_LENGTH = 15;
 
 const OK: FieldResult = { ok: true };
 const fail = (mensaje: string): FieldResult => ({ ok: false, mensaje });
@@ -47,6 +48,19 @@ export function normalizePhone(text: string): string {
 export function formatPhone(raw: string): string {
   const digits = raw.replace(/\D/g, '');
   return digits.length === PHONE_DIGITS ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}` : raw;
+}
+
+/** Keeps only phone characters (digits, spaces, parentheses, + and -). Safe on every keystroke. */
+export function sanitizePhoneInput(text: string): string {
+  return text.replace(/[^\d\s()+-]/g, '');
+}
+
+/** Pasted text: a valid 10-digit number (with or without 52 / 521) is shown formatted; the rest is kept so the length error can say what is wrong. */
+export function phoneFromPaste(text: string): string {
+  const filtered = sanitizePhoneInput(text).trim();
+  const digits = normalizePhone(filtered);
+  if (digits.length === PHONE_DIGITS) return formatPhone(digits);
+  return filtered.length > PHONE_MAX_LENGTH ? digits.slice(0, PHONE_MAX_LENGTH) : filtered;
 }
 
 /** Value to persist: the 10 normalized digits when valid, otherwise the trimmed text so legacy data is never rewritten. */

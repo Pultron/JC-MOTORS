@@ -1,6 +1,7 @@
 import type { PublicQuotation } from '../models/quotation';
 import { addDays, formatDate, parseDate } from '../utils/dateFormat';
 import { formatMoney } from '../utils/money';
+import { formatPhone } from '../validation/fields';
 
 /** Design units: px on an A4 sheet at 96 dpi. jsPDF works in mm/pt, so the PDF converts with mm()/pt(). */
 export const PAGE_W = 794;
@@ -97,10 +98,7 @@ export interface Plan {
   hojas: Sheet[];
 }
 
-export function formatPhone(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  return digits.length === 10 ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}` : raw;
-}
+export { formatPhone };
 
 /** Quotation expiry: the local calendar day of creation plus validityDays (no UTC drift, DST safe). */
 export function validUntil(quotation: Pick<PublicQuotation, 'createdAt' | 'validityDays'>): Date {

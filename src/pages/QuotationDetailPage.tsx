@@ -12,6 +12,7 @@ import { useQuotations } from '../store/QuotationContext';
 import { formatMoney } from '../utils/money';
 import { toPublicQuotation } from '../utils/quotation';
 import { formatDate } from '../utils/dateFormat';
+import { formatPhone } from '../validation/fields';
 
 export function QuotationDetailPage() {
   const { id = '' } = useParams();
@@ -59,7 +60,7 @@ export function QuotationDetailPage() {
         <div className="space-y-5">
           <div className="grid gap-5 md:grid-cols-2">
             <SectionCard title="Cliente" icon={<UserRound size={19} />}>
-              <InfoLine label="Nombre" value={publicQuotation.customer.name} /><InfoLine label="Teléfono" value={publicQuotation.customer.phone || '—'} /><InfoLine label="Correo" value={publicQuotation.customer.email || '—'} />
+              <InfoLine label="Nombre" value={publicQuotation.customer.name} /><InfoLine label="Teléfono" value={publicQuotation.customer.phone ? formatPhone(publicQuotation.customer.phone) : '—'} /><InfoLine label="Correo" value={publicQuotation.customer.email || '—'} />
             </SectionCard>
             <SectionCard title="Vehículo" icon={<CarFront size={20} />}>
               <InfoLine label="Marca y modelo" value={`${publicQuotation.vehicle.make} ${publicQuotation.vehicle.model}`} /><InfoLine label="Año" value={publicQuotation.vehicle.year?.toString() ?? '—'} /><InfoLine label="Placas" value={publicQuotation.vehicle.plates || '—'} />

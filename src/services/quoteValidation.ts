@@ -3,6 +3,7 @@ import type { QuotationTotals } from '../utils/quotation';
 import { formatMoney } from '../utils/money';
 import { MAX_CONCEPT_AMOUNT, roundCurrency, validateDiscount } from '../utils/quotation';
 import { MAX_CONCEPTS } from './quotationLayout';
+import { validatePhone } from '../validation/fields';
 
 export const MAX_CONCEPTS_MESSAGE = `Máximo ${MAX_CONCEPTS} conceptos por cotización. Divídela en dos.`;
 export const MAX_CONCEPT_AMOUNT_MESSAGE = `El monto máximo por concepto es ${formatMoney(MAX_CONCEPT_AMOUNT)}.`;
@@ -10,7 +11,8 @@ export const MAX_CONCEPT_AMOUNT_MESSAGE = `El monto máximo por concepto es ${fo
 export function validateQuoteForm(form: QuoteFormData, totals: QuotationTotals): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!form.customerName.trim()) errors.customerName = 'Escribe el nombre completo.';
-  if (form.phone && form.phone.replace(/\D/g, '').length !== 10) errors.phone = 'Escribe un teléfono de 10 dígitos.';
+  const phone = validatePhone(form.phone);
+  if (!phone.ok) errors.phone = phone.mensaje ?? 'Escribe un teléfono válido.';
   if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = 'Escribe un correo válido.';
   if (!form.make.trim()) errors.make = 'Selecciona o escribe una marca.';
   if (!form.model.trim()) errors.model = 'Selecciona o escribe un modelo.';

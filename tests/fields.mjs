@@ -90,3 +90,13 @@ test('#009/#013 parseDecimalStrict', () => {
   assert.equal(parseDecimalStrict('$-100').ok, false);
   for (const bad of ['', 'abc', '1.2.3', '12,34', '1,23,456', '5.', '1e5', '$']) assert.equal(parseDecimalStrict(bad).ok, false, bad);
 });
+
+test('#005 phone paste and input helpers', async () => {
+  const { phoneFromPaste, sanitizePhoneInput } = await import('../src/validation/fields.ts');
+  assert.equal(phoneFromPaste('+52 (667) 351-8806'), '(667) 351-8806');
+  assert.equal(phoneFromPaste('52 667 351 8806'), '(667) 351-8806');
+  assert.equal(phoneFromPaste('521 667 351 8806'), '(667) 351-8806');
+  assert.equal(phoneFromPaste('6673518'), '6673518');
+  assert.equal(phoneFromPaste('+1 (555) 123-4567 ext 99'), '1555123456799');
+  assert.equal(sanitizePhoneInput('66a7-3b'), '667-3');
+});

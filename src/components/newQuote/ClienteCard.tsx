@@ -4,6 +4,7 @@ import type { QuoteFormData } from '../../models/quoteDraft';
 import type { CustomerProfile } from '../../models/quotation';
 import { Card } from './primitives/Card';
 import { CardHeader } from './primitives/CardHeader';
+import { PHONE_MAX_LENGTH, phoneFromPaste, sanitizePhoneInput } from '../../validation/fields';
 import { FormRow } from './primitives/FormRow';
 import { SearchCombobox } from './SearchCombobox';
 
@@ -14,9 +15,10 @@ interface Props {
   onChange: <K extends keyof QuoteFormData>(key: K, value: QuoteFormData[K]) => void;
   onCustomerChange: (value: string) => void;
   onSelectCustomer: (id: string) => void;
+  onBlurField: (key: 'phone') => void;
 }
 
-export function ClienteCard({ form, errors, customers, onChange, onCustomerChange, onSelectCustomer }: Props) {
+export function ClienteCard({ form, errors, customers, onChange, onCustomerChange, onSelectCustomer, onBlurField }: Props) {
   const phoneId = useId();
   const emailId = useId();
   return <div className="min-w-0 flex-[1_1_280px]">
@@ -24,7 +26,14 @@ export function ClienteCard({ form, errors, customers, onChange, onCustomerChang
       <CardHeader icon={<User size={18} />} title="Datos del cliente" />
       <SearchCombobox label="Nombre" required testId="cliente-nombre" value={form.customerName} options={customers.map((customer) => ({ value: customer.id, label: customer.name, detail: `${customer.phone} ${customer.aliases.join(', ')}` }))} onChange={onCustomerChange} onSelect={onSelectCustomer} error={errors.customerName} placeholder="Buscar por nombre o teléfono" actionLabel="Crear nuevo cliente" onAction={() => onCustomerChange(form.customerName)} />
       <FormRow label="Teléfono" htmlFor={phoneId} error={errors.phone}>
-        <input id={phoneId} data-testid="cliente-telefono" type="tel" className="mac-row-input" aria-invalid={Boolean(errors.phone)} value={form.phone} inputMode="tel" maxLength={25} onChange={(event) => onChange('phone', event.target.value.replace(/[^+\d\s()-]/g, ''))} placeholder="55 1234 5678" />
+        <input id={phoneId} data-testid="cliente-telefono" type="tel" className="mac-row-input" aria-invalid={Boolean(errors.phone)} value={form.phone} inputMode="tel" maxLength={PHONE_MAX_LENGTH} onChange={(event) => onChange('phone', sanitizePhoneInput(event.target.value))} onPaste={(event) => {
+          // A pasted "+52 (667) 351-8806" is longer than maxLength, so the paste is resolved here instead of being truncated.
+          event.preventDefault();
+          const input = event.currentTarget;
+          const start = input.selectionStart ?? input.value.length;
+          const end = input.selectionEnd ?? start;
+          onChange('phone', phoneFromPaste(input.value.slice(0, start) + event.clipboardData.getData('text') + input.value.slice(end)));
+        }} onBlur={() => onBlurField('phone')} placeholder="10 dígitos, sin lada internacional" />
       </FormRow>
       <div className="overflow-hidden rounded-b-[14px]">
         <FormRow label="Correo" htmlFor={emailId} error={errors.email}>
