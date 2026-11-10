@@ -23,12 +23,14 @@ interface Props {
   onAction?: () => void;
   disabled?: boolean;
   testId?: string;
+  /** Called when focus leaves the field (not when it moves to the option list). */
+  onCommit?: () => void;
 }
 
 const normalize = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('es-MX');
 
 /** Combobox con búsqueda, presentado como fila agrupada estilo macOS. */
-export function SearchCombobox({ label, value, options, onChange, onSelect, placeholder, error, required, actionLabel, onAction, disabled, testId }: Props) {
+export function SearchCombobox({ label, value, options, onChange, onSelect, placeholder, error, required, actionLabel, onAction, disabled, testId, onCommit }: Props) {
   const inputId = useId();
   const listId = `${inputId}-options`;
   const [open, setOpen] = useState(false);
@@ -52,7 +54,7 @@ export function SearchCombobox({ label, value, options, onChange, onSelect, plac
   return <div ref={root}>
     <FormRow label={label} htmlFor={inputId} required={required} error={error}>
       <input ref={input} id={inputId} data-testid={testId} role="combobox" aria-expanded={open} aria-controls={open ? listId : undefined} aria-activedescendant={open && visible[active] ? optionId(listId, active) : undefined} aria-autocomplete="list" aria-invalid={Boolean(error)} aria-describedby={errorIdFor(inputId, error)} aria-required={required} disabled={disabled} className="mac-row-input" value={value} placeholder={placeholder} autoComplete="off"
-        onFocus={() => setOpen(true)} onBlur={(event) => { if (!root.current?.contains(event.relatedTarget)) setOpen(false); }}
+        onFocus={() => setOpen(true)} onBlur={(event) => { if (!root.current?.contains(event.relatedTarget)) { setOpen(false); onCommit?.(); } }}
         onChange={(event) => { onChange(event.target.value); setOpen(true); setActive(0); }}
         onKeyDown={(event) => {
           if (event.key === 'Escape' && open) { event.preventDefault(); event.stopPropagation(); setOpen(false); }

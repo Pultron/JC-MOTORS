@@ -17,7 +17,7 @@ import type { QuotationTotals } from '../utils/quotation';
 import { buildQuotationInput } from '../services/quotationFromForm';
 import { focusFirstInvalid } from '../utils/focusFirstInvalid';
 import { formatMoney } from '../utils/money';
-import { amountValue, formatPhone, normalizePhone, parseDecimalStrict, phoneForStorage, PHONE_DIGITS } from '../validation/fields';
+import { amountValue, formatPhone, normalizeEmail, sanitizeSingleLine, stripLineBreaks, normalizePhone, parseDecimalStrict, phoneForStorage, PHONE_DIGITS } from '../validation/fields';
 
 function blankItem(description = ''): QuoteDraftItem {
   return { id: createId(), type: 'part', description, quantity: '1', unitPrice: '' };
@@ -174,12 +174,15 @@ export function useCotizacionForm() {
   }, [form.laborDiscountType, form.laborDiscountValue, totals.subtotalManoObra]);
 
   function updateField<K extends keyof QuoteFormData>(key: K, value: QuoteFormData[K]) {
-    setForm((current) => ({ ...current, [key]: value }));
+    // Single-line fields never keep newlines or tabs, also when they arrive through paste.
+    const next = typeof value === 'string' && key !== 'publicNotes' && key !== 'customerNotes' ? stripLineBreaks(value) as QuoteFormData[K] : value;
+    setForm((current) => ({ ...current, [key]: next }));
     if (key === 'year') touch('year');
     setDirty(true);
   }
 
-  function updateCustomer(value: string) {
+  function updateCustomer(raw: string) {
+    const value = stripLineBreaks(raw);
     const match = customers.find((customer) => normalize(customer.name) === normalize(value)
       || customer.aliases.some((alias) => normalize(alias) === normalize(value)));
     setForm((current) => match ? {
@@ -195,9 +198,23 @@ export function useCotizacionForm() {
     setDirty(true);
   }
 
+  /** Blur on free-text fields that validate only on submit: collapses repeated spaces and trims. */
+  function commitText(key: 'customerName' | 'make' | 'model') {
+    setForm((current) => {
+      const clean = sanitizeSingleLine(current[key]);
+      return clean === current[key] ? current : { ...current, [key]: clean };
+    });
+  }
+
   /** Blur: marks the field as touched (errors start showing) and applies its normalization. */
   function blurField(key: 'phone' | 'email' | 'plates' | 'laborAmount') {
     touch(key);
+    if (key === 'email' || key === 'plates') {
+      setForm((current) => {
+        const clean = key === 'email' ? normalizeEmail(sanitizeSingleLine(current.email)) : sanitizeSingleLine(current.plates);
+        return clean === current[key] ? current : { ...current, [key]: clean };
+      });
+    }
     if (key === 'laborAmount') {
       const parsed = parseDecimalStrict(form.laborAmount);
       if (parsed.ok && parsed.texto !== form.laborAmount) setForm((current) => ({ ...current, laborAmount: parsed.texto }));
@@ -223,14 +240,22 @@ export function useCotizacionForm() {
   }
 
   function updateItem(id: string, key: keyof Omit<QuoteDraftItem, 'id' | 'type'>, value: string) {
+    const next = key === 'description' ? stripLineBreaks(value) : value;
     setForm((current) => {
-      const items = current.items.map((item) => item.id === id ? { ...item, [key]: value } as QuoteDraftItem : item);
+      const items = current.items.map((item) => item.id === id ? { ...item, [key]: next } as QuoteDraftItem : item);
       return { ...current, items };
     });
     setDirty(true);
   }
 
-  function blurItem(id: string, key: 'quantity' | 'unitPrice') {
+  function blurItem(id: string, key: 'description' | 'quantity' | 'unitPrice') {
+    if (key === 'description') {
+      setForm((current) => ({
+        ...current,
+        items: current.items.map((item) => item.id === id && sanitizeSingleLine(item.description) !== item.description ? { ...item, description: sanitizeSingleLine(item.description) } : item),
+      }));
+      return;
+    }
     touch(`item-${id}-${key}`);
     if (key === 'unitPrice') {
       setForm((current) => ({
@@ -365,7 +390,7 @@ export function useCotizacionForm() {
     editId, quotationToEdit, drafts, activeDraft, recovery,
     isLoadingEdit: Boolean(editId) && (!editReady || loadedEditId.current !== editId || isLoading),
     isSaved: !dirty && (Boolean(activeDraft) || Boolean(editId)),
-    updateField, blurField, blurItem, updateCustomer, selectCustomer, addItem, updateItem, deleteItem, setLaborAmount,
+    updateField, blurField, commitText, blurItem, updateCustomer, selectCustomer, addItem, updateItem, deleteItem, setLaborAmount,
     submit, saveDraft, clearForm, openDraft, deleteDraft, recoverTemporary, discardTemporary,
   };
 }

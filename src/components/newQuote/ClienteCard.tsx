@@ -17,15 +17,16 @@ interface Props {
   onCustomerChange: (value: string) => void;
   onSelectCustomer: (id: string) => void;
   onBlurField: (key: 'phone' | 'email') => void;
+  onCommitText: (key: 'customerName') => void;
 }
 
-export function ClienteCard({ form, errors, customers, onChange, onCustomerChange, onSelectCustomer, onBlurField }: Props) {
+export function ClienteCard({ form, errors, customers, onChange, onCustomerChange, onSelectCustomer, onBlurField, onCommitText }: Props) {
   const phoneId = useId();
   const emailId = useId();
   return <div className="min-w-0 flex-[1_1_280px]">
     <Card allowOverflow>
       <CardHeader icon={<User size={18} />} title="Datos del cliente" />
-      <SearchCombobox label="Nombre" required testId="cliente-nombre" value={form.customerName} options={customers.map((customer) => ({ value: customer.id, label: customer.name, detail: `${customer.phone} ${customer.aliases.join(', ')}` }))} onChange={onCustomerChange} onSelect={onSelectCustomer} error={errors.customerName} placeholder="Buscar por nombre o teléfono" actionLabel="Crear nuevo cliente" onAction={() => onCustomerChange(form.customerName)} />
+      <SearchCombobox label="Nombre" required testId="cliente-nombre" value={form.customerName} options={customers.map((customer) => ({ value: customer.id, label: customer.name, detail: `${customer.phone} ${customer.aliases.join(', ')}` }))} onChange={onCustomerChange} onSelect={onSelectCustomer} error={errors.customerName} onCommit={() => onCommitText('customerName')} placeholder="Buscar por nombre o teléfono" actionLabel="Crear nuevo cliente" onAction={() => onCustomerChange(form.customerName)} />
       <FormRow label="Teléfono" htmlFor={phoneId} error={errors.phone}>
         <input id={phoneId} data-testid="cliente-telefono" type="tel" className="mac-row-input" aria-invalid={Boolean(errors.phone)} aria-describedby={errorIdFor(phoneId, errors.phone)} value={form.phone} inputMode="tel" maxLength={PHONE_MAX_LENGTH} onChange={(event) => onChange('phone', sanitizePhoneInput(event.target.value))} onPaste={(event) => {
           // A pasted "+52 (667) 351-8806" is longer than maxLength, so the paste is resolved here instead of being truncated.

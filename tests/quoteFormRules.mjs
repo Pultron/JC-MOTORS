@@ -75,3 +75,16 @@ test('#013-a negatives report "No se permiten montos negativos"', () => {
   assert.equal(errors['item-a-unitPrice'], 'No se permiten montos negativos.');
   assert.equal(errors.laborAmount, 'No se permiten montos negativos.');
 });
+
+test('#011 single-line fields lose tabs, newlines and repeated spaces; notes keep their newlines', () => {
+  const form = normalizeQuoteForm(baseForm({
+    customerName: ' Ana \t  María\n', email: '  ANA@Correo.COM ', make: 'Nissan\t ', model: ' Versa   Sense ',
+    items: [item({ description: 'Filtro \n de   aceite' })], customerNotes: 'Línea 1\nLínea 2',
+  }));
+  assert.equal(form.customerName, 'Ana María');
+  assert.equal(form.email, 'ana@correo.com');
+  assert.equal(form.make, 'Nissan');
+  assert.equal(form.model, 'Versa Sense');
+  assert.equal(form.items[0].description, 'Filtro de aceite');
+  assert.equal(form.customerNotes, 'Línea 1\nLínea 2');
+});

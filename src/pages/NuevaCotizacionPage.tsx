@@ -30,8 +30,8 @@ export function NuevaCotizacionPage() {
         {editId && quotationToEdit && <p className="flex items-center gap-2 text-xs font-medium text-mac-accent-text"><RotateCcw size={14} aria-hidden="true" />Editando cotización {quotationToEdit.folio}</p>}
         {!editId && activeDraft && <p className="flex items-center gap-2 text-xs font-medium text-mac-accent-text"><RotateCcw size={14} aria-hidden="true" />Editando borrador {activeDraft.folio}</p>}
         <div className="flex flex-wrap gap-5">
-          <ClienteCard form={form} errors={errors} customers={state.customers} onChange={state.updateField} onCustomerChange={state.updateCustomer} onSelectCustomer={state.selectCustomer} onBlurField={state.blurField} />
-          <VehiculoCard form={form} errors={errors} onChange={state.updateField} onBlurField={state.blurField} />
+          <ClienteCard form={form} errors={errors} customers={state.customers} onChange={state.updateField} onCustomerChange={state.updateCustomer} onSelectCustomer={state.selectCustomer} onBlurField={state.blurField} onCommitText={state.commitText} />
+          <VehiculoCard form={form} errors={errors} onChange={state.updateField} onBlurField={state.blurField} onCommitText={state.commitText} />
         </div>
         <RefaccionesCard form={form} errors={errors} suggestions={state.suggestions} totalParts={totals.subtotalRefacciones} onAdd={state.addItem} onUpdate={state.updateItem} onBlurItem={state.blurItem} onDelete={state.deleteItem} />
         <DetallesCard form={form} errors={errors} onChange={state.updateField} />

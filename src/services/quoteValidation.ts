@@ -3,7 +3,7 @@ import type { QuotationTotals } from '../utils/quotation';
 import { formatMoney } from '../utils/money';
 import { MAX_CONCEPT_AMOUNT, roundCurrency, validateDiscount } from '../utils/quotation';
 import { MAX_CONCEPTS } from './quotationLayout';
-import { parseDecimalStrict, validatePhone, validateQuantity, validateYear } from '../validation/fields';
+import { normalizeEmail, parseDecimalStrict, sanitizeSingleLine, validatePhone, validateQuantity, validateYear } from '../validation/fields';
 
 export const MAX_CONCEPTS_MESSAGE = `Máximo ${MAX_CONCEPTS} conceptos por cotización. Divídela en dos.`;
 export const MAX_CONCEPT_AMOUNT_MESSAGE = `El monto máximo por concepto es ${formatMoney(MAX_CONCEPT_AMOUNT)}.`;
@@ -48,7 +48,7 @@ export function validateQuoteForm(form: QuoteFormData, totals: QuotationTotals):
   return errors;
 }
 
-/** Canonical money text ("$1,234.56" -> "1234.56") for the fields that parse; invalid text is left as typed so its error can show. */
+/** Canonical form for validating and saving: single-line text cleaned, email lowercased, money text ("$1,234.56" -> "1234.56") parsed when valid (invalid text is left as typed so its error can show). */
 export function normalizeQuoteForm(form: QuoteFormData): QuoteFormData {
   const money = (text: string) => {
     const parsed = parseDecimalStrict(text);
@@ -56,7 +56,12 @@ export function normalizeQuoteForm(form: QuoteFormData): QuoteFormData {
   };
   return {
     ...form,
+    customerName: sanitizeSingleLine(form.customerName),
+    email: normalizeEmail(sanitizeSingleLine(form.email)),
+    make: sanitizeSingleLine(form.make),
+    model: sanitizeSingleLine(form.model),
+    plates: sanitizeSingleLine(form.plates),
     laborAmount: money(form.laborAmount ?? ''),
-    items: form.items.map((item): QuoteDraftItem => ({ ...item, unitPrice: money(item.unitPrice) })),
+    items: form.items.map((item): QuoteDraftItem => ({ ...item, description: sanitizeSingleLine(item.description), unitPrice: money(item.unitPrice) })),
   };
 }
