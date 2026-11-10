@@ -3,7 +3,7 @@ import type { QuotationTotals } from '../utils/quotation';
 import { formatMoney } from '../utils/money';
 import { MAX_CONCEPT_AMOUNT, roundCurrency, validateDiscount } from '../utils/quotation';
 import { MAX_CONCEPTS } from './quotationLayout';
-import { validatePhone } from '../validation/fields';
+import { validatePhone, validateYear } from '../validation/fields';
 
 export const MAX_CONCEPTS_MESSAGE = `Máximo ${MAX_CONCEPTS} conceptos por cotización. Divídela en dos.`;
 export const MAX_CONCEPT_AMOUNT_MESSAGE = `El monto máximo por concepto es ${formatMoney(MAX_CONCEPT_AMOUNT)}.`;
@@ -16,7 +16,10 @@ export function validateQuoteForm(form: QuoteFormData, totals: QuotationTotals):
   if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = 'Escribe un correo válido.';
   if (!form.make.trim()) errors.make = 'Selecciona o escribe una marca.';
   if (!form.model.trim()) errors.model = 'Selecciona o escribe un modelo.';
-  if (form.year && (!/^\d{4}$/.test(form.year) || Number(form.year) < 1886 || Number(form.year) > new Date().getFullYear() + 1)) errors.year = 'Escribe un año válido de 4 dígitos.';
+  if (form.year) {
+    const year = validateYear(Number(form.year));
+    if (!year.ok) errors.year = year.mensaje ?? 'Elige un año válido.';
+  }
   const laborRaw = form.laborAmount ?? '';
   const labor = Number(laborRaw) || 0;
   if (laborRaw.trim() !== '' && (!Number.isFinite(Number(laborRaw)) || Number(laborRaw) < 0)) errors.laborAmount = 'Debe ser cero o mayor.';

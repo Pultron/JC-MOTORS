@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { Car } from 'lucide-react';
 import type { QuoteFormData } from '../../models/quoteDraft';
 import { getVehicleModels, vehicleBrands } from '../../services/vehicleCatalog';
+import { MAX_YEAR, MIN_YEAR } from '../../validation/fields';
 import { Select } from '../ui/Select';
 import { Card } from './primitives/Card';
 import { CardHeader } from './primitives/CardHeader';
@@ -14,16 +15,15 @@ interface Props {
   onChange: <K extends keyof QuoteFormData>(key: K, value: QuoteFormData[K]) => void;
 }
 
-const FIRST_YEAR = 1995;
 
 export function VehiculoCard({ form, errors, onChange }: Props) {
   const yearId = useId();
   const platesId = useId();
   const models = getVehicleModels(form.make);
-  const lastYear = new Date().getFullYear() + 1;
-  const years = Array.from({ length: lastYear - FIRST_YEAR + 1 }, (_, index) => String(lastYear - index));
-  // Cotizaciones antiguas pueden traer un año fuera del rango del catálogo.
+  const years = Array.from({ length: MAX_YEAR - MIN_YEAR + 1 }, (_, index) => String(MAX_YEAR - index));
+  // Cotizaciones antiguas pueden traer un año fuera del rango: se sigue mostrando, pero no se puede guardar así.
   if (form.year && !years.includes(form.year)) years.push(form.year);
+  years.sort((a, b) => Number(b) - Number(a));
   const selectMake = (value: string) => { onChange('make', value); onChange('model', ''); };
 
   return <div className="min-w-0 flex-[1_1_280px]">
