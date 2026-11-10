@@ -23,6 +23,8 @@ interface Props {
   onSaveDraft?: () => void;
   onClear?: () => void;
   submitLabel?: string;
+  /** Tooltip of the save button (includes the keyboard shortcut). */
+  submitHint?: string;
 }
 
 const rowClass = 'flex min-h-11 items-center justify-between gap-3 border-t border-mac-separator px-4 text-sm';
@@ -35,7 +37,7 @@ const PROMOTION_OPTIONS = [
   { value: '15', label: '15% de descuento' },
 ];
 
-export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChange, onLaborBlur, discountFlash, onSaveDraft, onClear, submitLabel = 'Guardar cotización' }: Props) {
+export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChange, onLaborBlur, discountFlash, onSaveDraft, onClear, submitLabel = 'Guardar cotización', submitHint }: Props) {
   const sheets = useQuotationSheetCount(form);
   const discountValue = Number(form.laborDiscountValue) || 0;
   const promotionValue = form.laborDiscountType === 'percentage' && PROMOTION_OPTIONS.some((option) => Number(option.value) === discountValue)
@@ -91,7 +93,7 @@ export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChang
       </div>
       <div className="grid gap-2 px-4 pb-4">
         {onSaveDraft && <button type="button" data-testid="guardar-borrador" disabled={busy} className="mac-press flex h-11 items-center justify-center gap-2 rounded-[10px] bg-white text-sm font-semibold shadow-[0_0_0_1px_rgb(0_0_0/0.12)] hover:bg-mac-header-cols disabled:opacity-50" onClick={onSaveDraft}><Save size={16} aria-hidden="true" />Guardar borrador</button>}
-        <button type="submit" data-testid="guardar-cotizacion" disabled={busy} className="mac-press flex h-11 items-center justify-center gap-2 rounded-[10px] bg-mac-accent text-sm font-semibold text-white shadow-[0_1px_2px_rgb(120_40_0/0.35),inset_0_1px_0_rgb(255_255_255/0.18)] hover:bg-mac-accent-hover disabled:opacity-50"><Save size={16} aria-hidden="true" />{busy ? 'Guardando…' : submitLabel}</button>
+        <button type="submit" data-testid="guardar-cotizacion" title={submitHint} disabled={busy} className="mac-press flex h-11 items-center justify-center gap-2 rounded-[10px] bg-mac-accent text-sm font-semibold text-white shadow-[0_1px_2px_rgb(120_40_0/0.35),inset_0_1px_0_rgb(255_255_255/0.18)] hover:bg-mac-accent-hover disabled:opacity-50"><Save size={16} aria-hidden="true" />{busy ? 'Guardando…' : submitLabel}</button>
       </div>
     </Card>
     {onClear && <button type="button" data-testid="limpiar-formulario" disabled={busy} className="mac-press mx-auto mt-3 flex h-11 items-center gap-2 rounded-lg px-3 text-sm text-mac-ink-2 hover:text-mac-danger disabled:opacity-50" onClick={onClear}><Trash2 size={16} aria-hidden="true" />Limpiar formulario</button>}

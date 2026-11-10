@@ -8,6 +8,8 @@ import { customersNamed, resolveCustomerSave } from '../services/customerMatchin
 import { useCustomers } from '../store/CustomerContext';
 import { FieldError, errorIdFor } from '../components/ui/FieldError';
 import { EmailInput } from '../components/ui/EmailInput';
+import { usePlatform, useShortcut } from '../hooks/useShortcuts';
+import { withShortcutHint } from '../utils/shortcuts';
 import { focusFirstInvalid } from '../utils/focusFirstInvalid';
 import {
   PHONE_DIGITS, PHONE_MAX_LENGTH, formatPhone, normalizeEmail, normalizePhone, phoneForStorage, phoneFromPaste,
@@ -81,6 +83,7 @@ function matchesSearch(customer: CustomerProfile, search: string): boolean {
 export function CustomersPage() {
   const { customers, createCustomer, updateCustomer, deleteCustomer } = useCustomers();
   const toast = useToast();
+  const platform = usePlatform();
   const askDuplicateCustomer = useDuplicateCustomerPrompt();
   const [draft, setDraft] = useState<CustomerDraft>(emptyDraft);
   const [aliases, setAliases] = useState<string[]>([]);
@@ -99,6 +102,9 @@ export function CustomersPage() {
   const flashTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => () => window.clearTimeout(flashTimer.current), []);
+
+  // Ctrl/⌘+S saves the customer being edited (same path as the "Guardar cambios" button).
+  useShortcut('save', () => { if (editingId !== null) void saveCustomer(); });
 
   // Runs after a failed submit, once the errors (aria-invalid) are rendered.
   useEffect(() => {
@@ -207,8 +213,12 @@ export function CustomersPage() {
     if (clean !== draft.email) setDraft((current) => ({ ...current, email: clean }));
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    void saveCustomer();
+  }
+
+  async function saveCustomer() {
     setError('');
 
     const name = sanitizeSingleLine(draft.name);
@@ -334,7 +344,7 @@ export function CustomersPage() {
 
             <div className="cli-foot">
               {editing && <button type="button" className="cli-btn cli-btn--secondary" data-testid="cli-cancel" onClick={resetForm}>Cancelar</button>}
-              <button type="submit" className="cli-btn cli-btn--primary" data-testid="cli-submit">
+              <button type="submit" className="cli-btn cli-btn--primary" data-testid="cli-submit" title={editing ? withShortcutHint('Guardar cambios', 'save', platform) : undefined}>
                 <Plus size={16} aria-hidden="true" />{editing ? 'Guardar cambios' : 'Agregar cliente'}
               </button>
             </div>

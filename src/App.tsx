@@ -10,6 +10,7 @@ import { InternalControlPage } from './pages/InternalControlPage';
 import { InternalControlDetailPage } from './pages/InternalControlDetailPage';
 import { BackupPage } from './pages/BackupPage';
 import { WorkshopPage } from './pages/WorkshopPage';
+import { ShortcutsPage } from './pages/ShortcutsPage';
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="control-interno/:quotationId" element={<InternalControlDetailPage />} />
         <Route path="respaldo" element={<BackupPage />} />
         <Route path="datos-del-taller" element={<WorkshopPage />} />
+        <Route path="atajos" element={<ShortcutsPage />} />
         <Route path="cotizaciones/:id" element={<QuotationDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
