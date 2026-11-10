@@ -18,6 +18,8 @@ interface Props {
   onChange: <K extends keyof QuoteFormData>(key: K, value: QuoteFormData[K]) => void;
   onLaborChange: (value: string) => void;
   onLaborBlur: () => void;
+  /** Increments each time the discount is clamped; drives a brief highlight of the promotions block. */
+  discountFlash: number;
   onSaveDraft?: () => void;
   onClear?: () => void;
   submitLabel?: string;
@@ -33,7 +35,7 @@ const PROMOTION_OPTIONS = [
   { value: '15', label: '15% de descuento' },
 ];
 
-export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChange, onLaborBlur, onSaveDraft, onClear, submitLabel = 'Guardar cotización' }: Props) {
+export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChange, onLaborBlur, discountFlash, onSaveDraft, onClear, submitLabel = 'Guardar cotización' }: Props) {
   const sheets = useQuotationSheetCount(form);
   const discountValue = Number(form.laborDiscountValue) || 0;
   const promotionValue = form.laborDiscountType === 'percentage' && PROMOTION_OPTIONS.some((option) => Number(option.value) === discountValue)
@@ -59,7 +61,7 @@ export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChang
         </div>
         <FieldError id="quote-labor-error" message={errors.laborAmount} className="px-4 pb-2 text-right" />
 
-        <div className="mx-4 mb-3.5 mt-2 rounded-xl bg-mac-tint-promo p-3.5">
+        <div data-testid="resumen-promociones" data-flash={discountFlash > 0 ? (discountFlash % 2 ? 'a' : 'b') : undefined} className="mac-discount-flash mx-4 mb-3.5 mt-2 rounded-xl bg-mac-tint-promo p-3.5">
           <h3 className="mb-2.5 flex items-center gap-2 text-sm font-semibold text-mac-ink"><Tag size={16} aria-hidden="true" className="text-mac-accent-text" />Promociones</h3>
           <div className="flex flex-wrap gap-2">
             <Select testId="resumen-promocion" ariaLabel="Seleccionar promoción" invalid={Boolean(errors.laborDiscountValue)} describedBy={errors.laborDiscountValue ? 'quote-discount-error' : undefined} className="mac-press h-9 w-full rounded-lg border-0 bg-white px-2.5 text-sm shadow-[0_0_0_1px_rgb(0_0_0/0.1)]" value={promotionValue}

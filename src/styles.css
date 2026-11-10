@@ -176,6 +176,11 @@ input[type="number"]::-webkit-outer-spin-button {
 .mac-field-error[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
 .mac-field-error > div { min-height: 0; overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .mac-field-error { transition: none; } }
+.mac-discount-flash[data-flash="a"] { animation: mac-flash-a 1100ms var(--ease-mac); }
+.mac-discount-flash[data-flash="b"] { animation: mac-flash-b 1100ms var(--ease-mac); }
+@keyframes mac-flash-a { 0%, 35% { box-shadow: 0 0 0 3px var(--color-mac-accent); } 100% { box-shadow: 0 0 0 3px transparent; } }
+@keyframes mac-flash-b { 0%, 35% { box-shadow: 0 0 0 3px var(--color-mac-accent); } 100% { box-shadow: 0 0 0 3px transparent; } }
+@media (prefers-reduced-motion: reduce) { .mac-discount-flash { animation: none !important; } }
 .mac-row-input { flex: 1; min-width: 0; height: 44px; border: 0; background: transparent; padding: 0; color: var(--color-mac-ink); font-size: 14px; }
 .mac-row-input:focus-visible { outline: none !important; }
 textarea.mac-row-input { padding: 12px 0; line-height: 20px; }

@@ -15,6 +15,7 @@ import { parseDecimal } from '../utils/currency';
 import { AMOUNT_TOO_LARGE_MESSAGE, QuotationAmountError, calculateQuotationTotals, countZeroPriceItems, createId } from '../utils/quotation';
 import type { QuotationTotals } from '../utils/quotation';
 import { buildQuotationInput } from '../services/quotationFromForm';
+import { DISCOUNT_CLAMP_MESSAGES, clampDiscount } from '../utils/discountClamp';
 import { focusFirstInvalid } from '../utils/focusFirstInvalid';
 import { formatMoney } from '../utils/money';
 import { amountValue, formatPhone, normalizeEmail, normalizePlates, sanitizeSingleLine, stripLineBreaks, normalizePhone, parseDecimalStrict, phoneForStorage, PHONE_DIGITS } from '../validation/fields';
@@ -99,6 +100,8 @@ export function useCotizacionForm() {
   const [limitError, setLimitError] = useState('');
   // Bumped after a failed submit; the effect below runs once the errors are rendered.
   const [focusRequest, setFocusRequest] = useState(0);
+  const [discountFlash, setDiscountFlash] = useState(0);
+  const clampNotified = useRef(false);
   const [busy, setBusy] = useState(false);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [dirty, setDirty] = useState(false);
@@ -168,10 +171,19 @@ export function useCotizacionForm() {
     if (!form.laborDiscountValue.trim()) return;
     const value = Number(form.laborDiscountValue);
     if (!Number.isFinite(value)) return;
-    const maximum = form.laborDiscountType === 'percentage' ? 100 : totals.subtotalManoObra;
-    const bounded = Math.max(0, Math.min(value, maximum));
-    if (bounded !== value) setForm((current) => ({ ...current, laborDiscountValue: String(bounded) }));
-  }, [form.laborDiscountType, form.laborDiscountValue, totals.subtotalManoObra]);
+    const { bounded, limit } = clampDiscount(form.laborDiscountType, value, totals.subtotalManoObra);
+    if (limit === null) {
+      // Back below the maximum: the next clamp is a new event and gets its own notice.
+      if (bounded < (form.laborDiscountType === 'percentage' ? 100 : totals.subtotalManoObra)) clampNotified.current = false;
+      return;
+    }
+    setForm((current) => ({ ...current, laborDiscountValue: String(bounded) }));
+    // One notice per clamp, not per keystroke while the labor amount keeps shrinking.
+    if (clampNotified.current) return;
+    clampNotified.current = true;
+    toast.info({ title: DISCOUNT_CLAMP_MESSAGES[limit] });
+    setDiscountFlash((current) => current + 1);
+  }, [form.laborDiscountType, form.laborDiscountValue, totals.subtotalManoObra, toast]);
 
   function updateField<K extends keyof QuoteFormData>(key: K, value: QuoteFormData[K]) {
     // Single-line fields never keep newlines or tabs, also when they arrive through paste.
@@ -386,7 +398,7 @@ export function useCotizacionForm() {
   }
 
   return {
-    form, errors, totals, suggestions, customers, busy, saveState,
+    form, errors, totals, discountFlash, suggestions, customers, busy, saveState,
     editId, quotationToEdit, drafts, activeDraft, recovery,
     isLoadingEdit: Boolean(editId) && (!editReady || loadedEditId.current !== editId || isLoading),
     isSaved: !dirty && (Boolean(activeDraft) || Boolean(editId)),
