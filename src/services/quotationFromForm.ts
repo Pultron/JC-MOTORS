@@ -1,7 +1,6 @@
 import type { CreateQuotationInput, PublicQuotation, Quotation } from '../models/quotation';
 import type { QuoteFormData } from '../models/quoteDraft';
-import { parseDecimal } from '../utils/currency';
-import { phoneForStorage } from '../validation/fields';
+import { amountValue, phoneForStorage } from '../validation/fields';
 import { buildQuotationItems, createId, toPublicQuotation } from '../utils/quotation';
 
 /** Numeric field coming from a text input; unparsable text counts as 0 so the preview never breaks. */
@@ -15,7 +14,7 @@ const num = (value: string): number => {
  * and the live sheet-count preview go through it, so they cannot drift apart.
  */
 export function buildQuotationInput(form: QuoteFormData, preferredFolio?: string): CreateQuotationInput {
-  const labor = parseDecimal(form.laborAmount);
+  const labor = amountValue(form.laborAmount);
   return {
     ...(preferredFolio ? { preferredFolio } : {}),
     ...(form.customerId ? { customerId: form.customerId } : {}),
@@ -24,7 +23,7 @@ export function buildQuotationInput(form: QuoteFormData, preferredFolio?: string
     items: [
       ...form.items
         .filter((item) => item.description.trim() || String(item.unitPrice).trim())
-        .map((item) => ({ id: item.id, type: item.type, description: item.description.trim(), quantity: num(item.quantity), saleUnitPrice: num(item.unitPrice) })),
+        .map((item) => ({ id: item.id, type: item.type, description: item.description.trim(), quantity: num(item.quantity), saleUnitPrice: amountValue(item.unitPrice) })),
       ...(labor > 0 ? [{ id: createId(), type: 'labor' as const, description: 'Mano de obra', quantity: 1, saleUnitPrice: labor }] : []),
     ],
     laborDiscountType: form.laborDiscountType,

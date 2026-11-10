@@ -8,7 +8,7 @@ import { frequentConcepts } from '../repositories/serviceFixtures';
 import { DraftStorageFullError, quoteDraftService } from '../services/quoteDraftService';
 import type { TemporaryQuoteDraft } from '../services/quoteDraftService';
 import { MAX_CONCEPTS } from '../services/quotationLayout';
-import { MAX_CONCEPTS_MESSAGE, validateQuoteForm } from '../services/quoteValidation';
+import { MAX_CONCEPTS_MESSAGE, normalizeQuoteForm, validateQuoteForm } from '../services/quoteValidation';
 import { useCustomers } from '../store/CustomerContext';
 import { useQuotations } from '../store/QuotationContext';
 import { parseDecimal } from '../utils/currency';
@@ -16,7 +16,7 @@ import { AMOUNT_TOO_LARGE_MESSAGE, QuotationAmountError, calculateQuotationTotal
 import type { QuotationTotals } from '../utils/quotation';
 import { buildQuotationInput } from '../services/quotationFromForm';
 import { formatMoney } from '../utils/money';
-import { formatPhone, normalizePhone, phoneForStorage, PHONE_DIGITS } from '../validation/fields';
+import { amountValue, formatPhone, normalizePhone, parseDecimalStrict, phoneForStorage, PHONE_DIGITS } from '../validation/fields';
 
 function blankItem(description = ''): QuoteDraftItem {
   return { id: createId(), type: 'part', description, quantity: '1', unitPrice: '' };
@@ -56,6 +56,27 @@ function formFromQuotation(quotation: Quotation): QuoteFormData {
     ivaEnabled: quotation.includeVat, validityDays: String(quotation.validityDays),
     publicNotes: quotation.publicNotes, customerNotes: quotation.customerNotes ?? '',
   };
+}
+
+const ZERO_TOTALS: QuotationTotals = { subtotalRefacciones: 0, subtotalManoObra: 0, laborDiscount: 0, subtotalNeto: 0, ivaAmount: 0, total: 0 };
+
+function calculateFormTotals(form: QuoteFormData): { totals: QuotationTotals; amountOverflow: boolean } {
+  const labor = amountValue(form.laborAmount);
+  try {
+    return {
+      amountOverflow: false,
+      totals: calculateQuotationTotals(
+        [
+          ...form.items.map((item) => ({ type: item.type, quantity: parseDecimal(item.quantity), saleUnitPrice: amountValue(item.unitPrice) })),
+          ...(labor > 0 ? [{ type: 'labor' as const, quantity: 1, saleUnitPrice: labor }] : []),
+        ],
+        form.laborDiscountType, Number(form.laborDiscountValue) || 0, form.ivaEnabled,
+      ),
+    };
+  } catch (error) {
+    if (!(error instanceof QuotationAmountError)) throw error;
+    return { amountOverflow: true, totals: ZERO_TOTALS };
+  }
 }
 
 /** Estado, cálculos derivados y acciones de la pantalla "Nueva cotización". */
@@ -98,24 +119,7 @@ export function useCotizacionForm() {
     setEditReady(true);
   }, [editId, isLoading, quotationToEdit, navigate]);
 
-  const { totals, amountOverflow } = useMemo((): { totals: QuotationTotals; amountOverflow: boolean } => {
-    const labor = parseDecimal(form.laborAmount);
-    try {
-      return {
-        amountOverflow: false,
-        totals: calculateQuotationTotals(
-          [
-            ...form.items.map((item) => ({ type: item.type, quantity: parseDecimal(item.quantity), saleUnitPrice: parseDecimal(item.unitPrice) })),
-            ...(labor > 0 ? [{ type: 'labor' as const, quantity: 1, saleUnitPrice: labor }] : []),
-          ],
-          form.laborDiscountType, Number(form.laborDiscountValue) || 0, form.ivaEnabled,
-        ),
-      };
-    } catch (error) {
-      if (!(error instanceof QuotationAmountError)) throw error;
-      return { amountOverflow: true, totals: { subtotalRefacciones: 0, subtotalManoObra: 0, laborDiscount: 0, subtotalNeto: 0, ivaAmount: 0, total: 0 } };
-    }
-  }, [form.items, form.laborAmount, form.laborDiscountType, form.laborDiscountValue, form.ivaEnabled]);
+  const { totals, amountOverflow } = useMemo(() => calculateFormTotals(form), [form.items, form.laborAmount, form.laborDiscountType, form.laborDiscountValue, form.ivaEnabled]);
 
   useEffect(() => {
     if (amountOverflow) toast.error({ title: AMOUNT_TOO_LARGE_MESSAGE, description: 'Revisa cantidades y precios; el total no se puede calcular.' });
@@ -187,6 +191,10 @@ export function useCotizacionForm() {
   /** Blur: marks the field as touched (errors start showing) and applies its normalization. */
   function blurField(key: 'phone' | 'email' | 'plates' | 'laborAmount') {
     touch(key);
+    if (key === 'laborAmount') {
+      const parsed = parseDecimalStrict(form.laborAmount);
+      if (parsed.ok && parsed.texto !== form.laborAmount) setForm((current) => ({ ...current, laborAmount: parsed.texto }));
+    }
     if (key === 'phone') {
       const digits = normalizePhone(form.phone);
       if (digits.length === PHONE_DIGITS && form.phone !== formatPhone(digits)) setForm((current) => ({ ...current, phone: formatPhone(digits) }));
@@ -217,6 +225,15 @@ export function useCotizacionForm() {
 
   function blurItem(id: string, key: 'quantity' | 'unitPrice') {
     touch(`item-${id}-${key}`);
+    if (key === 'unitPrice') {
+      setForm((current) => ({
+        ...current,
+        items: current.items.map((item) => {
+          const parsed = item.id === id ? parseDecimalStrict(item.unitPrice) : null;
+          return parsed?.ok && parsed.texto !== item.unitPrice ? { ...item, unitPrice: parsed.texto } : item;
+        }),
+      }));
+    }
   }
 
   function deleteItem(id: string) {
@@ -225,14 +242,16 @@ export function useCotizacionForm() {
   }
 
   function setLaborAmount(value: string) {
-    setForm((current) => ({ ...current, laborAmount: value, ...(parseDecimal(value) > 0 || current.laborDiscountType === 'percentage' ? {} : { laborDiscountValue: '0' }) }));
+    setForm((current) => ({ ...current, laborAmount: value, ...(amountValue(value) > 0 || current.laborDiscountType === 'percentage' ? {} : { laborDiscountValue: '0' }) }));
     setDirty(true);
   }
 
-  function validate(): boolean {
-    const next = validateQuoteForm(form, totals);
+  /** Validates the canonical form (money parsed strictly) and reveals every failing field. */
+  function validate(candidate: QuoteFormData): boolean {
+    const { totals: candidateTotals, amountOverflow: overflow } = calculateFormTotals(candidate);
+    const next = validateQuoteForm(candidate, candidateTotals);
     touch(...Object.keys(next));
-    if (amountOverflow) {
+    if (overflow) {
       toast.error({ title: AMOUNT_TOO_LARGE_MESSAGE });
       return false;
     }
@@ -240,8 +259,12 @@ export function useCotizacionForm() {
   }
 
   async function submit() {
-    if (!validate()) return;
-    const input: CreateQuotationInput = buildQuotationInput(form, activeDraft?.folio);
+    const clean = normalizeQuoteForm(form);
+    if (!validate(clean)) {
+      setForm(clean);
+      return;
+    }
+    const input: CreateQuotationInput = buildQuotationInput(clean, activeDraft?.folio);
     setBusy(true);
     try {
       const quote = editId

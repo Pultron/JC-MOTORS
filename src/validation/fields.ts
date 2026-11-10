@@ -4,6 +4,8 @@
  * when the user edits or saves.
  */
 
+import { parseDecimal } from '../utils/currency';
+
 export interface FieldResult {
   ok: boolean;
   /** Spanish message telling the user what to fix. Present when `ok` is false. */
@@ -151,4 +153,15 @@ export function parseDecimalStrict(text: string): DecimalResult {
   const valor = Number(texto);
   if (!Number.isFinite(valor)) return { ok: false, mensaje: INVALID_AMOUNT_MESSAGE };
   return { ok: true, valor, texto };
+}
+
+/** Keeps what a money field may contain while typing or pasting (digits, separators, $, spaces and a minus so negatives can be reported). */
+export function sanitizeMoneyInput(text: string): string {
+  return stripLineBreaks(text).replace(/[^\d.,$\s-]/g, '');
+}
+
+/** Numeric value of a money field for live totals and saving: strict when valid, legacy tolerant parsing otherwise (never NaN). */
+export function amountValue(text: string): number {
+  const strict = parseDecimalStrict(text);
+  return strict.ok ? strict.valor : parseDecimal(text);
 }
