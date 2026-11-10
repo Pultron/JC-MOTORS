@@ -4,7 +4,12 @@ import { Mail, Pencil, Phone, Plus, Search, Trash2, UserRound, UsersRound, X } f
 import { useToast } from '../components/ui/Toast';
 import type { CustomerProfile, CustomerProfileInput } from '../models/quotation';
 import { useCustomers } from '../store/CustomerContext';
-import { formatPhone } from '../validation/fields';
+import { FieldError, errorIdFor } from '../components/ui/FieldError';
+import { focusFirstInvalid } from '../utils/focusFirstInvalid';
+import {
+  PHONE_DIGITS, PHONE_MAX_LENGTH, formatPhone, normalizeEmail, normalizePhone, phoneForStorage, phoneFromPaste,
+  sanitizePhoneInput, sanitizeSingleLine, stripLineBreaks, validateEmail, validatePhone,
+} from '../validation/fields';
 import '../styles/clientes.css';
 
 interface CustomerDraft {
@@ -80,6 +85,9 @@ export function CustomersPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
+  // Phone and email errors show after blur or a failed submit, then stay live until fixed (same pattern as the quote form).
+  const [touched, setTouched] = useState<{ phone?: true; email?: true }>({});
+  const [focusRequest, setFocusRequest] = useState(0);
   const [flash, setFlash] = useState<FlashState | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const aliasRef = useRef<HTMLInputElement>(null);
@@ -87,6 +95,14 @@ export function CustomersPage() {
   const flashTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => () => window.clearTimeout(flashTimer.current), []);
+
+  // Runs after a failed submit, once the errors (aria-invalid) are rendered.
+  useEffect(() => {
+    if (focusRequest > 0) focusFirstInvalid();
+  }, [focusRequest]);
+
+  const phoneError = touched.phone ? validatePhone(draft.phone).mensaje : undefined;
+  const emailError = touched.email ? validateEmail(draft.email).mensaje : undefined;
 
   const filteredCustomers = useMemo(() => customers.filter((customer) => matchesSearch(customer, search)), [customers, search]);
 
@@ -104,10 +120,13 @@ export function CustomersPage() {
     setAliasText('');
     setEditingId(null);
     setError('');
+    setTouched({});
   }
 
   function editCustomer(customer: CustomerProfile) {
-    setDraft({ name: customer.name, phone: customer.phone, email: customer.email ?? '' });
+    // Stored values are only displayed (a 10-digit phone formatted); nothing is rewritten until the user saves.
+    setDraft({ name: customer.name, phone: formatPhone(customer.phone), email: customer.email ?? '' });
+    setTouched({});
     setAliases([...customer.aliases]);
     setAliasText('');
     setEditingId(customer.id);
@@ -159,14 +178,42 @@ export function CustomersPage() {
     aliasRef.current?.focus();
   }
 
+  function changePhone(value: string) {
+    setDraft((current) => ({ ...current, phone: value }));
+  }
+
+  function pastePhone(event: ClipboardEvent<HTMLInputElement>) {
+    // A pasted "+52 (667) 351-8806" is longer than maxLength, so the paste is resolved here instead of being truncated.
+    event.preventDefault();
+    const input = event.currentTarget;
+    const start = input.selectionStart ?? input.value.length;
+    const end = input.selectionEnd ?? start;
+    changePhone(phoneFromPaste(input.value.slice(0, start) + event.clipboardData.getData('text') + input.value.slice(end)));
+  }
+
+  function blurPhone() {
+    setTouched((current) => ({ ...current, phone: true }));
+    const digits = normalizePhone(draft.phone);
+    if (digits.length === PHONE_DIGITS && draft.phone !== formatPhone(digits)) changePhone(formatPhone(digits));
+  }
+
+  function blurEmail() {
+    setTouched((current) => ({ ...current, email: true }));
+    const clean = normalizeEmail(sanitizeSingleLine(draft.email));
+    if (clean !== draft.email) setDraft((current) => ({ ...current, email: clean }));
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
 
     const name = draft.name.trim();
-    if (!name) {
-      setError('Escribe el nombre del cliente.');
-      nameRef.current?.focus();
+    const phoneValid = validatePhone(draft.phone).ok;
+    const emailValid = validateEmail(sanitizeSingleLine(draft.email)).ok;
+    if (!name || !phoneValid || !emailValid) {
+      if (!name) setError('Escribe el nombre del cliente.');
+      setTouched({ phone: true, email: true });
+      setFocusRequest((current) => current + 1);
       return;
     }
 
@@ -183,8 +230,8 @@ export function CustomersPage() {
 
     const input: CustomerProfileInput = {
       name,
-      phone: draft.phone.trim(),
-      ...(draft.email.trim() ? { email: draft.email.trim() } : {}),
+      phone: phoneForStorage(draft.phone),
+      ...(normalizeEmail(sanitizeSingleLine(draft.email)) ? { email: normalizeEmail(sanitizeSingleLine(draft.email)) } : {}),
       aliases: finalAliases,
     };
 
@@ -237,13 +284,19 @@ export function CustomersPage() {
                 <input ref={nameRef} id="cli-name" data-testid="cli-name" className="cli-input" value={draft.name} onChange={changeName} placeholder="Ej. Jesús Pérez" required aria-required="true" aria-invalid={error ? 'true' : undefined} autoComplete="off" />
                 {error && <span role="alert" className="cli-error" data-testid="cli-error">{error}</span>}
               </div>
-              <div className="cli-row">
+              <div className="cli-row" data-invalid={phoneError ? 'true' : undefined}>
                 <label htmlFor="cli-phone" className="cli-label">Teléfono</label>
-                <input id="cli-phone" data-testid="cli-phone" className="cli-input" type="tel" value={draft.phone} onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))} placeholder="55 1234 5678" autoComplete="off" />
+                <div className="cli-field">
+                  <input id="cli-phone" data-testid="cli-phone" className="cli-input" type="tel" inputMode="tel" maxLength={PHONE_MAX_LENGTH} value={draft.phone} onChange={(event) => changePhone(sanitizePhoneInput(event.target.value))} onPaste={pastePhone} onBlur={blurPhone} aria-invalid={phoneError ? 'true' : undefined} aria-describedby={errorIdFor('cli-phone', phoneError)} placeholder="10 dígitos, sin lada internacional" autoComplete="off" />
+                  <FieldError id="cli-phone-error" message={phoneError} />
+                </div>
               </div>
-              <div className="cli-row">
+              <div className="cli-row" data-invalid={emailError ? 'true' : undefined}>
                 <label htmlFor="cli-email" className="cli-label">Correo</label>
-                <input id="cli-email" data-testid="cli-email" className="cli-input" type="email" value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} placeholder="cliente@correo.com" autoComplete="off" />
+                <div className="cli-field">
+                  <input id="cli-email" data-testid="cli-email" className="cli-input" type="email" value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: stripLineBreaks(event.target.value) }))} onBlur={blurEmail} aria-invalid={emailError ? 'true' : undefined} aria-describedby={errorIdFor('cli-email', emailError)} placeholder="cliente@correo.com" autoComplete="off" />
+                  <FieldError id="cli-email-error" message={emailError} />
+                </div>
                 <span className="cli-aux">Opcional</span>
               </div>
               <div className="cli-row cli-row--chips">

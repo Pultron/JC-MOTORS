@@ -42,6 +42,9 @@
 .cli-input { flex: 1; min-width: 0; height: 44px; padding: 0; border: 0; background: transparent; color: var(--text); font: inherit; }
 .cli-input:focus, .cli-input:focus-visible { outline: none; }
 .cli-input::placeholder { color: var(--text-3); }
+.cli-field { display: flex; flex: 1; flex-direction: column; min-width: 0; padding-bottom: 0; }
+.cli-field .cli-input { flex: none; width: 100%; }
+.cli-field .mac-field-error p { padding-bottom: 8px; color: var(--danger); }
 .cli-aux { flex: none; color: var(--text-2); font-size: 12px; }
 .cli-error { flex: none; max-width: 55%; color: var(--danger); font-size: 12px; text-align: right; animation: cliSwap 220ms var(--ease) both; }
 .cli-row--chips { align-items: flex-start; }
