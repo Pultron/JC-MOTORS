@@ -41,6 +41,7 @@ export class BackupError extends Error {
 const LIST_KEYS = {
   [STORAGE_KEYS.quotations]: 'id',
   [STORAGE_KEYS.customers]: 'id',
+  [STORAGE_KEYS.templates]: 'id',
   [STORAGE_KEYS.internalControls]: 'quotationId',
   [STORAGE_KEYS.internalCosts]: 'quoteId',
   [STORAGE_KEYS.invoices]: 'uuid',
@@ -277,8 +278,10 @@ export function applyBackup(backup: BackupFile, mode: ImportMode): ImportResult 
       const local = readRaw(key);
       if (isListKey(key)) {
         if (mode === 'replace') {
-          if (incoming === undefined) remove(key);
-          else write(key, incoming);
+          // A backup made before templates existed has no templates key: it says nothing about them, so the local ones stay.
+          if (incoming === undefined) {
+            if (key !== STORAGE_KEYS.templates) remove(key);
+          } else write(key, incoming);
           resulting[key] = incoming ?? '[]';
         } else if (incoming !== undefined) {
           const merged = mergeList(key, local, incoming);

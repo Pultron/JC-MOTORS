@@ -11,6 +11,8 @@ interface Props {
   panelRef?: Ref<HTMLDivElement>;
   /** Extra class for variants (e.g. the compact email suggestions panel). */
   className?: string;
+  /** Default true: mouse presses inside never steal focus from the anchor (listboxes). Set false for panels with their own inputs. */
+  keepFocus?: boolean;
   children: ReactNode;
 }
 
@@ -40,7 +42,7 @@ function measure(anchor: HTMLElement, inset: number, minWidth: number, maxHeight
  * Panel flotante en un portal: no se recorta por overflow de las tarjetas.
  * Dentro de un <dialog> modal se monta en el propio dialog para quedar en su capa superior.
  */
-export function FloatingPanel({ anchor, open, inset = 0, minWidth = 160, maxHeight = 280, panelRef, className, children }: Props) {
+export function FloatingPanel({ anchor, open, inset = 0, minWidth = 160, maxHeight = 280, panelRef, className, keepFocus = true, children }: Props) {
   const [position, setPosition] = useState<Position | null>(null);
 
   useLayoutEffect(() => {
@@ -54,7 +56,7 @@ export function FloatingPanel({ anchor, open, inset = 0, minWidth = 160, maxHeig
 
   if (!open || !anchor || !position) return null;
   return createPortal(
-    <div ref={panelRef} className={className ? `mac-listbox ${className}` : 'mac-listbox'} data-placement={position.placement} onMouseDown={(event) => event.preventDefault()}
+    <div ref={panelRef} className={className ? `mac-listbox ${className}` : 'mac-listbox'} data-placement={position.placement} onMouseDown={keepFocus ? (event) => event.preventDefault() : undefined}
       style={{ position: 'fixed', left: position.left, width: position.width, top: position.top, bottom: position.bottom, maxHeight: position.maxHeight }}>
       {children}
     </div>,

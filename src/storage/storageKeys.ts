@@ -4,6 +4,8 @@ export const STORAGE_KEYS = {
   quoteDrafts: 'jc-motors:quote-drafts:v1',
   quoteAutosave: 'jc-motors:quote-autosave:v1',
   customers: 'jc-motors:customers:v1',
+  /** Plantillas de conceptos creadas por el usuario (máximo 50). */
+  templates: 'jc-motors:templates:v1',
   internalControls: 'jc-motors:internal-controls:v1',
   internalCosts: 'jc-motors:internal-costs:v1',
   invoices: 'jc-motors:invoices:v1',
@@ -24,6 +26,7 @@ export const STORAGE_KEYS = {
 export const BACKUP_EXPORT_KEYS: readonly string[] = [
   STORAGE_KEYS.quotations,
   STORAGE_KEYS.customers,
+  STORAGE_KEYS.templates,
   STORAGE_KEYS.internalControls,
   STORAGE_KEYS.internalCosts,
   STORAGE_KEYS.invoices,

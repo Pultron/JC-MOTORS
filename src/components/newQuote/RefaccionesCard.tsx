@@ -9,6 +9,8 @@ import { roundCurrency } from '../../utils/quotation';
 import { MAX_CONCEPTS } from '../../services/quotationLayout';
 import { SuggestionInput } from '../ui/SuggestionInput';
 import { FieldError } from '../ui/FieldError';
+import type { QuoteTemplate } from '../../services/quoteTemplateService';
+import { TemplatesMenu } from './TemplatesMenu';
 import { Card } from './primitives/Card';
 import { CardHeader } from './primitives/CardHeader';
 
@@ -21,14 +23,15 @@ interface Props {
   onUpdate: (id: string, key: keyof Omit<QuoteDraftItem, 'id' | 'type'>, value: string) => void;
   onBlurItem: (id: string, key: 'description' | 'quantity' | 'unitPrice') => void;
   onDelete: (id: string) => void;
+  onApplyTemplate: (template: QuoteTemplate) => void;
 }
 
-export function RefaccionesCard({ form, errors, suggestions, totalParts, onAdd, onUpdate, onBlurItem, onDelete }: Props) {
+export function RefaccionesCard({ form, errors, suggestions, totalParts, onAdd, onUpdate, onBlurItem, onDelete, onApplyTemplate }: Props) {
   // Solo las filas agregadas después del primer render se animan al entrar.
   const initialIds = useRef(new Set(form.items.map((item) => item.id)));
   const atLimit = form.items.length >= MAX_CONCEPTS;
   return <Card delayMs={70} className="@container">
-    <CardHeader icon={<Package size={18} />} title="Refacciones y materiales" subtitle="Agrega las refacciones y materiales a cotizar." trailing={<span data-testid="contador-conceptos" data-level={conceptCounterLevel(form.items.length)} className="mac-concept-counter" aria-live="polite">Conceptos {form.items.length}/{MAX_CONCEPTS}</span>} />
+    <CardHeader icon={<Package size={18} />} title="Refacciones y materiales" subtitle="Agrega las refacciones y materiales a cotizar." trailing={<div className="flex items-center gap-2"><TemplatesMenu items={form.items} onApply={onApplyTemplate} /><span data-testid="contador-conceptos" data-level={conceptCounterLevel(form.items.length)} className="mac-concept-counter" aria-live="polite">Conceptos {form.items.length}/{MAX_CONCEPTS}</span></div>} />
     <div aria-hidden="true" className="hidden items-center gap-2 border-t border-mac-separator bg-mac-header-cols px-4 py-2 text-xs font-medium text-mac-ink-2 @[640px]:flex">
       <span className="min-w-0 flex-[1_1_220px]">Descripción</span>
       <span className="w-[72px]">Cantidad</span>

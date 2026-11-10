@@ -11,6 +11,8 @@ import { frequentConcepts } from '../repositories/serviceFixtures';
 import { DraftStorageFullError, quoteDraftService } from '../services/quoteDraftService';
 import type { TemporaryQuoteDraft } from '../services/quoteDraftService';
 import { MAX_CONCEPTS } from '../services/quotationLayout';
+import { appendTemplateItems } from '../services/quoteTemplateService';
+import type { QuoteTemplate } from '../services/quoteTemplateService';
 import { MAX_CONCEPTS_MESSAGE, normalizeQuoteForm, validateQuoteForm } from '../services/quoteValidation';
 import { useCustomers } from '../store/CustomerContext';
 import { useQuotations } from '../store/QuotationContext';
@@ -255,6 +257,23 @@ export function useCotizacionForm() {
     setLimitError('');
   }
 
+  /** Appends the template's concepts (editable copies) without exceeding the concept cap. */
+  function applyTemplate(template: QuoteTemplate) {
+    const result = appendTemplateItems(form.items, template, MAX_CONCEPTS);
+    const total = template.items.length;
+    if (result.added === 0) {
+      toast.warning({ title: 'No se agregaron conceptos', description: `La cotización ya tiene el máximo de ${MAX_CONCEPTS} conceptos.` });
+      return;
+    }
+    updateField('items', result.items);
+    setLimitError('');
+    if (result.skipped > 0) {
+      toast.warning({ title: 'La plantilla no cupo completa', description: `Se agregaron ${result.added} de ${total} conceptos: el máximo es ${MAX_CONCEPTS} por cotización.` });
+    } else {
+      toast.success({ title: 'Plantilla aplicada', description: `Se agregaron ${result.added} ${result.added === 1 ? 'concepto' : 'conceptos'} de “${template.name}”. Puedes editarlos.` });
+    }
+  }
+
   function updateItem(id: string, key: keyof Omit<QuoteDraftItem, 'id' | 'type'>, value: string) {
     const next = key === 'description' ? stripLineBreaks(value) : value;
     setForm((current) => {
@@ -417,7 +436,7 @@ export function useCotizacionForm() {
     editId, quotationToEdit, drafts, activeDraft, recovery,
     isLoadingEdit: Boolean(editId) && (!editReady || loadedEditId.current !== editId || isLoading),
     isSaved: !dirty && (Boolean(activeDraft) || Boolean(editId)),
-    updateField, blurField, commitText, blurItem, updateCustomer, selectCustomer, addItem, updateItem, deleteItem, setLaborAmount,
+    updateField, blurField, commitText, blurItem, updateCustomer, selectCustomer, addItem, applyTemplate, updateItem, deleteItem, setLaborAmount,
     submit, saveDraft, clearForm, openDraft, deleteDraft, recoverTemporary, discardTemporary,
   };
 }
