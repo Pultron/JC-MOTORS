@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { FieldError } from '../../ui/FieldError';
 
 interface Props {
   label: string;
@@ -19,6 +20,6 @@ export function FormRow({ label, htmlFor, required, error, children, tall }: Pro
       </label>
       {children}
     </div>
-    {error && <p role="alert" className="px-4 pb-2 pt-1 text-xs font-medium text-mac-danger">{error}</p>}
+    <FieldError id={`${htmlFor}-error`} message={error} className="px-4 pb-2 pt-1" />
   </div>;
 }

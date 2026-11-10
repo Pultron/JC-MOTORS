@@ -31,12 +31,12 @@ export function NuevaCotizacionPage() {
         {!editId && activeDraft && <p className="flex items-center gap-2 text-xs font-medium text-mac-accent-text"><RotateCcw size={14} aria-hidden="true" />Editando borrador {activeDraft.folio}</p>}
         <div className="flex flex-wrap gap-5">
           <ClienteCard form={form} errors={errors} customers={state.customers} onChange={state.updateField} onCustomerChange={state.updateCustomer} onSelectCustomer={state.selectCustomer} onBlurField={state.blurField} />
-          <VehiculoCard form={form} errors={errors} onChange={state.updateField} />
+          <VehiculoCard form={form} errors={errors} onChange={state.updateField} onBlurField={state.blurField} />
         </div>
-        <RefaccionesCard form={form} errors={errors} suggestions={state.suggestions} totalParts={totals.subtotalRefacciones} onAdd={state.addItem} onUpdate={state.updateItem} onDelete={state.deleteItem} />
+        <RefaccionesCard form={form} errors={errors} suggestions={state.suggestions} totalParts={totals.subtotalRefacciones} onAdd={state.addItem} onUpdate={state.updateItem} onBlurItem={state.blurItem} onDelete={state.deleteItem} />
         <DetallesCard form={form} errors={errors} onChange={state.updateField} />
       </div>
-      <ResumenCard form={form} totals={totals} errors={errors} busy={state.busy} onChange={state.updateField} onLaborChange={state.setLaborAmount} onSaveDraft={editId ? undefined : state.saveDraft} onClear={editId ? undefined : state.clearForm} submitLabel={editId ? 'Guardar cambios' : 'Guardar cotización'} />
+      <ResumenCard form={form} totals={totals} errors={errors} busy={state.busy} onChange={state.updateField} onLaborChange={state.setLaborAmount} onLaborBlur={() => state.blurField('laborAmount')} onSaveDraft={editId ? undefined : state.saveDraft} onClear={editId ? undefined : state.clearForm} submitLabel={editId ? 'Guardar cambios' : 'Guardar cotización'} />
     </form>
   </div>;
 }

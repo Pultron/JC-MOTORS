@@ -17,6 +17,7 @@ interface Props {
   id?: string;
   ariaLabel?: string;
   invalid?: boolean;
+  describedBy?: string;
   disabled?: boolean;
   testId?: string;
   /** "row" encaja en una fila agrupada; "plain" deja el aspecto al className. */
@@ -26,7 +27,7 @@ interface Props {
 }
 
 /** Reemplazo del <select> nativo con lista flotante estilo macOS y teclado completo. */
-export function Select({ value, onChange, options, placeholder, id, ariaLabel, invalid, disabled, testId, variant = 'plain', className = '', leading }: Props) {
+export function Select({ value, onChange, options, placeholder, id, ariaLabel, invalid, describedBy, disabled, testId, variant = 'plain', className = '', leading }: Props) {
   const fallbackId = useId();
   const triggerId = id ?? fallbackId;
   const listId = `${triggerId}-list`;
@@ -96,7 +97,7 @@ export function Select({ value, onChange, options, placeholder, id, ariaLabel, i
   const base = variant === 'row' ? 'mac-row-input' : '';
   return <>
     <button ref={trigger} id={triggerId} type="button" role="combobox" aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? listId : undefined}
-      aria-activedescendant={open && active >= 0 ? optionId(listId, active) : undefined} aria-label={ariaLabel} aria-invalid={invalid || undefined} disabled={disabled} data-testid={testId} data-value={value}
+      aria-activedescendant={open && active >= 0 ? optionId(listId, active) : undefined} aria-label={ariaLabel} aria-invalid={invalid || undefined} aria-describedby={describedBy} disabled={disabled} data-testid={testId} data-value={value}
       className={`mac-select-trigger ${base} ${className}`} onClick={() => (open ? setOpen(false) : show(false))} onKeyDown={onKeyDown} onBlur={() => setOpen(false)}>
       {leading}
       <span className={`min-w-0 flex-1 truncate text-left ${value === '' ? 'text-mac-ink-2' : ''}`}>{selected?.label ?? placeholder ?? ''}</span>

@@ -72,7 +72,9 @@ export function useCotizacionForm() {
   const [drafts, setDrafts] = useState<QuoteDraft[]>(() => quoteDraftService.list());
   const [activeDraft, setActiveDraft] = useState<QuoteDraft | null>(null);
   const [recovery, setRecovery] = useState<TemporaryQuoteDraft | null>(() => quoteDraftService.getTemporary());
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  // Errors appear after the user leaves a field (blur) or after a failed submit, then stay live until fixed.
+  const [touched, setTouched] = useState<Record<string, true>>({});
+  const [limitError, setLimitError] = useState('');
   const [busy, setBusy] = useState(false);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [dirty, setDirty] = useState(false);
@@ -119,6 +121,18 @@ export function useCotizacionForm() {
     if (amountOverflow) toast.error({ title: AMOUNT_TOO_LARGE_MESSAGE, description: 'Revisa cantidades y precios; el total no se puede calcular.' });
   }, [amountOverflow, toast]);
 
+  const allErrors = useMemo(() => validateQuoteForm(form, totals), [form, totals]);
+  const errors = useMemo(() => {
+    const visible: Record<string, string> = {};
+    for (const [key, message] of Object.entries(allErrors)) if (touched[key]) visible[key] = message;
+    if (limitError) visible.items = limitError;
+    return visible;
+  }, [allErrors, touched, limitError]);
+
+  function touch(...keys: string[]) {
+    setTouched((current) => keys.every((key) => current[key]) ? current : { ...current, ...Object.fromEntries(keys.map((key) => [key, true as const])) });
+  }
+
   const suggestions = useMemo(() => Array.from(new Set([
     ...frequentConcepts.map((concept) => concept.description),
     ...quotations.flatMap((quote) => quote.items.map((item) => item.description)),
@@ -150,7 +164,7 @@ export function useCotizacionForm() {
 
   function updateField<K extends keyof QuoteFormData>(key: K, value: QuoteFormData[K]) {
     setForm((current) => ({ ...current, [key]: value }));
-    setErrors((current) => ({ ...current, [key]: '' }));
+    if (key === 'year') touch('year');
     setDirty(true);
   }
 
@@ -160,7 +174,6 @@ export function useCotizacionForm() {
     setForm((current) => match ? {
       ...current, customerId: match.id, customerName: match.name, phone: formatPhone(match.phone), email: match.email ?? '',
     } : { ...current, customerId: '', customerName: value, ...(current.customerId ? { phone: '', email: '' } : {}) });
-    setErrors((current) => ({ ...current, customerName: '' }));
     setDirty(true);
   }
 
@@ -168,12 +181,12 @@ export function useCotizacionForm() {
     const customer = customers.find((item) => item.id === id);
     if (!customer) return;
     setForm((current) => ({ ...current, customerId: id, customerName: customer.name, phone: formatPhone(customer.phone), email: customer.email ?? '' }));
-    setErrors((current) => ({ ...current, customerName: '' }));
     setDirty(true);
   }
 
-  /** Blur normalizations: a valid phone is shown as (667) 351-8806. */
-  function blurField(key: 'phone') {
+  /** Blur: marks the field as touched (errors start showing) and applies its normalization. */
+  function blurField(key: 'phone' | 'email' | 'plates' | 'laborAmount') {
+    touch(key);
     if (key === 'phone') {
       const digits = normalizePhone(form.phone);
       if (digits.length === PHONE_DIGITS && form.phone !== formatPhone(digits)) setForm((current) => ({ ...current, phone: formatPhone(digits) }));
@@ -182,7 +195,7 @@ export function useCotizacionForm() {
 
   function addItem(description = '') {
     if (form.items.length >= MAX_CONCEPTS) {
-      setErrors((current) => ({ ...current, items: MAX_CONCEPTS_MESSAGE }));
+      setLimitError(MAX_CONCEPTS_MESSAGE);
       return;
     }
     const only = form.items.length === 1 ? form.items[0] : undefined;
@@ -191,7 +204,7 @@ export function useCotizacionForm() {
     } else {
       updateField('items', [...form.items, blankItem(description)]);
     }
-    setErrors((current) => ({ ...current, items: '' }));
+    setLimitError('');
   }
 
   function updateItem(id: string, key: keyof Omit<QuoteDraftItem, 'id' | 'type'>, value: string) {
@@ -199,8 +212,11 @@ export function useCotizacionForm() {
       const items = current.items.map((item) => item.id === id ? { ...item, [key]: value } as QuoteDraftItem : item);
       return { ...current, items };
     });
-    setErrors((current) => ({ ...current, [`item-${id}-${key}`]: '' }));
     setDirty(true);
+  }
+
+  function blurItem(id: string, key: 'quantity' | 'unitPrice') {
+    touch(`item-${id}-${key}`);
   }
 
   function deleteItem(id: string) {
@@ -210,13 +226,12 @@ export function useCotizacionForm() {
 
   function setLaborAmount(value: string) {
     setForm((current) => ({ ...current, laborAmount: value, ...(parseDecimal(value) > 0 || current.laborDiscountType === 'percentage' ? {} : { laborDiscountValue: '0' }) }));
-    setErrors((current) => ({ ...current, laborAmount: '' }));
     setDirty(true);
   }
 
   function validate(): boolean {
     const next = validateQuoteForm(form, totals);
-    setErrors(next);
+    touch(...Object.keys(next));
     if (amountOverflow) {
       toast.error({ title: AMOUNT_TOO_LARGE_MESSAGE });
       return false;
@@ -280,7 +295,7 @@ export function useCotizacionForm() {
     if (!accepted) return;
     if (autosaveTimer.current !== null) window.clearTimeout(autosaveTimer.current);
     quoteDraftService.deleteTemporary();
-    setForm(emptyForm()); setActiveDraft(null); setRecovery(null); setErrors({}); setDirty(false); setSaveState('idle');
+    setForm(emptyForm()); setActiveDraft(null); setRecovery(null); setTouched({}); setLimitError(''); setDirty(false); setSaveState('idle');
     toast.info({ title: 'Formulario limpio.' });
   }
 
@@ -289,7 +304,7 @@ export function useCotizacionForm() {
     quoteDraftService.deleteTemporary();
     setRecovery(null);
     setForm({ ...draft.data, laborAmount: displayLaborAmount(draft.data.laborAmount), customerNotes: draft.data.customerNotes ?? '' });
-    setActiveDraft(draft); setErrors({}); setDirty(false); setSaveState('saved');
+    setActiveDraft(draft); setTouched({}); setLimitError(''); setDirty(false); setSaveState('saved');
     toast.info({ title: 'Borrador abierto', description: `Borrador ${draft.folio} abierto.` });
   }
 
@@ -306,7 +321,7 @@ export function useCotizacionForm() {
     if (!recovery) return;
     setForm({ ...recovery.data, laborAmount: displayLaborAmount(recovery.data.laborAmount), customerNotes: recovery.data.customerNotes ?? '' });
     setActiveDraft(drafts.find((draft) => draft.id === recovery.draftId) ?? null);
-    setRecovery(null); setDirty(false); setSaveState('saved');
+    setRecovery(null); setTouched({}); setDirty(false); setSaveState('saved');
   }
 
   function discardTemporary() {
@@ -319,7 +334,7 @@ export function useCotizacionForm() {
     editId, quotationToEdit, drafts, activeDraft, recovery,
     isLoadingEdit: Boolean(editId) && (!editReady || loadedEditId.current !== editId || isLoading),
     isSaved: !dirty && (Boolean(activeDraft) || Boolean(editId)),
-    updateField, blurField, updateCustomer, selectCustomer, addItem, updateItem, deleteItem, setLaborAmount,
+    updateField, blurField, blurItem, updateCustomer, selectCustomer, addItem, updateItem, deleteItem, setLaborAmount,
     submit, saveDraft, clearForm, openDraft, deleteDraft, recoverTemporary, discardTemporary,
   };
 }

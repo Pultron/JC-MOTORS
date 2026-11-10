@@ -5,6 +5,7 @@ import type { CustomerProfile } from '../../models/quotation';
 import { Card } from './primitives/Card';
 import { CardHeader } from './primitives/CardHeader';
 import { PHONE_MAX_LENGTH, phoneFromPaste, sanitizePhoneInput } from '../../validation/fields';
+import { errorIdFor } from '../ui/FieldError';
 import { FormRow } from './primitives/FormRow';
 import { SearchCombobox } from './SearchCombobox';
 
@@ -15,7 +16,7 @@ interface Props {
   onChange: <K extends keyof QuoteFormData>(key: K, value: QuoteFormData[K]) => void;
   onCustomerChange: (value: string) => void;
   onSelectCustomer: (id: string) => void;
-  onBlurField: (key: 'phone') => void;
+  onBlurField: (key: 'phone' | 'email') => void;
 }
 
 export function ClienteCard({ form, errors, customers, onChange, onCustomerChange, onSelectCustomer, onBlurField }: Props) {
@@ -26,7 +27,7 @@ export function ClienteCard({ form, errors, customers, onChange, onCustomerChang
       <CardHeader icon={<User size={18} />} title="Datos del cliente" />
       <SearchCombobox label="Nombre" required testId="cliente-nombre" value={form.customerName} options={customers.map((customer) => ({ value: customer.id, label: customer.name, detail: `${customer.phone} ${customer.aliases.join(', ')}` }))} onChange={onCustomerChange} onSelect={onSelectCustomer} error={errors.customerName} placeholder="Buscar por nombre o teléfono" actionLabel="Crear nuevo cliente" onAction={() => onCustomerChange(form.customerName)} />
       <FormRow label="Teléfono" htmlFor={phoneId} error={errors.phone}>
-        <input id={phoneId} data-testid="cliente-telefono" type="tel" className="mac-row-input" aria-invalid={Boolean(errors.phone)} value={form.phone} inputMode="tel" maxLength={PHONE_MAX_LENGTH} onChange={(event) => onChange('phone', sanitizePhoneInput(event.target.value))} onPaste={(event) => {
+        <input id={phoneId} data-testid="cliente-telefono" type="tel" className="mac-row-input" aria-invalid={Boolean(errors.phone)} aria-describedby={errorIdFor(phoneId, errors.phone)} value={form.phone} inputMode="tel" maxLength={PHONE_MAX_LENGTH} onChange={(event) => onChange('phone', sanitizePhoneInput(event.target.value))} onPaste={(event) => {
           // A pasted "+52 (667) 351-8806" is longer than maxLength, so the paste is resolved here instead of being truncated.
           event.preventDefault();
           const input = event.currentTarget;
@@ -37,7 +38,7 @@ export function ClienteCard({ form, errors, customers, onChange, onCustomerChang
       </FormRow>
       <div className="overflow-hidden rounded-b-[14px]">
         <FormRow label="Correo" htmlFor={emailId} error={errors.email}>
-          <input id={emailId} data-testid="cliente-correo" type="email" className="mac-row-input" aria-invalid={Boolean(errors.email)} value={form.email} onChange={(event) => onChange('email', event.target.value)} placeholder="cliente@correo.com" />
+          <input id={emailId} data-testid="cliente-correo" type="email" className="mac-row-input" aria-invalid={Boolean(errors.email)} aria-describedby={errorIdFor(emailId, errors.email)} onBlur={() => onBlurField('email')} value={form.email} onChange={(event) => onChange('email', event.target.value)} placeholder="cliente@correo.com" />
         </FormRow>
       </div>
     </Card>

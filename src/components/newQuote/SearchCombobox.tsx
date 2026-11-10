@@ -1,6 +1,7 @@
 import { useId, useMemo, useRef, useState } from 'react';
 import { FloatingPanel } from '../ui/FloatingPanel';
 import { OptionList, optionId } from '../ui/OptionList';
+import { errorIdFor } from '../ui/FieldError';
 import { FormRow } from './primitives/FormRow';
 
 export interface ComboOption {
@@ -50,7 +51,7 @@ export function SearchCombobox({ label, value, options, onChange, onSelect, plac
 
   return <div ref={root}>
     <FormRow label={label} htmlFor={inputId} required={required} error={error}>
-      <input ref={input} id={inputId} data-testid={testId} role="combobox" aria-expanded={open} aria-controls={open ? listId : undefined} aria-activedescendant={open && visible[active] ? optionId(listId, active) : undefined} aria-autocomplete="list" aria-invalid={Boolean(error)} aria-required={required} disabled={disabled} className="mac-row-input" value={value} placeholder={placeholder} autoComplete="off"
+      <input ref={input} id={inputId} data-testid={testId} role="combobox" aria-expanded={open} aria-controls={open ? listId : undefined} aria-activedescendant={open && visible[active] ? optionId(listId, active) : undefined} aria-autocomplete="list" aria-invalid={Boolean(error)} aria-describedby={errorIdFor(inputId, error)} aria-required={required} disabled={disabled} className="mac-row-input" value={value} placeholder={placeholder} autoComplete="off"
         onFocus={() => setOpen(true)} onBlur={(event) => { if (!root.current?.contains(event.relatedTarget)) setOpen(false); }}
         onChange={(event) => { onChange(event.target.value); setOpen(true); setActive(0); }}
         onKeyDown={(event) => {
