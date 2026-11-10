@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useToast } from '../components/ui/Toast';
 import { useConfirm } from './useConfirm';
+import { useDuplicateCustomerPrompt } from './useDuplicateCustomerPrompt';
+import { resolveCustomerSave } from '../services/customerMatching';
+import type { CustomerSaveAction } from '../services/customerMatching';
 import type { QuoteDraft, QuoteDraftItem, QuoteFormData } from '../models/quoteDraft';
 import type { CreateQuotationInput, Quotation } from '../models/quotation';
 import { frequentConcepts } from '../repositories/serviceFixtures';
@@ -86,7 +89,8 @@ export function useCotizacionForm() {
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('editar') ?? undefined;
   const navigate = useNavigate();
-  const { customers, createCustomer } = useCustomers();
+  const { customers, createCustomer, updateCustomer: updateStoredCustomer } = useCustomers();
+  const askDuplicateCustomer = useDuplicateCustomerPrompt();
   const { quotations, isLoading, createQuotation, updateQuotation } = useQuotations();
   const toast = useToast();
   const confirm = useConfirm();
@@ -309,6 +313,14 @@ export function useCotizacionForm() {
       setFocusRequest((current) => current + 1);
       return;
     }
+    // Decided before anything is saved: "Cancelar" leaves the quote and the customers untouched.
+    // Customer side effects are applied only after the quote is saved.
+    let customerAction: CustomerSaveAction | null = null;
+    if (!clean.customerId) {
+      customerAction = await resolveCustomerSave(customers, { name: clean.customerName, phone: clean.phone }, askDuplicateCustomer);
+      if (customerAction.action === 'cancel') return;
+      if (customerAction.action !== 'create') clean.customerId = customerAction.customer.id;
+    }
     const input: CreateQuotationInput = buildQuotationInput(clean, activeDraft?.folio);
     setBusy(true);
     try {
@@ -319,8 +331,11 @@ export function useCotizacionForm() {
         toast.warning({ title: 'Cotización no editable', description: 'Esta cotización ya no está pendiente y no se puede editar.' });
         return;
       }
-      if (!form.customerId && !customers.some((customer) => normalize(customer.name) === normalize(form.customerName))) {
-        createCustomer({ name: form.customerName.trim(), phone: phoneForStorage(form.phone), ...(form.email.trim() ? { email: form.email.trim() } : {}), aliases: [] });
+      if (customerAction?.action === 'create') {
+        createCustomer({ name: clean.customerName.trim(), phone: phoneForStorage(clean.phone), ...(clean.email.trim() ? { email: clean.email.trim() } : {}), aliases: [] });
+      } else if (customerAction?.action === 'updatePhone') {
+        const { customer, phone } = customerAction;
+        updateStoredCustomer(customer.id, { name: customer.name, phone, ...(customer.email ? { email: customer.email } : {}), aliases: customer.aliases });
       }
       const zeroPriced = countZeroPriceItems(input.items);
       if (zeroPriced > 0) {

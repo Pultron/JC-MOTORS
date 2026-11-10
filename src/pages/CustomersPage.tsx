@@ -3,6 +3,8 @@ import type { ChangeEvent, ClipboardEvent, FormEvent, KeyboardEvent } from 'reac
 import { Mail, Pencil, Phone, Plus, Search, Trash2, UserRound, UsersRound, X } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import type { CustomerProfile, CustomerProfileInput } from '../models/quotation';
+import { useDuplicateCustomerPrompt } from '../hooks/useDuplicateCustomerPrompt';
+import { customersNamed, resolveCustomerSave } from '../services/customerMatching';
 import { useCustomers } from '../store/CustomerContext';
 import { FieldError, errorIdFor } from '../components/ui/FieldError';
 import { focusFirstInvalid } from '../utils/focusFirstInvalid';
@@ -78,6 +80,7 @@ function matchesSearch(customer: CustomerProfile, search: string): boolean {
 export function CustomersPage() {
   const { customers, createCustomer, updateCustomer, deleteCustomer } = useCustomers();
   const toast = useToast();
+  const askDuplicateCustomer = useDuplicateCustomerPrompt();
   const [draft, setDraft] = useState<CustomerDraft>(emptyDraft);
   const [aliases, setAliases] = useState<string[]>([]);
   const [aliasText, setAliasText] = useState('');
@@ -203,11 +206,11 @@ export function CustomersPage() {
     if (clean !== draft.email) setDraft((current) => ({ ...current, email: clean }));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
 
-    const name = draft.name.trim();
+    const name = sanitizeSingleLine(draft.name);
     const phoneValid = validatePhone(draft.phone).ok;
     const emailValid = validateEmail(sanitizeSingleLine(draft.email)).ok;
     if (!name || !phoneValid || !emailValid) {
@@ -219,7 +222,9 @@ export function CustomersPage() {
 
     // Lo que quede escrito sin confirmar entra como chip.
     const finalAliases = mergeAliases(aliases, aliasText).filter((alias) => normalize(alias) !== normalize(name));
-    const newTerms = [name, ...finalAliases].map(normalize);
+    // When creating, a name that already exists is not an error: it goes through the duplicate flow below (same phone: reuse; otherwise ask).
+    const duplicateName = !editingId && customersNamed(customers, name).length > 0;
+    const newTerms = (duplicateName ? finalAliases : [name, ...finalAliases]).map(normalize);
     const conflict = customers.find((customer) => customer.id !== editingId
       && customerTerms(customer).some((term) => newTerms.includes(term)));
     if (conflict) {
@@ -240,9 +245,21 @@ export function CustomersPage() {
       flashRow(editingId, 'edit');
       toast.success({ title: 'Cliente actualizado', description: `Se actualizaron los datos de ${name}.` });
     } else {
-      const created = createCustomer(input);
-      flashRow(created.id, 'add');
-      toast.success({ title: 'Cliente agregado', description: `Se agregó ${name} a la lista de clientes.` });
+      const decision = await resolveCustomerSave(customers, { name, phone: input.phone }, askDuplicateCustomer);
+      if (decision.action === 'cancel') return; // The form stays as the user left it.
+      if (decision.action === 'reuse') {
+        flashRow(decision.customer.id, 'edit');
+        toast.info({ title: 'Cliente ya registrado', description: `${decision.customer.name} ya estaba en la lista; no se duplicó.` });
+      } else if (decision.action === 'updatePhone') {
+        const { customer, phone } = decision;
+        updateCustomer(customer.id, { name: customer.name, phone, ...(customer.email ? { email: customer.email } : {}), aliases: customer.aliases });
+        flashRow(customer.id, 'edit');
+        toast.success({ title: 'Teléfono actualizado', description: `Se actualizó el teléfono de ${customer.name}.` });
+      } else {
+        const created = createCustomer(input);
+        flashRow(created.id, 'add');
+        toast.success({ title: 'Cliente agregado', description: `Se agregó ${name} a la lista de clientes.` });
+      }
     }
 
     resetForm();
