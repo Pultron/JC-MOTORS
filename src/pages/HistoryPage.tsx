@@ -245,7 +245,7 @@ export function HistoryPage() {
 
           {!isLoading && filtered.length > 0 && (
             <div className="hi-pager">
-              <span data-testid="hi-range">{pageStart + 1}–{pageStart + visible.length} de {filtered.length}</span>
+              <span data-testid="hi-page-range">{pageStart + 1}–{pageStart + visible.length} de {filtered.length}</span>
               <Pagination page={page} pageCount={pageCount} onPageChange={changePage} ariaLabel="Paginación del historial" />
             </div>
           )}

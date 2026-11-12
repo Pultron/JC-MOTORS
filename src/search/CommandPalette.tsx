@@ -57,7 +57,12 @@ function PaletteDialog({ opener, onClose }: { opener: HTMLElement | null; onClos
     };
   }, [opener]);
 
-  const data = useMemo(() => ({ quotations, customers, invoices }), [quotations, customers, invoices]);
+  // Newest first, like Historial: the palette is about getting back to recent work.
+  const data = useMemo(() => ({
+    quotations: [...quotations].sort((x, y) => y.createdAt.localeCompare(x.createdAt)),
+    customers,
+    invoices,
+  }), [quotations, customers, invoices]);
   const groups = useMemo(() => searchAll(data, debounced), [data, debounced]);
   const flat = useMemo(() => groups.flatMap((group) => group.results), [groups]);
   const trimmed = debounced.trim();
