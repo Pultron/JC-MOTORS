@@ -84,7 +84,7 @@ try {
 
   // 1. Título, conteo y orden de más reciente a más antigua
   assert.equal(await text('.hi-header h1'), 'Historial');
-  assert.equal(await text('[data-testid=hi-count]'), '9 cotizaciones');
+  assert.equal(await text('[data-testid=hi-count]'), '9 resultados');
   assert.deepEqual(await folios(), ['JC-0009', 'JC-0008', 'JC-0007', 'JC-0006', 'JC-0005', 'JC-0004', 'JC-0003', 'JC-0002', 'JC-0001']);
   assert.equal(await text('[data-testid=hi-row] .hi-total'), '$6,150.00');
   assert.equal(await c.evaluate('document.querySelector("[data-testid=hi-search]").getAttribute("aria-label")'), 'Buscar por folio, cliente o vehículo');
@@ -102,7 +102,7 @@ try {
   await c.fill('[data-testid=hi-search]', 'onix');
   await waitRows(1);
   assert.deepEqual(await folios(), ['JC-0001']);
-  assert.equal(await text('[data-testid=hi-count]'), '1 cotización');
+  assert.equal(await text('[data-testid=hi-count]'), '1 resultado');
   await c.fill('[data-testid=hi-search]', 'JC-0003');
   await waitRows(1);
   assert.deepEqual(await folios(), ['JC-0003']);
@@ -155,7 +155,7 @@ try {
   assert.deepEqual(await folios(), ['JC-0004', 'JC-0003', 'JC-0002', 'JC-0001']);
   assert.match(await rangeText(), /31 oct.*1 nov/);
   assert.equal(await hasMenu('range'), 0, 'aplicar el rango cierra el calendario');
-  assert.equal(await text('[data-testid=hi-count]'), '4 cotizaciones');
+  assert.equal(await text('[data-testid=hi-count]'), '4 resultados');
   assert.equal(await count('[data-testid=hi-clear]'), 1, 'con rango activo aparece "Limpiar filtros"');
   // El rango se combina con el estado y los conteos del combo lo respetan.
   await c.evaluate('document.querySelector("[data-testid=hi-status]").click()');
@@ -224,7 +224,7 @@ try {
   await c.fill('[data-testid=hi-search]', 'zzzz');
   await c.waitFor('Boolean(document.querySelector("[data-testid=hi-empty]"))');
   assert.match(await text('[data-testid=hi-empty]'), /Sin resultados/);
-  assert.equal(await text('[data-testid=hi-count]'), '0 cotizaciones');
+  assert.equal(await text('[data-testid=hi-count]'), '0 resultados');
   await c.fill('[data-testid=hi-search]', 'onix');
   await c.evaluate('document.querySelector("[data-testid=hi-status]").click()');
   await c.evaluate('document.querySelector("[data-testid=hi-status-option][data-value=Pendiente]").click()');
