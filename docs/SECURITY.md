@@ -83,7 +83,18 @@ Antes del lote 5 la capability `default` solo tenía `core:default` (permisos de
     "allow-save-quotation-pdf",
     "allow-save-invoice-pdf",
     "allow-save-invoice-xml",
-    "allow-save-backup-json"
+    "allow-save-backup-json",
+    "allow-db-open",
+    "allow-db-load-snapshot",
+    "allow-db-apply",
+    "allow-db-mark-initialized",
+    "allow-db-migrate-from-local",
+    "allow-db-usage",
+    "allow-db-auto-backup",
+    "allow-backup-export",
+    "allow-backup-pick",
+    "allow-backup-apply",
+    "allow-backup-discard"
   ]
 }
 ```
@@ -94,6 +105,30 @@ Antes del lote 5 la capability `default` solo tenía `core:default` (permisos de
 | `allow-save-invoice-pdf` | `save_invoice_pdf`: igual, para el PDF de una factura y el PDF original importado. | `FacturasPage` |
 | `allow-save-invoice-xml` | `save_invoice_xml`: guarda el XML original de una factura. | `FacturasPage` |
 | `allow-save-backup-json` | `save_backup_json`: guarda el respaldo (exige que empiece con `{`). | `BackupPage` |
+
+### Comandos de SQLite y respaldo (lote 6)
+
+Se agregaron **solo** estos permisos, uno por comando nuevo; la CSP **no cambió** (los comandos viajan por el mismo canal IPC ya permitido en `connect-src`; no hay `sql:*` ni acceso a archivos desde el WebView).
+
+| Permiso | Comando de Rust | Para qué sirve |
+|---|---|---|
+| `allow-db-open` | `db_open` | Abre/crea `jcmotors.db` en la carpeta de datos de la app, migra el esquema y revisa `integrity_check`. |
+| `allow-db-load-snapshot` | `db_load_snapshot` | Carga los datos del negocio en memoria al arrancar. |
+| `allow-db-apply` | `db_apply` | Escribe cambios en una transacción; valida la forma de los datos antes de escribir. |
+| `allow-db-mark-initialized` | `db_mark_initialized` | «Empezar desde cero» en la bienvenida. |
+| `allow-db-migrate-from-local` | `db_migrate_from_local` | Migración única desde localStorage, con respaldo previo, verificación y rollback. |
+| `allow-db-usage` | `db_usage` | Tamaño de la base, de los archivos de facturas y de las copias automáticas. |
+| `allow-db-auto-backup` | `db_auto_backup` | Copia diaria consistente en `respaldos-auto/` (conserva 7). |
+| `allow-backup-export` | `backup_export` | Crea el `.jcm` y abre «Guardar como» desde Rust. |
+| `allow-backup-pick` | `backup_pick` | Abre el diálogo, valida (app, hashes, versión) y deja el respaldo en una carpeta temporal interna. |
+| `allow-backup-apply` | `backup_apply` | Aplica el respaldo preparado por `backup_pick` de forma atómica. |
+| `allow-backup-discard` | `backup_discard` | Descarta lo preparado. |
+
+Notas de seguridad:
+
+- JavaScript **nunca entrega rutas**: los diálogos de archivo los abre Rust, y la restauración solo aplica lo que Rust mismo preparó con `backup_pick`.
+- Los PDF y XML originales de facturas son archivos en `facturas/` dentro de la carpeta de datos; en la base solo quedan la ruta relativa y el SHA-256.
+- **Ganchos de prueba:** la variable de entorno `JCM_DATA_DIR` cambia la carpeta de datos (para pruebas aisladas), y `JCM_TEST_FAIL_MIGRATION` / `JCM_TEST_FAIL_RESTORE` simulan fallos. Los ganchos de fallo están **inertes** a menos que `JCM_DATA_DIR` también esté definida; un usuario normal nunca la define.
 
 Principios:
 
