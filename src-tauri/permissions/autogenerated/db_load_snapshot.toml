@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-db-load-snapshot"
+description = "Enables the db_load_snapshot command without any pre-configured scope."
+commands.allow = ["db_load_snapshot"]
+
+[[permission]]
+identifier = "deny-db-load-snapshot"
+description = "Denies the db_load_snapshot command without any pre-configured scope."
+commands.deny = ["db_load_snapshot"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-db-usage"
+description = "Enables the db_usage command without any pre-configured scope."
+commands.allow = ["db_usage"]
+
+[[permission]]
+identifier = "deny-db-usage"
+description = "Denies the db_usage command without any pre-configured scope."
+commands.deny = ["db_usage"]

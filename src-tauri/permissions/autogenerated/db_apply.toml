@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-db-apply"
+description = "Enables the db_apply command without any pre-configured scope."
+commands.allow = ["db_apply"]
+
+[[permission]]
+identifier = "deny-db-apply"
+description = "Denies the db_apply command without any pre-configured scope."
+commands.deny = ["db_apply"]
