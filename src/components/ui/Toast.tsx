@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { AnimationEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Info, TriangleAlert, X } from 'lucide-react';
 import logoUrl from '../../assets/jc-motors-logo.png?url';
@@ -31,6 +31,9 @@ interface ToastState {
 }
 
 const MAX_VISIBLE = 3;
+/** How long a toast stays before it starts leaving, and how long its exit animation lasts (matches toastOut in styles.css). */
+const TOAST_MS = 5000;
+const EXIT_MS = 300;
 const ToastApiContext = createContext<ToastApi | null>(null);
 const ToastStateContext = createContext<ToastState | null>(null);
 
@@ -126,15 +129,29 @@ interface ToastCardProps {
 }
 
 function ToastCard({ toast, onDismiss, onRemove }: ToastCardProps) {
-  function handleAnimationEnd(event: AnimationEvent<HTMLDivElement>) {
-    // El cierre automático lo dispara la barra: pausarla en hover pausa el cierre sin temporizadores.
-    // pop y draw burbujean desde los hijos y se ignoran.
-    if (event.animationName === 'shrink') onDismiss(toast.id);
-    else if (event.animationName === 'toastOut') onRemove(toast.id);
-  }
+  // Dismissal is driven by JavaScript timers, never by CSS animation events: with prefers-reduced-motion the
+  // animations collapse to ~0 ms and the toast must still stay its full time. Hover / focus pauses the countdown.
+  const [paused, setPaused] = useState(false);
+  const remaining = useRef(TOAST_MS);
+
+  useEffect(() => {
+    if (toast.state !== 'in' || paused) return undefined;
+    const startedAt = Date.now();
+    const id = window.setTimeout(() => onDismiss(toast.id), remaining.current);
+    return () => {
+      window.clearTimeout(id);
+      remaining.current = Math.max(0, remaining.current - (Date.now() - startedAt));
+    };
+  }, [paused, toast.state, toast.id, onDismiss]);
+
+  useEffect(() => {
+    if (toast.state !== 'out') return undefined;
+    const id = window.setTimeout(() => onRemove(toast.id), EXIT_MS);
+    return () => window.clearTimeout(id);
+  }, [toast.state, toast.id, onRemove]);
 
   return (
-    <div className="toast" data-testid="toast" data-type={toast.type} data-state={toast.state} onAnimationEnd={handleAnimationEnd}>
+    <div className="toast" data-testid="toast" data-type={toast.type} data-state={toast.state} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}>
       <div className="toast-app" aria-hidden="true">
         <img src={logoUrl} alt="" />
         <Badge type={toast.type} />

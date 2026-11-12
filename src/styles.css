@@ -376,10 +376,6 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 }
 
 /* No se usa animation: none: sin animationend, diálogos y toasts se quedarían pegados. */
-@media (prefers-reduced-motion: reduce) {
-  *, ::before, ::after { animation-duration: .01ms !important; animation-delay: 0ms !important; transition-duration: .01ms !important; }
-  .tbar { animation-duration: 5s !important; }
-}
 
 @media print {
   .toast-viewport, .mac-scrim { display: none !important; }
@@ -394,3 +390,16 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .sheet-count-fade { animation: sheet-count-in 160ms cubic-bezier(.2, .8, .2, 1); }
 @keyframes sheet-count-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .sheet-count-fade { animation: none; } }
+
+/* Reduced motion: no movement anywhere. Durations collapse to ~0 so end states apply instantly and nothing animates;
+   behavior never depends on animation events (the toast dismisses on a JavaScript timer). Keep this block last. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
