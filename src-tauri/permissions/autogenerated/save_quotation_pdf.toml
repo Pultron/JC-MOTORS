@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-save-quotation-pdf"
+description = "Enables the save_quotation_pdf command without any pre-configured scope."
+commands.allow = ["save_quotation_pdf"]
+
+[[permission]]
+identifier = "deny-save-quotation-pdf"
+description = "Denies the save_quotation_pdf command without any pre-configured scope."
+commands.deny = ["save_quotation_pdf"]
