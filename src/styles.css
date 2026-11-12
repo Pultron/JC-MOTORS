@@ -27,6 +27,8 @@
   --color-mac-danger: #c4161c;
   --color-mac-warning-bg: rgb(255 149 0 / 14%);
   --color-mac-warning-text: #8a4b00;
+  /* Warning-toned text for hints on the always-light content surface (7:1 on white); not switched in dark mode because the content area stays light. */
+  --color-mac-notice-text: #8a4b00;
   --color-mac-danger-bg: rgb(196 22 28 / 12%);
   --color-mac-danger-text: #c4161c;
   --color-mac-ink-3: #3a3a3c;

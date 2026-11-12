@@ -83,7 +83,7 @@ export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChang
           <span className="font-semibold text-mac-accent-text">Total</span>
           <strong data-testid="resumen-total" className="text-[28px] font-bold leading-none tracking-[-0.02em] text-mac-accent">{formatMoney(totals.total)}</strong>
         </div>
-        {sheets !== null && <p aria-live="polite" data-testid="resumen-hojas" className="mx-4 mb-3 flex items-center gap-1.5 text-xs font-medium" style={{ color: sheets > 1 ? '#B25000' : '#636366' }}>
+        {sheets !== null && <p aria-live="polite" data-testid="resumen-hojas" className={`mx-4 mb-3 flex items-center gap-1.5 text-xs font-medium ${sheets > 1 ? 'text-mac-notice-text' : 'text-mac-ink-2'}`}>
           <span key={sheets} className="sheet-count-fade flex items-center gap-1.5">
             {sheets > 1 && <FileText size={14} aria-hidden="true" />}
             {sheets === 1 ? 'Se imprimirá en 1 hoja' : `Se imprimirá en ${sheets} hojas`}
