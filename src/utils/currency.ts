@@ -1,10 +1,3 @@
-const moneyFormat = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-/** "MXN 1,234.50" */
-export function formatMoney(amount: number): string {
-  return `MXN ${moneyFormat.format(Number.isFinite(amount) ? amount : 0)}`;
-}
-
 /**
  * Normaliza texto numérico a notación con punto. El último separador es el decimal y los demás son
  * de miles ("1,234.50" y "1.234,50" dan "1234.50"). Un valor con signo negativo se descarta.

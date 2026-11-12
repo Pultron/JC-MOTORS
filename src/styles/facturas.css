@@ -70,8 +70,8 @@
 .inv-band--bottom span:last-child { flex: 115; background: var(--navy); }
 .inv-body { padding: 26px 51px 20px; }
 .inv-head { display: flex; align-items: flex-start; gap: 14px; }
-.inv-logo { width: 65px; height: 65px; object-fit: contain; }
-.inv-brandblock { display: flex; flex: 1; flex-direction: column; gap: 2px; padding-top: 6px; }
+.inv-logo { width: 104px; height: 104px; object-fit: contain; }
+.inv-brandblock { display: flex; flex: 1; flex-direction: column; gap: 2px; padding-top: 22px; }
 .inv-brand { color: var(--navy); font-size: 19px; font-weight: 700; line-height: 1.1; }
 .inv-sub { color: var(--mute); font-size: 10px; }
 .inv-title { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; text-align: right; }
@@ -183,3 +183,10 @@
 .fac-page .profit-cal-actions .profit-outline { border: 1px solid rgb(204 74 11 / 60%); }
 .fac-page .profit-cal-actions .profit-primary:disabled { opacity: .45; cursor: default; }
 .fac-page .profit-cal-day, .fac-page .profit-cal-nav { border: 0; cursor: pointer; font-family: var(--font-mac); }
+
+/* Búsqueda de facturas (mínima, para el enlace "Ver todos" de la búsqueda global) */
+.fac-search { display: flex; align-items: center; gap: 8px; height: 36px; margin: 0 0 10px; padding: 0 12px; border-radius: 10px; background: rgb(118 118 128 / 12%); color: #636366; }
+.fac-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: #1d1d1f; font: inherit; font-size: 13px; }
+.fac-search input::-webkit-search-cancel-button { appearance: none; }
+.fac-search button { display: grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: default; }
+.fac-search:focus-within { box-shadow: 0 0 0 2px rgb(204 74 11 / 55%); }

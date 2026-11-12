@@ -5,7 +5,38 @@ import type {
   QuotationItem,
 } from '../models/quotation';
 
+import { roundCurrency } from './money';
+
 export const IVA_RATE = 0.16;
+
+/** Highest amount accepted for a single concept (unit price, labor or quantity x price). */
+export const MAX_CONCEPT_AMOUNT = 9_999_999.99;
+
+export const AMOUNT_TOO_LARGE_MESSAGE = 'El monto es demasiado grande';
+
+/** Thrown when a quotation amount cannot be represented exactly in integer cents. */
+export class QuotationAmountError extends Error {
+  constructor(message = AMOUNT_TOO_LARGE_MESSAGE) {
+    super(message);
+    this.name = 'QuotationAmountError';
+  }
+}
+
+/** Stored items: the rounded amount is always derived from quantity x unit price. */
+export function buildQuotationItems(items: Array<Omit<QuotationItem, 'amount'>>): QuotationItem[] {
+  return items.map((item) => ({ ...item, amount: roundCurrency(item.quantity * item.saleUnitPrice) }));
+}
+
+/** How many concepts were explicitly priced at $0.00 (allowed, e.g. courtesy items). */
+export function countZeroPriceItems(items: Array<{ saleUnitPrice: number }>): number {
+  return items.filter((item) => item.saleUnitPrice === 0).length;
+}
+
+/** Same guard as profitCalculationService: cents must be safe integers. */
+function assertSafeCents(amount: number): number {
+  if (!Number.isFinite(amount) || !Number.isSafeInteger(Math.round(amount * 100))) throw new QuotationAmountError();
+  return amount;
+}
 
 export interface QuotationTotals {
   subtotalRefacciones: number;
@@ -32,14 +63,11 @@ export function calculateQuotationTotals(
   const subtotalNeto = roundCurrency(subtotalRefacciones + subtotalManoObra - laborDiscount);
   const ivaAmount = includeVat ? roundCurrency(subtotalNeto * IVA_RATE) : 0;
 
-  return {
-    subtotalRefacciones,
-    subtotalManoObra,
-    laborDiscount,
-    subtotalNeto,
-    ivaAmount,
-    total: roundCurrency(subtotalNeto + ivaAmount),
-  };
+  const total = roundCurrency(subtotalNeto + ivaAmount);
+  // Item amounts feed the subtotals, so an unsafe item always surfaces in one of these figures.
+  [subtotalRefacciones, subtotalManoObra, laborDiscount, subtotalNeto, ivaAmount, total].forEach(assertSafeCents);
+
+  return { subtotalRefacciones, subtotalManoObra, laborDiscount, subtotalNeto, ivaAmount, total };
 }
 
 export function calculateDiscount(subtotal: number, type: DiscountType, value: number): number {
@@ -95,6 +123,7 @@ export function toPublicQuotation(quotation: Quotation): PublicQuotation {
       amount,
     })),
     laborDiscount: totals.laborDiscount,
+    ...(quotation.laborDiscountType === 'percentage' ? { laborDiscountPercent: quotation.laborDiscountValue } : {}),
     subtotalRefacciones: totals.subtotalRefacciones,
     subtotalManoObra: totals.subtotalManoObra,
     subtotalNeto: totals.subtotalNeto,
@@ -107,31 +136,26 @@ export function toPublicQuotation(quotation: Quotation): PublicQuotation {
   };
 }
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-    currencyDisplay: 'code',
-  }).format(amount);
+
+/** RFC 4122 version 4 UUID from 16 random bytes (same format as crypto.randomUUID). */
+export function uuidV4FromBytes(bytes: Uint8Array): string {
+  const b = Uint8Array.from(bytes.subarray(0, 16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const hex = Array.from(b, (value) => value.toString(16).padStart(2, '0'));
+  return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
 }
 
-export function formatDate(date: string): string {
-  return new Intl.DateTimeFormat('es-MX', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(date));
+type RandomSource = Pick<Crypto, 'getRandomValues'> & { randomUUID?: () => string };
+
+/**
+ * crypto.randomUUID when the engine has it (Safari 15.4+, Chromium 92+); otherwise the same UUID format built from
+ * crypto.getRandomValues, which every target engine has. There is deliberately no Math.random fallback.
+ */
+export function createId(source: RandomSource | undefined = globalThis.crypto): string {
+  if (typeof source?.randomUUID === 'function') return source.randomUUID();
+  if (typeof source?.getRandomValues === 'function') return uuidV4FromBytes(source.getRandomValues(new Uint8Array(16)));
+  throw new Error('Este entorno no tiene un generador de números aleatorios seguro.');
 }
 
-export function getMonthKey(date: string): string {
-  const value = new Date(date);
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}`;
-}
-
-export function createId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `quotation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-export function roundCurrency(amount: number): number {
-  return Math.round((amount + Number.EPSILON) * 100) / 100;
-}
+export { roundCurrency };

@@ -83,6 +83,8 @@ export interface Invoice {
   urlQrOriginal?: string;
   /** true si algún sello no mide 344 caracteres base64: el PDF generado no sería válido. */
   selloIncompleto: boolean;
+  /** true si el RFC del emisor o del receptor no tiene forma o fecha válidas. Solo un aviso discreto; no impide importar. Ausente en facturas anteriores. */
+  rfcInvalido?: boolean;
 
   // trazabilidad de la importación
   origen: InvoiceOrigen;

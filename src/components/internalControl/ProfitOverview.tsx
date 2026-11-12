@@ -3,7 +3,7 @@ import { useState } from 'react';
 import type { InternalCaptureStatus } from '../../models/internalCosts';
 import type { Quotation } from '../../models/quotation';
 import type { QuoteProfit } from '../../services/profitCalculationService';
-import { formatCents } from '../../utils/currencyUtils';
+import { formatMoney } from '../../utils/money';
 import { useCountUp } from '../../hooks/useCountUp';
 import { Select } from '../ui/Select';
 import { RangeCalendar } from './RangeCalendar';
@@ -43,7 +43,7 @@ export function ProfitSummaryCards({ rows }: { rows: ProfitRow[] }) {
 
 function AnimatedAmount({ amount, className }: { amount: number; className: string }) {
   const shown = useCountUp(amount);
-  return <p className={className} aria-label={formatCents(amount, true)}><span aria-hidden="true">{formatCents(shown, true)}</span></p>;
+  return <p className={className} aria-label={formatMoney(amount / 100, 'formal')}><span aria-hidden="true">{formatMoney(shown / 100, 'formal')}</span></p>;
 }
 
 export function InternalCaptureStatusBadge({ status }: { status: InternalCaptureStatus }) {
@@ -63,8 +63,8 @@ export function QuoteProfitabilityTable({ rows, selectedId, search, status, onSe
     <div className="profit-table-scroll"><table className="profit-table"><thead><tr>{['Folio', 'Cliente / vehículo', 'Vendido', 'Gastado', 'Ganancia', 'Margen', 'Estado', 'Acción'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
       <tbody>{rows.map(({ quote, totals }) => <tr key={quote.id} className={selectedId === quote.id ? 'is-selected' : ''} onClick={() => onSelect(quote)}>
         <td className="profit-folio">{quote.folio}</td><td><strong>{quote.customer.name}</strong><span className="profit-vehicle">{vehicleLabel(quote)}</span></td>
-        <td>{formatCents(totals.soldTotalCents)}</td><td>{totals.status === 'pending' ? '—' : formatCents(totals.spentTotalCents)}</td>
-        <td className={totals.status === 'pending' ? '' : profitColor(totals.profitCents)}>{totals.status === 'pending' ? '—' : formatCents(totals.profitCents)}</td>
+        <td>{formatMoney(totals.soldTotalCents / 100)}</td><td>{totals.status === 'pending' ? '—' : formatMoney(totals.spentTotalCents / 100)}</td>
+        <td className={totals.status === 'pending' ? '' : profitColor(totals.profitCents)}>{totals.status === 'pending' ? '—' : formatMoney(totals.profitCents / 100)}</td>
         <td>{totals.status === 'pending' ? '—' : `${totals.marginPercentage.toFixed(1)}%`}</td><td><InternalCaptureStatusBadge status={totals.status} /></td>
         <td><button className="profit-outline" aria-label={`${totals.status === 'complete' ? 'Ver detalle' : 'Capturar'} ${quote.folio}`} onClick={e => { e.stopPropagation(); onSelect(quote); }}>{totals.status === 'complete' ? 'Ver detalle' : 'Capturar'}</button></td>
       </tr>)}</tbody>

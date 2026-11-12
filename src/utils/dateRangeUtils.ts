@@ -1,11 +1,10 @@
 import type { Quotation } from '../models/quotation';
+import { formatDate, toIsoDate } from './dateFormat';
 
 export type Period = 'today' | 'week' | 'month' | 'custom';
 export interface DateRange { start: string; end: string }
 
-export function localDate(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
+export const localDate = toIsoDate;
 
 export function periodRange(period: Exclude<Period, 'custom'>, now = new Date()): DateRange {
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -27,6 +26,6 @@ export function isInRange(quote: Quotation, range: DateRange): boolean {
 }
 
 export function rangeLabel(range: DateRange): string {
-  const fmt = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+  const fmt = (date: string) => formatDate(date, 'compact');
   return range.start && range.end ? `${fmt(range.start)} – ${fmt(range.end)}` : 'Seleccionar fechas';
 }

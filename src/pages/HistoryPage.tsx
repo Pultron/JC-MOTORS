@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Copy, Download, Eye, Plus, Search } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { Copy, Download, Eye, FileText, Plus, Search, SearchX } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { Pagination } from '../components/Pagination';
+import { EmptyState, emptyKind } from '../components/ui/EmptyState';
+import { searchQuotations } from '../search/quotationSearch';
+import { useDebouncedValue } from '../search/useDebouncedValue';
 import { DateRangeFilter } from '../components/historial/DateRangeFilter';
 import { StatusCombo } from '../components/historial/StatusCombo';
 import { QuotationActionsMenu } from '../components/QuotationActionsMenu';
@@ -12,7 +16,9 @@ import type { PublicQuotation, Quotation, QuotationStatus } from '../models/quot
 import { useQuotations } from '../store/QuotationContext';
 import { localDate } from '../utils/dateRangeUtils';
 import type { DateRange } from '../utils/dateRangeUtils';
-import { calculateQuotationTotals, formatDate, toPublicQuotation } from '../utils/quotation';
+import { formatMoney } from '../utils/money';
+import { calculateQuotationTotals, toPublicQuotation } from '../utils/quotation';
+import { formatDate } from '../utils/dateFormat';
 import '../styles/historial.css';
 
 type StatusFilter = 'Todas' | QuotationStatus;
@@ -23,9 +29,10 @@ const STATUSES: StatusFilter[] = ['Todas', 'Aprobada', 'Pendiente', 'Cancelada',
 const FLASH_MS = 2000;
 const TOAST_MS = 3300;
 
-const normalize = (value: string) => value.toLocaleLowerCase('es-MX');
+const PAGE_SIZE = 20;
+const statusFromParam = (value: string | null): StatusFilter => STATUSES.find((entry) => entry.toLowerCase() === value?.toLowerCase()) ?? 'Todas';
+const pageFromParam = (value: string | null) => Math.max(1, Math.floor(Number(value)) || 1);
 const folioNumber = (folio: string) => Number(folio.replace(/\D/g, '')) || 0;
-const formatTotal = (amount: number) => `MXN $${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function HistoryPage() {
   const navigate = useNavigate();
@@ -33,8 +40,14 @@ export function HistoryPage() {
   const { requestApprove, requestCancel } = useQuotationActions();
   const { requestDelete } = useCancelledQuotationDeletion();
   const downloadPdf = useQuotationPdfDownload();
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<StatusFilter>('Todas');
+  // Search, status and page live in the URL so "back" from a quotation restores the same view.
+  const [params, setParams] = useSearchParams();
+  const committedSearch = params.get('q') ?? '';
+  const status = statusFromParam(params.get('estado'));
+  const requestedPage = pageFromParam(params.get('p'));
+  const [search, setSearch] = useState(committedSearch);
+  const debouncedSearch = useDebouncedValue(search);
+  const cardRef = useRef<HTMLElement>(null);
   const [range, setRange] = useState<DateRange>(NO_RANGE);
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const [pdfTarget, setPdfTarget] = useState<PublicQuotation | null>(null);
@@ -57,18 +70,38 @@ export function HistoryPage() {
   }), [quotations]);
 
   const hasRange = Boolean(range.start && range.end);
-  const searchAndRange = useMemo(() => {
-    const term = normalize(search.trim());
-    return sorted.filter((quotation) => {
-      const haystack = normalize(`${quotation.folio} ${quotation.customer.name} ${quotation.vehicle.make} ${quotation.vehicle.model}`);
-      return haystack.includes(term) && (!hasRange || (localDate(new Date(quotation.createdAt)) >= range.start && localDate(new Date(quotation.createdAt)) <= range.end));
-    });
-  }, [sorted, search, range, hasRange]);
+  const searched = useMemo(() => searchQuotations(sorted, committedSearch), [sorted, committedSearch]);
+  const searchAndRange = useMemo(() => (!hasRange ? searched : searched.filter((quotation) => {
+    const day = localDate(new Date(quotation.createdAt));
+    return day >= range.start && day <= range.end;
+  })), [searched, range, hasRange]);
 
   const filtered = useMemo(
     () => (status === 'Todas' ? searchAndRange : searchAndRange.filter((quotation) => quotation.status === status)),
     [searchAndRange, status],
   );
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const page = Math.min(requestedPage, pageCount);
+  const pageStart = (page - 1) * PAGE_SIZE;
+  const visible = useMemo(() => filtered.slice(pageStart, pageStart + PAGE_SIZE), [filtered, pageStart]);
+
+  function updateParams(changes: { q?: string; estado?: StatusFilter; p?: number }) {
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      if (changes.q !== undefined) { if (changes.q.trim()) next.set('q', changes.q); else next.delete('q'); }
+      if (changes.estado !== undefined) { if (changes.estado !== 'Todas') next.set('estado', changes.estado.toLowerCase()); else next.delete('estado'); }
+      if (changes.p !== undefined && changes.p > 1) next.set('p', String(changes.p));
+      else next.delete('p');
+      return next;
+    }, { replace: true });
+  }
+
+  // The debounced text becomes the committed (URL) search and always restarts at page 1.
+  useEffect(() => {
+    if (debouncedSearch !== committedSearch) { updateParams({ q: debouncedSearch }); setTick((value) => value + 1); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
 
   const statusOptions = useMemo(() => STATUSES.map((value) => ({
     value,
@@ -76,17 +109,25 @@ export function HistoryPage() {
     count: value === 'Todas' ? searchAndRange.length : searchAndRange.filter((quotation) => quotation.status === value).length,
   })), [searchAndRange]);
 
-  const hasFilters = search.trim() !== '' || status !== 'Todas' || hasRange;
+  const hasFilters = search.trim() !== '' || committedSearch !== '' || status !== 'Todas' || hasRange;
   const bump = () => setTick((value) => value + 1);
 
-  function changeSearch(value: string) { setSearch(value); bump(); }
-  function changeStatus(value: string) { setStatus(value as StatusFilter); bump(); }
-  function changeRange(value: DateRange) { setRange(value); bump(); }
+  function changeSearch(value: string) { setSearch(value); }
+  // Any filter change goes through updateParams without `p`, which restarts at page 1.
+  function changeStatus(value: string) { updateParams({ estado: value as StatusFilter }); bump(); }
+  function changeRange(value: DateRange) { setRange(value); updateParams({}); bump(); }
+  function changePage(next: number) {
+    updateParams({ p: next });
+    bump();
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    cardRef.current?.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+  }
+  function clearSearch() { setSearch(''); updateParams({ q: '' }); bump(); }
   function clearFilters() {
     setSearch('');
-    setStatus('Todas');
     setRange(NO_RANGE);
     setOpenMenu(null);
+    setParams(new URLSearchParams(), { replace: true });
     bump();
   }
 
@@ -105,7 +146,8 @@ export function HistoryPage() {
     toastTimer.current = window.setTimeout(() => setToast((current) => (current?.key === key ? null : current)), TOAST_MS);
   }
 
-  const countLabel = `${filtered.length} ${filtered.length === 1 ? 'cotización' : 'cotizaciones'}`;
+  const countLabel = `${filtered.length} ${filtered.length === 1 ? 'resultado' : 'resultados'}`;
+  const kind = emptyKind(quotations.length, searched.length, filtered.length, committedSearch.trim() !== '', status !== 'Todas');
 
   return (
     <div className="hi-page" data-testid="historial-page">
@@ -123,7 +165,7 @@ export function HistoryPage() {
       </header>
 
       <div className="hi-body">
-        <section className="hi-card" aria-label="Historial de cotizaciones">
+        <section ref={cardRef} className="hi-card" aria-label="Historial de cotizaciones">
           <div className="hi-toolbar">
             <label className="hi-search">
               <Search size={16} aria-hidden="true" />
@@ -131,7 +173,7 @@ export function HistoryPage() {
                 type="search"
                 data-testid="hi-search"
                 aria-label="Buscar por folio, cliente o vehículo"
-                placeholder="Buscar por folio, cliente o vehículo"
+                placeholder="Buscar por folio, cliente, teléfono o vehículo"
                 value={search}
                 autoComplete="off"
                 onChange={(event) => changeSearch(event.target.value)}
@@ -161,7 +203,7 @@ export function HistoryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((quotation, index) => {
+                  {visible.map((quotation, index) => {
                     const { total } = calculateQuotationTotals(quotation.items, quotation.laborDiscountType, quotation.laborDiscountValue, quotation.includeVat);
                     return (
                       <tr
@@ -172,11 +214,11 @@ export function HistoryPage() {
                         style={{ animationName: tick % 2 === 0 ? 'hiRowInA' : 'hiRowInB', animationDelay: `${Math.min(index, 10) * 35}ms` }}
                       >
                         <td className="hi-folio">{quotation.folio}</td>
-                        <td className="hi-date">{formatDate(quotation.createdAt)}</td>
+                        <td className="hi-date">{formatDate(quotation.createdAt, 'medium')}</td>
                         <td className="hi-client">{quotation.customer.name}</td>
                         <td className="hi-vehicle">{quotation.vehicle.make} {quotation.vehicle.model}</td>
                         <td><span className="hi-badge" data-status={quotation.status} data-testid="hi-badge"><i aria-hidden="true" />{quotation.status}</span></td>
-                        <td className="hi-right hi-total">{formatTotal(total)}</td>
+                        <td className="hi-right hi-total">{formatMoney(total)}</td>
                         <td>
                           <div className="hi-actions">
                             <button type="button" className="hi-icon" data-testid={`hi-view-${quotation.folio}`} title={`Ver detalle ${quotation.folio}`} aria-label={`Ver detalle ${quotation.folio}`} onClick={() => navigate(`/cotizaciones/${quotation.id}`)}><Eye size={18} aria-hidden="true" /></button>
@@ -201,22 +243,23 @@ export function HistoryPage() {
             </div>
           )}
 
-          {!isLoading && filtered.length === 0 && (
-            <div className="hi-empty" data-testid="hi-empty">
-              <span className="hi-empty-icon" aria-hidden="true"><Search size={22} /></span>
-              {quotations.length === 0 ? (
-                <>
-                  <strong>Aún no hay cotizaciones</strong>
-                  <p>Crea la primera con «Nueva cotización».</p>
-                </>
-              ) : (
-                <>
-                  <strong>Sin resultados</strong>
-                  <p>No hay cotizaciones con esos filtros.</p>
-                  <button type="button" className="hi-btn hi-btn--secondary" data-testid="hi-empty-clear" onClick={clearFilters}>Limpiar filtros</button>
-                </>
-              )}
+          {!isLoading && filtered.length > 0 && (
+            <div className="hi-pager">
+              <span data-testid="hi-page-range">{pageStart + 1}–{pageStart + visible.length} de {filtered.length}</span>
+              <Pagination page={page} pageCount={pageCount} onPageChange={changePage} ariaLabel="Paginación del historial" />
             </div>
+          )}
+
+          {!isLoading && filtered.length === 0 && kind === 'none' && (
+            <EmptyState testId="hi-empty" icon={<FileText size={22} />} title="Aún no hay cotizaciones" text="Crea la primera con «Nueva cotización»." action={{ label: 'Crear cotización', variant: 'primary', testId: 'hi-empty-crear', onClick: () => navigate('/nueva-cotizacion') }} />
+          )}
+          {!isLoading && filtered.length === 0 && kind === 'search' && (
+            committedSearch.trim() !== ''
+              ? <EmptyState testId="hi-empty" icon={<SearchX size={22} />} title={`Sin resultados para «${committedSearch.trim()}»`} text="Prueba con otro folio, nombre, teléfono, placas o concepto." action={{ label: 'Limpiar búsqueda', testId: 'hi-empty-clear', onClick: clearSearch }} />
+              : <EmptyState testId="hi-empty" icon={<SearchX size={22} />} title="No hay cotizaciones en ese rango de fechas" action={{ label: 'Limpiar filtros', testId: 'hi-empty-clear', onClick: clearFilters }} />
+          )}
+          {!isLoading && filtered.length === 0 && kind === 'status' && (
+            <EmptyState testId="hi-empty" icon={<SearchX size={22} />} title={`No hay cotizaciones con estado ${status}`} action={{ label: 'Quitar filtro', testId: 'hi-empty-clear', onClick: () => changeStatus('Todas') }} />
           )}
         </section>
       </div>

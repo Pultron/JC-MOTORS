@@ -1,10 +1,13 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import type { DragEvent } from 'react';
-import { AlertTriangle, CalendarDays, Download, ExternalLink, FileText, Plus, Trash2, Upload, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Download, ExternalLink, FileText, Plus, Search, Trash2, Upload, X } from 'lucide-react';
 import { InvoiceSheet } from '../components/facturas/InvoiceSheet';
 import { OriginalPreview } from '../components/facturas/OriginalPreview';
 import { RangeCalendar } from '../components/internalControl/RangeCalendar';
 import { useToast } from '../components/ui/Toast';
+import { searchInvoices } from '../search/globalSearch';
+import { formatDate } from '../utils/dateFormat';
 import { useConfirm } from '../hooks/useConfirm';
 import { useInvoices } from '../hooks/useInvoices';
 import type { ImportOutcome } from '../hooks/useInvoices';
@@ -14,14 +17,15 @@ import { base64ToBytes } from '../utils/base64';
 import { rangeLabel } from '../utils/dateRangeUtils';
 import type { DateRange } from '../utils/dateRangeUtils';
 import { formatearFolio, formatMoney, nombreArchivoFactura } from '../utils/invoiceFormat';
+import { warnIfLogoMissing } from '../utils/pdfAssetsCore';
 import { savePdfFile } from '../utils/savePdfFile';
+import { userMessage } from '../utils/userMessage';
 import '../styles/facturas.css';
 
 const SIN_RANGO: DateRange = { start: '', end: '' };
 /** Fecha de emisión (AAAA-MM-DD) tal como viene en la factura, sin pasar por la zona horaria. */
 const diaDeEmision = (invoice: Invoice) => invoice.fechaEmision.slice(0, 10);
 
-const formatDate = (iso: string) => new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 
 function Estado({ estado }: { estado: Invoice['estado'] }) {
   if (estado === 'timbrada') return null;
@@ -32,6 +36,8 @@ export function FacturasPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const { invoices, importFiles, remove } = useInvoices();
+  const [params, setParams] = useSearchParams();
+  const [busqueda, setBusqueda] = useState(() => params.get('q') ?? '');
   const [rango, setRango] = useState<DateRange>(SIN_RANGO);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [originalOpen, setOriginalOpen] = useState(false);
@@ -44,11 +50,27 @@ export function FacturasPage() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const filtraPorFecha = Boolean(rango.start && rango.end);
-  const visibles = useMemo(() => invoices.filter((invoice) => {
+  const buscadas = useMemo(() => searchInvoices(invoices, busqueda), [invoices, busqueda]);
+  const visibles = useMemo(() => buscadas.filter((invoice) => {
     if (!filtraPorFecha) return true;
     const dia = diaDeEmision(invoice);
     return dia >= rango.start && dia <= rango.end;
-  }), [invoices, rango, filtraPorFecha]);
+  }), [buscadas, rango, filtraPorFecha]);
+
+  // Deep link from the global search: ?uuid=<folio fiscal> selects that invoice, once.
+  const linkedUuid = params.get('uuid');
+  useEffect(() => {
+    if (!linkedUuid) return;
+    const target = invoices.find((invoice) => invoice.uuid === linkedUuid);
+    if (!target) return;
+    setRango(SIN_RANGO);
+    setBusqueda('');
+    setSelectedUuid(target.uuid);
+    setDocKey((key) => key + 1);
+    setFlashUuid(target.uuid);
+    window.setTimeout(() => setFlashUuid(null), 1700);
+    setParams((current) => { const next = new URLSearchParams(current); next.delete('uuid'); return next; }, { replace: true });
+  }, [linkedUuid, invoices, setParams]);
   const selected = invoices.find((invoice) => invoice.uuid === selectedUuid);
 
   function select(uuid: string) {
@@ -126,7 +148,7 @@ export function FacturasPage() {
       const path = await savePdfFile(file, `${nombreArchivoFactura(selected.folio)} original`, esPdf ? 'save_invoice_pdf' : 'save_invoice_xml');
       if (path !== null) toast.success({ title: 'Original guardado', description: path ?? file.name });
     } catch (error) {
-      toast.error({ title: 'No se pudo guardar el original', description: error instanceof Error ? error.message : undefined });
+      toast.error({ title: 'No se pudo guardar el original', description: userMessage(error, 'factura-original') });
     }
   }
 
@@ -140,11 +162,12 @@ export function FacturasPage() {
     if (!selected || busy) return;
     setBusy(true);
     try {
-      const { file, nombre } = await generarFacturaPdf(selected);
+      const { file, nombre, logoError } = await generarFacturaPdf(selected);
+      warnIfLogoMissing({ logoError }, toast);
       const path = await savePdfFile(file, nombre.replace(/\.pdf$/, ''), 'save_invoice_pdf');
       if (path !== null) toast.success({ title: 'PDF de la factura guardado', description: path ?? file.name });
     } catch (error) {
-      toast.error({ title: 'No se pudo generar el PDF', description: error instanceof Error ? error.message : undefined });
+      toast.error({ title: 'No se pudo generar el PDF', description: userMessage(error, 'factura-pdf') });
     } finally {
       setBusy(false);
     }
@@ -159,6 +182,11 @@ export function FacturasPage() {
             <Plus size={16} strokeWidth={2.4} aria-hidden="true" />Subir factura
           </button>
         </header>
+        <div className="fac-search">
+          <Search size={15} aria-hidden="true" />
+          <input type="search" data-testid="fac-search" aria-label="Buscar facturas" placeholder="Buscar por Nº, folio fiscal, nombre o RFC" autoComplete="off" value={busqueda} onChange={(event) => setBusqueda(event.target.value)} />
+          {busqueda && <button type="button" aria-label="Borrar búsqueda" data-testid="fac-search-clear" onClick={() => setBusqueda('')}><X size={13} aria-hidden="true" /></button>}
+        </div>
         <div className="fac-filter">
           <span className="fac-filter-label">Filtrar por fechas</span>
           <div className="fac-range-wrap">
@@ -200,13 +228,13 @@ export function FacturasPage() {
           {visibles.map((invoice, i) => (
             <li key={invoice.uuid} style={{ animationDelay: `${i * 50}ms` }} className={flashUuid === invoice.uuid ? 'is-flash' : undefined}>
               <button type="button" data-testid="invoice-row" data-uuid={invoice.uuid} data-selected={invoice.uuid === selectedUuid} onClick={() => select(invoice.uuid)}>
-                <span className="fac-row-top"><span className="fac-row-uuid">Nº {formatearFolio(invoice.folio)}{invoice.selloIncompleto && <span className="fac-dot-warn" title="El sello digital no se extrajo completo; el PDF generado no será válido para imprimir" data-testid="row-sello-dot" />}</span><span className="fac-row-date">{formatDate(invoice.fechaEmision)}</span></span>
+                <span className="fac-row-top"><span className="fac-row-uuid">Nº {formatearFolio(invoice.folio)}{invoice.selloIncompleto && <span className="fac-dot-warn" title="El sello digital no se extrajo completo; el PDF generado no será válido para imprimir" data-testid="row-sello-dot" />}{invoice.rfcInvalido && <span className="fac-dot-warn" title="El RFC del emisor o del receptor no tiene un formato válido; revísalo en la factura original" data-testid="row-rfc-dot" />}</span><span className="fac-row-date">{formatDate(invoice.fechaEmision, 'medium')}</span></span>
                 <span className="fac-row-name">{invoice.receptor.nombre}</span>
-                <span className="fac-row-bottom"><Estado estado={invoice.estado} /><strong>${formatMoney(invoice.total)}</strong></span>
+                <span className="fac-row-bottom"><Estado estado={invoice.estado} /><strong>{formatMoney(invoice.total)}</strong></span>
               </button>
             </li>
           ))}
-          {visibles.length === 0 && <li className="fac-empty-list">{invoices.length === 0 ? 'Aún no hay facturas importadas.' : 'Ninguna factura con fecha de emisión en ese rango.'}</li>}
+          {visibles.length === 0 && <li className="fac-empty-list">{invoices.length === 0 ? 'Aún no hay facturas importadas.' : busqueda.trim() && buscadas.length === 0 ? `Sin resultados para «${busqueda.trim()}»` : 'Ninguna factura con fecha de emisión en ese rango.'}</li>}
         </ul>
       </section>
 

@@ -1,8 +1,11 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { AnimationEvent } from 'react';
 import { ChevronRight, FileText, Search, SearchX } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { Pagination } from '../Pagination';
+import { EmptyState, emptyKind } from '../ui/EmptyState';
+import { searchQuotations } from '../../search/quotationSearch';
+import { useDebouncedValue } from '../../search/useDebouncedValue';
 import { QuotationActionsMenu } from '../QuotationActionsMenu';
 import { QuotationPdfDialog } from '../QuotationPdfDialog';
 import { StatusBadge } from '../StatusBadge';
@@ -11,7 +14,9 @@ import { useQuotationActions } from '../../hooks/useQuotationActions';
 import { useQuotationPdfDownload } from '../../hooks/useQuotationPdfDownload';
 import type { PublicQuotation, Quotation, QuotationStatus } from '../../models/quotation';
 import { useQuotations } from '../../store/QuotationContext';
-import { calculateQuotationTotals, formatCurrency, formatDate, toPublicQuotation } from '../../utils/quotation';
+import { formatMoney } from '../../utils/money';
+import { calculateQuotationTotals, toPublicQuotation } from '../../utils/quotation';
+import { formatDate } from '../../utils/dateFormat';
 
 const PAGE_SIZE = 5;
 
@@ -27,7 +32,9 @@ const STATUS_TABS: ReadonlyArray<{ value: StatusFilter; label: string; dot?: str
 
 export function QuotesTable() {
   const { quotations, isLoading, duplicateQuotation } = useQuotations();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search);
   const [status, setStatus] = useState<StatusFilter>('Todas');
   const [page, setPage] = useState(1);
   const [flashId, setFlashId] = useState<string | null>(null);
@@ -47,14 +54,11 @@ export function QuotesTable() {
     return result;
   }, [sortedQuotations]);
 
-  const filteredQuotations = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase('es-MX');
-    return sortedQuotations.filter((quotation) => {
-      const matchesStatus = status === 'Todas' || quotation.status === status;
-      const matchesQuery = !query || `${quotation.folio} ${quotation.customer.name}`.toLocaleLowerCase('es-MX').includes(query);
-      return matchesStatus && matchesQuery;
-    });
-  }, [sortedQuotations, search, status]);
+  const searched = useMemo(() => searchQuotations(sortedQuotations, debouncedSearch), [sortedQuotations, debouncedSearch]);
+  const filteredQuotations = useMemo(
+    () => (status === 'Todas' ? searched : searched.filter((quotation) => quotation.status === status)),
+    [searched, status],
+  );
 
   const pageCount = Math.max(1, Math.ceil(filteredQuotations.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -96,13 +100,13 @@ export function QuotesTable() {
       <div className="flex flex-col gap-3 px-5 pb-4 lg:flex-row lg:items-center">
         <label className="inicio-search w-full lg:w-auto lg:flex-1">
           <Search size={15} aria-hidden="true" className="flex-none" />
-          <span className="sr-only">Buscar cotizaciones por folio o cliente</span>
+          <span className="sr-only">Buscar cotizaciones por folio, cliente, teléfono, vehículo o concepto</span>
           <input
             type="search"
             data-testid="inicio-buscar"
             value={search}
             onChange={(event) => applyFilter({ search: event.target.value })}
-            placeholder="Buscar por folio o cliente..."
+            placeholder="Buscar por folio, cliente, teléfono o vehículo..."
           />
         </label>
         <StatusSegment value={status} counts={counts} onChange={(value) => applyFilter({ status: value })} />
@@ -111,7 +115,16 @@ export function QuotesTable() {
       {isLoading
         ? <p className="border-t border-mac-separator py-12 text-center text-[13px] text-mac-ink-2">Cargando cotizaciones…</p>
         : visibleQuotations.length === 0
-          ? <EmptyState hasQuotations={sortedQuotations.length > 0} />
+          ? (
+            <QuotesEmpty
+              kind={emptyKind(sortedQuotations.length, searched.length, filteredQuotations.length, debouncedSearch.trim() !== '', status !== 'Todas') ?? 'search'}
+              search={debouncedSearch.trim()}
+              status={status}
+              onCreate={() => navigate('/nueva-cotizacion')}
+              onClearSearch={() => { setSearch(''); setPage(1); }}
+              onClearStatus={() => applyFilter({ status: 'Todas' })}
+            />
+          )
           : (
             <div className="overflow-x-auto">
               <table className="inicio-table" data-testid="tabla-recientes">
@@ -136,7 +149,7 @@ export function QuotesTable() {
                   </tr>
                 </thead>
                 {/* La clave reinicia la entrada escalonada al cambiar de filtro, búsqueda o página. */}
-                <tbody key={`${status}|${search}|${currentPage}`}>
+                <tbody key={`${status}|${debouncedSearch}|${currentPage}`}>
                   {visibleQuotations.map((quotation, index) => {
                     const totals = calculateQuotationTotals(quotation.items, quotation.laborDiscountType, quotation.laborDiscountValue, quotation.includeVat);
                     const vehicle = `${quotation.vehicle.make} ${quotation.vehicle.model}`.trim();
@@ -150,7 +163,7 @@ export function QuotesTable() {
                         onAnimationEnd={handleRowAnimationEnd}
                       >
                         <td className="font-semibold text-mac-ink">{quotation.folio}</td>
-                        <td className="num text-mac-ink-2">{formatDate(quotation.createdAt)}</td>
+                        <td className="num text-mac-ink-2">{formatDate(quotation.createdAt, 'medium')}</td>
                         <td className="max-w-0 truncate font-semibold text-mac-ink" title={quotation.customer.name}>{quotation.customer.name}</td>
                         <td className="max-w-0 truncate text-mac-ink-2" title={quotation.vehicle.year ? `${vehicle} ${quotation.vehicle.year}` : vehicle}>{vehicle}</td>
                         <td>
@@ -158,7 +171,7 @@ export function QuotesTable() {
                             <StatusBadge status={quotation.status} size="sm" />
                           </span>
                         </td>
-                        <td className="num text-right font-semibold text-mac-ink">{formatCurrency(totals.total)}</td>
+                        <td className="num text-right font-semibold text-mac-ink">{formatMoney(totals.total)}</td>
                         <td className="text-right">
                           <div className="flex justify-end">
                             <QuotationActionsMenu
@@ -181,7 +194,7 @@ export function QuotesTable() {
           )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
-        <p className="text-[12px] text-mac-ink-2" data-testid="inicio-conteo">Mostrando {visibleQuotations.length} de {filteredQuotations.length} cotizaciones</p>
+        <p className="text-[12px] text-mac-ink-2" data-testid="inicio-conteo" aria-live="polite">Mostrando {visibleQuotations.length} de {filteredQuotations.length} cotizaciones</p>
         <Pagination page={currentPage} pageCount={pageCount} onPageChange={setPage} />
       </div>
 
@@ -247,18 +260,21 @@ function StatusSegment({ value, counts, onChange }: StatusSegmentProps) {
   );
 }
 
-function EmptyState({ hasQuotations }: { hasQuotations: boolean }) {
-  return (
-    <div className="inicio-empty flex flex-col items-center border-t border-mac-separator px-6 py-12 text-center" data-testid="inicio-vacio">
-      <span aria-hidden="true" className="grid size-12 place-items-center rounded-2xl bg-mac-tint text-mac-accent-text">
-        {hasQuotations ? <SearchX size={22} /> : <FileText size={22} />}
-      </span>
-      <p className="mt-3 text-[14px] font-semibold text-mac-ink">{hasQuotations ? 'Sin resultados' : 'Aún no hay cotizaciones'}</p>
-      <p className="mt-1 max-w-xs text-[13px] text-mac-ink-2">
-        {hasQuotations
-          ? 'No hay cotizaciones que coincidan con la búsqueda o el filtro seleccionado.'
-          : 'Crea la primera desde el botón «Nueva cotización».'}
-      </p>
-    </div>
-  );
+interface QuotesEmptyProps {
+  kind: 'none' | 'search' | 'status';
+  search: string;
+  status: StatusFilter;
+  onCreate: () => void;
+  onClearSearch: () => void;
+  onClearStatus: () => void;
+}
+
+function QuotesEmpty({ kind, search, status, onCreate, onClearSearch, onClearStatus }: QuotesEmptyProps) {
+  if (kind === 'none') {
+    return <EmptyState bordered testId="inicio-vacio" icon={<FileText size={22} />} title="Aún no hay cotizaciones" text="Crea la primera desde el botón «Nueva cotización»." action={{ label: 'Crear cotización', onClick: onCreate, variant: 'primary', testId: 'inicio-vacio-crear' }} />;
+  }
+  if (kind === 'status') {
+    return <EmptyState bordered testId="inicio-vacio" icon={<SearchX size={22} />} title={`No hay cotizaciones con estado ${status}`} action={{ label: 'Quitar filtro', onClick: onClearStatus, testId: 'inicio-vacio-quitar' }} />;
+  }
+  return <EmptyState bordered testId="inicio-vacio" icon={<SearchX size={22} />} title={`Sin resultados para «${search}»`} text="Prueba con otro folio, nombre, teléfono, placas o concepto." action={{ label: 'Limpiar búsqueda', onClick: onClearSearch, testId: 'inicio-vacio-limpiar' }} />;
 }

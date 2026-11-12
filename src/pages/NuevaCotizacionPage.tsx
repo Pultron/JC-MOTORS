@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { BorradoresPanel } from '../components/newQuote/BorradoresPanel';
@@ -7,11 +8,23 @@ import { RefaccionesCard } from '../components/newQuote/RefaccionesCard';
 import { ResumenCard } from '../components/newQuote/ResumenCard';
 import { SaveStatusBadge } from '../components/newQuote/SaveStatusBadge';
 import { VehiculoCard } from '../components/newQuote/VehiculoCard';
-import { useCotizacionForm } from '../hooks/useCotizacionForm';
+import { focusFirstField, useCotizacionForm } from '../hooks/useCotizacionForm';
+import { useNewQuoteFocusRequest, usePlatform, useShortcut } from '../hooks/useShortcuts';
+import { withShortcutHint } from '../utils/shortcuts';
 
 export function NuevaCotizacionPage() {
   const state = useCotizacionForm();
   const { form, errors, totals, editId, quotationToEdit, activeDraft, saveState } = state;
+  const consumeNewQuoteFocus = useNewQuoteFocusRequest();
+  const platform = usePlatform();
+
+  // Ctrl/⌘+S saves (same path as the button, so validation, duplicate-customer prompt and busy guard all apply).
+  useShortcut('save', () => { if (!state.busy && !state.isLoadingEdit) void state.submit(); });
+  useShortcut('new', () => { if (!state.isLoadingEdit) void state.startNew(); });
+  // Arrived through Ctrl/⌘+N from another screen: start in the first field.
+  useEffect(() => {
+    if (consumeNewQuoteFocus()) window.requestAnimationFrame(focusFirstField);
+  }, [consumeNewQuoteFocus]);
 
   if (state.isLoadingEdit) return <p className="py-16 text-center text-sm text-slate-500">Cargando cotización…</p>;
 
@@ -30,13 +43,13 @@ export function NuevaCotizacionPage() {
         {editId && quotationToEdit && <p className="flex items-center gap-2 text-xs font-medium text-mac-accent-text"><RotateCcw size={14} aria-hidden="true" />Editando cotización {quotationToEdit.folio}</p>}
         {!editId && activeDraft && <p className="flex items-center gap-2 text-xs font-medium text-mac-accent-text"><RotateCcw size={14} aria-hidden="true" />Editando borrador {activeDraft.folio}</p>}
         <div className="flex flex-wrap gap-5">
-          <ClienteCard form={form} errors={errors} customers={state.customers} onChange={state.updateField} onCustomerChange={state.updateCustomer} onSelectCustomer={state.selectCustomer} />
-          <VehiculoCard form={form} errors={errors} onChange={state.updateField} />
+          <ClienteCard form={form} errors={errors} customers={state.customers} onChange={state.updateField} onCustomerChange={state.updateCustomer} onSelectCustomer={state.selectCustomer} onBlurField={state.blurField} onCommitText={state.commitText} />
+          <VehiculoCard form={form} errors={errors} onChange={state.updateField} onBlurField={state.blurField} onCommitText={state.commitText} />
         </div>
-        <RefaccionesCard form={form} errors={errors} suggestions={state.suggestions} totalParts={totals.subtotalRefacciones} onAdd={state.addItem} onUpdate={state.updateItem} onDelete={state.deleteItem} />
+        <RefaccionesCard form={form} errors={errors} suggestions={state.suggestions} totalParts={totals.subtotalRefacciones} onAdd={state.addItem} onUpdate={state.updateItem} onBlurItem={state.blurItem} onDelete={state.deleteItem} onApplyTemplate={state.applyTemplate} />
         <DetallesCard form={form} errors={errors} onChange={state.updateField} />
       </div>
-      <ResumenCard form={form} totals={totals} errors={errors} busy={state.busy} onChange={state.updateField} onLaborChange={state.setLaborAmount} onSaveDraft={editId ? undefined : state.saveDraft} onClear={editId ? undefined : state.clearForm} submitLabel={editId ? 'Guardar cambios' : 'Guardar cotización'} />
+      <ResumenCard discountFlash={state.discountFlash} form={form} totals={totals} errors={errors} busy={state.busy} onChange={state.updateField} onLaborChange={state.setLaborAmount} onLaborBlur={() => state.blurField('laborAmount')} onSaveDraft={editId ? undefined : state.saveDraft} onClear={editId ? undefined : state.clearForm} submitLabel={editId ? 'Guardar cambios' : 'Guardar cotización'} submitHint={withShortcutHint(editId ? 'Guardar cambios' : 'Guardar cotización', 'save', platform)} />
     </form>
   </div>;
 }

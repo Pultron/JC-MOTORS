@@ -43,6 +43,33 @@ export function validarIntegridad(invoice: InvoiceBorrador): CampoDudoso[] {
   return dudas.filter((duda): duda is CampoDudoso => duda !== null);
 }
 
+const RFC_RE = /^[A-ZÑ&]{3,4}\d{6}[A-Z\d]{3}$/i;
+/** RFC genéricos del SAT (público en general y extranjeros): su fecha 010101 es ficticia pero válida. */
+const RFC_GENERICOS = ['XAXX010101000', 'XEXX010101000'];
+const DIAS_POR_MES = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+/**
+ * Forma del RFC (12 caracteres de persona moral, 13 de persona física) y fecha AAMMDD coherente.
+ * El año tiene dos dígitos y no se sabe el siglo: el 29 de febrero se acepta cuando AA es múltiplo de 4
+ * (00 pasa porque 2000 fue bisiesto). No se verifica el dígito verificador ni que el RFC exista en el SAT.
+ */
+export function rfcValido(rfc: string): boolean {
+  const valor = rfc.trim().toUpperCase();
+  if (RFC_GENERICOS.includes(valor)) return true;
+  if (!RFC_RE.test(valor)) return false;
+  const fecha = valor.slice(-9, -3);
+  const anio = Number(fecha.slice(0, 2));
+  const mes = Number(fecha.slice(2, 4));
+  const dia = Number(fecha.slice(4, 6));
+  if (mes < 1 || mes > 12 || dia < 1) return false;
+  return dia <= (mes === 2 && anio % 4 !== 0 ? 28 : DIAS_POR_MES[mes - 1]);
+}
+
+/** true si el RFC del emisor o del receptor no es válido. Solo marca la factura; nunca bloquea la importación. */
+export function rfcInvalido(invoice: Pick<InvoiceBorrador, 'emisor' | 'receptor'>): boolean {
+  return !rfcValido(invoice.emisor.rfc) || !rfcValido(invoice.receptor.rfc);
+}
+
 export const CAMPOS_DE_INTEGRIDAD = ['timbre.selloCFD', 'timbre.selloSAT', 'timbre.cadenaOriginal', 'uuid', 'total'];
 
 export function sinDuplicados(dudas: CampoDudoso[]): CampoDudoso[] {

@@ -1,633 +1,389 @@
 import { jsPDF } from 'jspdf';
-import type { PublicQuotation, QuotationItemType } from '../models/quotation';
+import type { PublicQuotation } from '../models/quotation';
+import {
+  BAND_BOTTOM, BAND_TOP, BULLET_INDENT, CARD_LABEL_W, COND_TITLE_H, CONT_HEADER, CONTENT_W, FOOTER_ICON_OFFSET, LINE, MARGIN_X,
+  PAGE_H, PAGE_W, cardWidth, conditionsWidth, customerRows, headerHeight, layoutFooterContacts, mm, planificar, pt,
+  rowTextWidth, validUntil, vehicleRows,
+} from '../services/quotationLayout';
+import type { Blocks, CardRowData, Mode, Sheet } from '../services/quotationLayout';
+import { DEFAULT_BUSINESS_INFO, addressLines, loadBusinessInfo } from '../config/businessInfo';
+import type { BusinessInfo } from '../config/businessInfo';
+import { formatDate } from './dateFormat';
+import { formatMoney } from './money';
+import { registerFonts } from './pdfAssets';
+import type { PdfAssets } from './pdfAssets';
+import { drawIcon } from './pdfIcons';
+import type { IconName } from './pdfIcons';
 
-const PAGE_WIDTH = 210;
-const MARGIN = 7;
-const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
-const CONTENT_BOTTOM = 270;
 
-const BUSINESS_CONTACT = {
-  addressLines: ['Av. Río Ometepec #1136,', 'Col. Morelos, Culiacán, Sin.'],
-  phone: '(667) 351-8806',
-  email: 'JCMOTORSCLN@gmail.com',
+const C = {
+  navy: '#13294B', orange: '#F97316', orangeDark: '#C2410C', orangeLight: '#FF8A3D',
+  text: '#13294B', text2: '#2B3B52', muted: '#4B5B70',
+  card: '#F3F6FA', line: '#E3E9F1', sep: '#D5DEEA',
+  obsBg: '#FFF7ED', green: '#1B7A3E', white: '#FFFFFF',
 } as const;
 
-const COLORS = {
-  navy: '#102b4c',
-  dark: '#081f45',
-  text: '#112454',
-  orange: '#ff6b00',
-  line: '#d7e0e9',
-  card: '#f3f7fa',
-  band: '#f8fafc',
-  bluePill: '#e1efff',
-  orangePill: '#ffe9df',
-} as const;
+const RIGHT = PAGE_W - MARGIN_X;
+const BAND_SPLIT_TOP = 0.55;
+const BAND_SPLIT_BOTTOM = 0.45;
+// Inter metrics: ascender / content-area ratio used to place baselines from the top of a line box.
+const ASCENT = 0.969;
+const CONTENT_AREA = 1.21;
 
-// Tipo, concepto, cantidad, precio unitario e importe.
-const COLUMN_WIDTHS = [29, 76, 20, 36, 35] as const;
-const COLUMN_X = [MARGIN, 36, 112, 132, 168, PAGE_WIDTH - MARGIN] as const;
-const ROW_LINE_HEIGHT = 4.35;
+type FontName = 'Inter' | 'InterXB';
+interface TextOptions { size: number; font?: FontName; bold?: boolean; color?: string; align?: 'left' | 'right' | 'center' }
 
-export interface QuotationLogo {
-  header: string;
-  watermark: string;
+class Page {
+  readonly doc: jsPDF;
+
+  constructor(doc: jsPDF) {
+    this.doc = doc;
+  }
+
+  rect(x: number, y: number, w: number, h: number, color: string, radius = 0): void {
+    this.doc.setFillColor(color);
+    if (radius > 0) this.doc.roundedRect(mm(x), mm(y), mm(w), mm(h), mm(radius), mm(radius), 'F');
+    else this.doc.rect(mm(x), mm(y), mm(w), mm(h), 'F');
+  }
+
+  stroke(x: number, y: number, w: number, h: number, color: string, width: number, radius = 0): void {
+    this.doc.setDrawColor(color);
+    this.doc.setLineWidth(mm(width));
+    if (radius > 0) this.doc.roundedRect(mm(x), mm(y), mm(w), mm(h), mm(radius), mm(radius), 'S');
+    else this.doc.rect(mm(x), mm(y), mm(w), mm(h), 'S');
+  }
+
+  hline(x1: number, x2: number, y: number, color: string, width = 1): void {
+    this.doc.setDrawColor(color);
+    this.doc.setLineWidth(mm(width));
+    this.doc.line(mm(x1), mm(y), mm(x2), mm(y));
+  }
+
+  circle(x: number, y: number, r: number, color: string): void {
+    this.doc.setFillColor(color);
+    this.doc.circle(mm(x), mm(y), mm(r), 'F');
+  }
+
+  font(options: TextOptions): void {
+    this.doc.setFont(options.font ?? 'Inter', options.font === 'InterXB' ? 'normal' : options.bold ? 'bold' : 'normal');
+    this.doc.setFontSize(pt(options.size));
+    this.doc.setTextColor(options.color ?? C.text);
+  }
+
+  width(text: string, options: TextOptions): number {
+    this.font(options);
+    return this.doc.getTextWidth(text) / (210 / PAGE_W);
+  }
+
+  /** Draws text whose line box starts at `top` (px); a string array renders as consecutive lines. */
+  text(content: string | string[], x: number, top: number, options: TextOptions): void {
+    this.font(options);
+    const lineHeight = options.size * LINE;
+    const baseline = top + (lineHeight - options.size * CONTENT_AREA) / 2 + options.size * ASCENT;
+    this.doc.text(content, mm(x), mm(baseline), { align: options.align ?? 'left' });
+  }
+
+  /** Single line vertically centred inside a box. */
+  middle(content: string, x: number, y: number, h: number, options: TextOptions): void {
+    this.text(content, x, y + (h - options.size * LINE) / 2, options);
+  }
+
+  icon(name: IconName, x: number, y: number, size: number, color: string): void {
+    drawIcon(this.doc, name, mm(x), mm(y), mm(size), color);
+  }
 }
 
-interface CardRow {
-  icon: IconName;
-  label: string;
-  value: string;
-}
-
-type IconName = 'person' | 'phone' | 'mail' | 'car' | 'calendar' | 'plate' | 'pin';
-
-const money = (amount: number): string => `$${new Intl.NumberFormat('es-MX', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-}).format(amount)}`;
-
-const fullDate = (value: string): string => new Intl.DateTimeFormat('es-MX', {
-  day: 'numeric', month: 'long', year: 'numeric',
-}).format(new Date(value));
-
-export function buildQuotationPdf(quotation: PublicQuotation, logo?: QuotationLogo): jsPDF {
+export function buildQuotationPdf(quotation: PublicQuotation, assets: PdfAssets): jsPDF {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
-  const context = new PdfContext(doc, quotation, logo);
-  drawMainHeader(context);
-  drawInfoCards(context);
-  drawItems(context);
-  drawNotesAndTotals(context);
-  drawAuthorization(context);
-  stampFooters(doc);
+  registerFonts(doc, assets);
+  doc.setLineHeightFactor(LINE);
+  const plan = planificar(doc, quotation);
+  const blocks = plan.blocks;
+  const page = new Page(doc);
+  const business = loadBusinessInfo();
+
+  plan.hojas.forEach((sheet, index) => {
+    if (index > 0) doc.addPage();
+    drawBands(page);
+    let y = BAND_TOP + plan.modo.padTop;
+    if (index === 0) {
+      y = drawMainHeader(page, quotation, assets, plan.modo, y, business);
+      y = drawSeparator(page, plan.modo, y);
+      y = drawCards(page, quotation, plan.modo, blocks, y);
+      y += plan.modo.tableMargin;
+      y = drawSectionTitle(page, 'SERVICIOS Y REFACCIONES', plan.modo.sectionFont, y);
+    } else {
+      drawContinuationHeader(page, quotation, assets, index + 1, plan.hojas.length, y, business);
+      y = drawSeparator(page, plan.modo, y + CONT_HEADER);
+    }
+    y = drawTable(page, plan.modo, sheet, y);
+    if (sheet.final) {
+      y += plan.modo.blockMargin;
+      const blockTop = y;
+      drawConditions(page, plan.modo, blocks, blockTop);
+      drawTotals(page, plan.modo, blocks, quotation.total, blockTop);
+      drawAuthorization(page, plan.modo, blocks, blockTop + blocks.conditionsAndTotals);
+    } else {
+      page.text('Continúa en la siguiente hoja →', RIGHT, PAGE_H - BAND_BOTTOM - blocks.footer - 28, { size: 11, color: C.muted, align: 'right' });
+    }
+    drawFooter(page, plan.modo, blocks, index + 1, plan.hojas.length, business);
+  });
   return doc;
 }
 
-class PdfContext {
-  y = MARGIN;
+function drawBands(page: Page): void {
+  page.rect(0, 0, PAGE_W * BAND_SPLIT_TOP, BAND_TOP, C.navy);
+  page.rect(PAGE_W * BAND_SPLIT_TOP, 0, PAGE_W * (1 - BAND_SPLIT_TOP), BAND_TOP, C.orange);
+  page.rect(0, PAGE_H - BAND_BOTTOM, PAGE_W * BAND_SPLIT_BOTTOM, BAND_BOTTOM, C.orange);
+  page.rect(PAGE_W * BAND_SPLIT_BOTTOM, PAGE_H - BAND_BOTTOM, PAGE_W * (1 - BAND_SPLIT_BOTTOM), BAND_BOTTOM, C.navy);
+}
 
-  constructor(
-    readonly doc: jsPDF,
-    readonly quotation: PublicQuotation,
-    readonly logo?: QuotationLogo,
-  ) {
-    drawPageBackground(doc, logo);
-  }
-
-  nextPage(): void {
-    this.doc.addPage();
-    drawPageBackground(this.doc, this.logo);
-    this.y = 15;
-    drawContinuationHeader(this);
-  }
-
-  ensureSpace(height: number): boolean {
-    if (this.y + height <= CONTENT_BOTTOM) return false;
-    this.nextPage();
-    return true;
+function drawLogo(page: Page, assets: PdfAssets, x: number, y: number, size: number): void {
+  if (!assets.logo) return;
+  try {
+    page.doc.addImage(assets.logo, 'PNG', mm(x), mm(y), mm(size), mm(size));
+  } catch {
+    // The header keeps the business name even if the logo cannot be embedded.
   }
 }
 
-function drawPageBackground(doc: jsPDF, logo?: QuotationLogo): void {
-  doc.setFillColor(COLORS.orange);
-  doc.rect(MARGIN, 6.5, CONTENT_WIDTH, 1.35, 'F');
-  if (logo) {
-    try {
-      // La versión PNG ya tiene la transparencia aplicada y queda detrás de todo el texto.
-      doc.addImage(logo.watermark, 'PNG', 58, 100, 94, 94);
-    } catch {
-      // El contenido de la cotización sigue disponible sin la marca de agua.
-    }
-  }
+/** Draws "label value" right-aligned, with the value in bold. */
+function drawDateLine(page: Page, label: string, value: string, top: number, size: number, valueColor: string): void {
+  const valueWidth = page.width(value, { size, bold: true });
+  page.text(value, RIGHT, top, { size, bold: true, color: valueColor, align: 'right' });
+  page.text(label, RIGHT - valueWidth, top, { size, color: C.muted, align: 'right' });
 }
 
-function drawMainHeader(context: PdfContext): void {
-  const { doc, quotation, logo } = context;
-  if (logo) {
-    try {
-      doc.addImage(logo.header, 'PNG', 9, 14, 25, 25);
-    } catch {
-      // El encabezado mantiene el nombre del negocio aunque falle el logo.
-    }
-  }
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(23);
-  doc.setTextColor(COLORS.dark);
-  doc.text(quotation.businessName.toUpperCase(), 36, 28);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
-  doc.setTextColor(COLORS.text);
-  doc.text('Servicio y mantenimiento automotriz', 36, 34);
+function drawMainHeader(page: Page, quotation: PublicQuotation, assets: PdfAssets, mode: Mode, y: number, business: BusinessInfo): number {
+  const height = headerHeight(mode);
+  const logoY = y + (height - mode.logo) / 2;
+  drawLogo(page, assets, MARGIN_X, logoY, mode.logo);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.setTextColor(COLORS.dark);
-  doc.text('COTIZACIÓN', PAGE_WIDTH - MARGIN, 25, { align: 'right' });
+  const textX = MARGIN_X + mode.logo + 16;
+  const brandH = mode.brand * 1.1;
+  const subtitleSize = 13;
+  const blockH = brandH + 4 + subtitleSize * 1.3;
+  const blockTop = logoY + (mode.logo - blockH) / 2;
+  page.text(business.nombre, textX, blockTop, { size: mode.brand, font: 'InterXB', color: C.navy });
+  page.text('Servicio y mantenimiento automotriz', textX, blockTop + brandH + 4, { size: subtitleSize, color: C.muted });
 
-  const folio = `Folio:  ${quotation.folio}`;
-  doc.setFontSize(9.5);
-  const badgeWidth = Math.max(51, Math.min(70, doc.getTextWidth(folio) + 13));
-  const badgeX = PAGE_WIDTH - MARGIN - badgeWidth;
-  doc.setFillColor(COLORS.navy);
-  doc.roundedRect(badgeX, 28, badgeWidth, 8, 1.4, 1.4, 'F');
-  doc.setTextColor('#ffffff');
-  doc.text(folio, badgeX + badgeWidth / 2, 33.4, { align: 'center' });
+  page.text('COTIZACIÓN', RIGHT, y, { size: mode.title, font: 'InterXB', color: C.navy, align: 'right' });
+  const chipTop = y + mode.title * 1.15 + 8;
+  const folio = `Folio: ${quotation.folio}`;
+  const chipW = page.width(folio, { size: mode.folioFont, bold: true }) + mode.folioPadX * 2;
+  const chipH = mode.folioPadY * 2 + mode.folioFont * 1.2;
+  page.rect(RIGHT - chipW, chipTop, chipW, chipH, C.navy, 8);
+  page.middle(folio, RIGHT - chipW / 2, chipTop, chipH, { size: mode.folioFont, bold: true, color: C.white, align: 'center' });
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.1);
-  doc.setTextColor(COLORS.text);
-  doc.text(`Fecha de emisión: ${fullDate(quotation.createdAt)}`, PAGE_WIDTH - MARGIN, 42, { align: 'right' });
-  doc.setDrawColor(COLORS.line);
-  doc.setLineWidth(0.35);
-  doc.line(MARGIN, 46, PAGE_WIDTH - MARGIN, 46);
-  context.y = 50;
+  const datesTop = chipTop + chipH + 8;
+  drawDateLine(page, 'Fecha de emisión: ', formatDate(quotation.createdAt, 'long'), datesTop, mode.dateFont, C.navy);
+  drawDateLine(page, 'Válida hasta: ', formatDate(validUntil(quotation), 'long'), datesTop + mode.dateFont * 1.45, mode.dateFont, C.orangeDark);
+  return y + height;
 }
 
-function drawContinuationHeader(context: PdfContext): void {
-  const { doc, quotation } = context;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(COLORS.dark);
-  doc.text(quotation.businessName.toUpperCase(), MARGIN, context.y + 5);
-  doc.setFontSize(12);
-  doc.text('COTIZACIÓN', PAGE_WIDTH - MARGIN, context.y + 5, { align: 'right' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.text(quotation.folio, PAGE_WIDTH - MARGIN, context.y + 11, { align: 'right' });
-  doc.setDrawColor(COLORS.line);
-  doc.line(MARGIN, context.y + 14, PAGE_WIDTH - MARGIN, context.y + 14);
-  context.y += 20;
+function drawContinuationHeader(page: Page, quotation: PublicQuotation, assets: PdfAssets, sheetNumber: number, sheets: number, y: number, business: BusinessInfo): void {
+  const logo = 36;
+  const logoY = y + (CONT_HEADER - logo) / 2;
+  drawLogo(page, assets, MARGIN_X, logoY, logo);
+  page.middle(business.nombre, MARGIN_X + logo + 12, logoY, logo, { size: 16, font: 'InterXB', color: C.navy });
+  page.text('COTIZACIÓN', RIGHT, y + 8, { size: 14, bold: true, color: C.navy, align: 'right' });
+  page.text(`Folio: ${quotation.folio} · Hoja ${sheetNumber} de ${sheets}`, RIGHT, y + 8 + 14 * LINE + 4, { size: 12, color: C.muted, align: 'right' });
 }
 
-function drawInfoCards(context: PdfContext): void {
-  const { doc, quotation } = context;
-  const cardWidth = (CONTENT_WIDTH - 3) / 2;
-  const customerRows: CardRow[] = [
-    { icon: 'person', label: 'Nombre:', value: quotation.customer.name },
-    { icon: 'phone', label: 'Teléfono:', value: quotation.customer.phone || '—' },
-    { icon: 'mail', label: 'Correo:', value: quotation.customer.email || '—' },
-  ];
-  const vehicleRows: CardRow[] = [
-    { icon: 'car', label: 'Marca y modelo:', value: [quotation.vehicle.make, quotation.vehicle.model].filter(Boolean).join(' ') },
-    { icon: 'calendar', label: 'Año:', value: quotation.vehicle.year ? String(quotation.vehicle.year) : '—' },
-    { icon: 'plate', label: 'Placas:', value: quotation.vehicle.plates || '—' },
-  ];
-  const leftHeights = measureCardRows(doc, customerRows, cardWidth, 39);
-  const rightHeights = measureCardRows(doc, vehicleRows, cardWidth, 45);
-  const cardHeight = Math.max(43, 18 + Math.max(sum(leftHeights), sum(rightHeights)) + 3);
-  drawInfoCard(doc, MARGIN, context.y, cardWidth, cardHeight, 'DATOS DEL CLIENTE', 'person', customerRows, leftHeights, 39);
-  drawInfoCard(doc, MARGIN + cardWidth + 3, context.y, cardWidth, cardHeight, 'DATOS DEL VEHÍCULO', 'car', vehicleRows, rightHeights, 45);
-  context.y += cardHeight + 6;
+function drawSeparator(page: Page, mode: Mode, y: number): number {
+  page.hline(MARGIN_X, RIGHT, y + mode.sepTop, C.sep);
+  return y + mode.sepTop + 1 + mode.sepBot;
 }
 
-function sum(values: number[]): number {
-  return values.reduce((total, value) => total + value, 0);
+function drawCards(page: Page, quotation: PublicQuotation, mode: Mode, blocks: Blocks, y: number): number {
+  const width = cardWidth();
+  drawCard(page, mode, MARGIN_X, y, width, blocks.cards, 'DATOS DEL CLIENTE', 'person', customerRows(quotation), blocks.cardRows.customer);
+  drawCard(page, mode, MARGIN_X + width + 16, y, width, blocks.cards, 'DATOS DEL VEHÍCULO', 'car', vehicleRows(quotation), blocks.cardRows.vehicle);
+  return y + blocks.cards;
 }
 
-function measureCardRows(doc: jsPDF, rows: CardRow[], width: number, valueOffset: number): number[] {
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.1);
-  return rows.map((row) => {
-    const lines = doc.splitTextToSize(row.value, width - valueOffset - 2) as string[];
-    return Math.max(7.9, lines.length * 4.2 + 1);
-  });
-}
-
-function drawInfoCard(
-  doc: jsPDF, x: number, y: number, width: number, height: number,
-  title: string, icon: IconName, rows: CardRow[], rowHeights: number[], valueOffset: number,
+function drawCard(
+  page: Page, mode: Mode, x: number, y: number, width: number, height: number,
+  title: string, icon: IconName, rows: CardRowData[], rowHeights: number[],
 ): void {
-  doc.setFillColor(COLORS.card);
-  doc.roundedRect(x, y, width, height, 2, 2, 'F');
-  doc.setFillColor(COLORS.orange);
-  doc.roundedRect(x + 3, y + 3, 9, 9, 1.5, 1.5, 'F');
-  drawIcon(doc, icon, x + 4.5, y + 4.5, 6, '#ffffff');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(COLORS.dark);
-  doc.text(title, x + 16, y + 9.3);
+  page.rect(x, y, width, height, C.card, mode.cardRadius);
+  const iconX = x + mode.cardPadX;
+  const iconY = y + mode.cardPadT;
+  page.rect(iconX, iconY, mode.cardIcon, mode.cardIcon, C.orange, 7);
+  page.icon(icon, iconX + mode.cardIcon * 0.18, iconY + mode.cardIcon * 0.18, mode.cardIcon * 0.64, C.white);
+  page.middle(title, iconX + mode.cardIcon + 10, iconY, mode.cardIcon, { size: mode.cardTitle, bold: true, color: C.navy });
 
-  let rowY = y + 18;
+  let rowY = iconY + Math.max(mode.cardIcon, mode.cardTitle * 1.3) + 12;
+  const valueWidth = width - mode.cardPadX * 2 - CARD_LABEL_W;
   rows.forEach((row, index) => {
-    drawIcon(doc, row.icon, x + 4.5, rowY - 4, 6, COLORS.text);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.9);
-    doc.setTextColor(COLORS.text);
-    doc.text(row.label, x + 16, rowY);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.1);
-    const lines = doc.splitTextToSize(row.value, width - valueOffset - 2) as string[];
-    doc.text(lines, x + valueOffset, rowY);
+    page.text(row.label, x + mode.cardPadX, rowY + mode.rowPad, { size: mode.labelFont, color: C.muted });
+    page.font({ size: mode.valueFont, bold: true });
+    const lines = page.doc.splitTextToSize(row.value, mm(valueWidth)) as string[];
+    page.text(lines, x + mode.cardPadX + CARD_LABEL_W, rowY + mode.rowPad, { size: mode.valueFont, bold: true, color: C.navy });
     rowY += rowHeights[index];
   });
 }
 
-function drawSectionTitle(doc: jsPDF, title: string, y: number): void {
-  doc.setFillColor(COLORS.orange);
-  doc.roundedRect(MARGIN, y + 0.5, 1.4, 7.5, 0.65, 0.65, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.setTextColor(COLORS.dark);
-  doc.text(title, MARGIN + 4.5, y + 6.5);
+function drawSectionTitle(page: Page, title: string, size: number, y: number): number {
+  const height = size * 1.25;
+  page.rect(MARGIN_X, y, 4, height, C.orange, 2);
+  page.middle(title, MARGIN_X + 14, y, height, { size, bold: true, color: C.navy });
+  return y + height + 10;
 }
 
-function drawItems(context: PdfContext): void {
-  drawSectionTitle(context.doc, 'SERVICIOS Y REFACCIONES', context.y);
-  context.y += 11;
-  drawItemsHeader(context);
+function drawTable(page: Page, mode: Mode, sheet: Sheet, y: number): number {
+  const rowsH = sheet.altos.reduce((total, value) => total + value, 0);
+  const radius = 10;
+  const qtyX = MARGIN_X + CONTENT_W - mode.colAmount - mode.colPrice - mode.colQty;
+  const priceEnd = MARGIN_X + CONTENT_W - mode.colAmount;
 
-  context.quotation.items.forEach((item, index) => {
-    const { doc } = context;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9.2);
-    const lines = (doc.splitTextToSize(item.description || '—', COLUMN_WIDTHS[1] - 9) as string[]);
-    let offset = 0;
-    let first = true;
-    while (offset < lines.length) {
-      if (context.y + 12 > CONTENT_BOTTOM) continueItemsOnNextPage(context);
-      const maxLines = Math.max(1, Math.floor((CONTENT_BOTTOM - context.y - 4) / ROW_LINE_HEIGHT));
-      const chunk = lines.slice(offset, offset + maxLines);
-      const rowHeight = Math.max(12, chunk.length * ROW_LINE_HEIGHT + 4);
-      if (context.y + rowHeight > CONTENT_BOTTOM) {
-        continueItemsOnNextPage(context);
-        continue;
-      }
-      drawItemRow(context, item.type, chunk, item.quantity, item.saleUnitPrice, item.amount, index, rowHeight, first);
-      offset += chunk.length;
-      first = false;
-    }
+  // jsPDF cannot round only the top corners: round the whole header, then cover its lower corners.
+  page.rect(MARGIN_X, y, CONTENT_W, mode.headH + radius, C.navy, radius);
+  page.rect(MARGIN_X, y + mode.headH, CONTENT_W, radius, C.white);
+  const head = { size: mode.headFont, bold: true, color: C.white } as const;
+  page.middle('CONCEPTO', MARGIN_X + 16, y, mode.headH, head);
+  page.middle('CANT.', qtyX + mode.colQty / 2, y, mode.headH, { ...head, align: 'center' });
+  page.middle('PRECIO UNITARIO', priceEnd - 16, y, mode.headH, { ...head, align: 'right' });
+  page.middle('IMPORTE', RIGHT - 16, y, mode.headH, { ...head, align: 'right' });
+
+  let rowY = y + mode.headH;
+  sheet.filas.forEach((item, index) => {
+    const height = sheet.altos[index];
+    page.font({ size: mode.rowFont });
+    const lines = page.doc.splitTextToSize(item.description || '—', mm(rowTextWidth(mode))) as string[];
+    const textTop = rowY + (height - lines.length * mode.rowFont * LINE) / 2;
+    page.text(lines, MARGIN_X + 16, textTop, { size: mode.rowFont, color: C.text });
+    page.middle(String(item.quantity), qtyX + mode.colQty / 2, rowY, height, { size: mode.rowFont, color: C.text, align: 'center' });
+    page.middle(formatMoney(item.saleUnitPrice, 'pdf'), priceEnd - 16, rowY, height, { size: mode.rowFont, color: C.text2, align: 'right' });
+    page.middle(formatMoney(item.amount, 'pdf'), RIGHT - 16, rowY, height, { size: mode.rowFont, bold: true, color: C.navy, align: 'right' });
+    if (index < sheet.filas.length - 1) page.hline(MARGIN_X, RIGHT, rowY + height, C.line);
+    rowY += height;
   });
-  context.y += 6;
+  page.stroke(MARGIN_X, y, CONTENT_W, mode.headH + rowsH, C.line, 1, radius);
+  return y + mode.headH + rowsH;
 }
 
-function continueItemsOnNextPage(context: PdfContext): void {
-  context.nextPage();
-  drawSectionTitle(context.doc, 'SERVICIOS Y REFACCIONES', context.y);
-  context.y += 11;
-  drawItemsHeader(context);
-}
+function drawConditions(page: Page, mode: Mode, blocks: Blocks, top: number): void {
+  const width = conditionsWidth(mode);
+  page.rect(MARGIN_X, top + 4, 3, 16, C.orange, 1.5);
+  page.middle('CONDICIONES', MARGIN_X + 12, top, 24, { size: 15, bold: true, color: C.navy });
 
-function drawItemsHeader(context: PdfContext): void {
-  const { doc } = context;
-  const y = context.y;
-  doc.setFillColor(COLORS.navy);
-  doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 10.5, 1.4, 1.4, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.7);
-  doc.setTextColor('#ffffff');
-  doc.text('TIPO', COLUMN_X[0] + 5, y + 6.8);
-  doc.text('CONCEPTO', COLUMN_X[1] + 5, y + 6.8);
-  doc.text('CANT.', COLUMN_X[3] - 4, y + 6.8, { align: 'right' });
-  doc.text('PRECIO UNITARIO', COLUMN_X[4] - 4, y + 6.8, { align: 'right' });
-  doc.text('IMPORTE', COLUMN_X[5] - 4, y + 6.8, { align: 'right' });
-  context.y += 10.5;
-}
-
-function drawItemRow(
-  context: PdfContext, type: QuotationItemType, lines: string[], quantity: number,
-  unitPrice: number, amount: number, index: number, height: number, first: boolean,
-): void {
-  const { doc } = context;
-  const y = context.y;
-  if (index % 2 === 1) {
-    doc.setFillColor(COLORS.band);
-    doc.rect(MARGIN, y, CONTENT_WIDTH, height, 'F');
-  }
-  doc.setDrawColor(COLORS.line);
-  doc.setLineWidth(0.2);
-  for (const x of COLUMN_X) doc.line(x, y, x, y + height);
-  doc.line(MARGIN, y + height, PAGE_WIDTH - MARGIN, y + height);
-
-  if (first) {
-    const isLabor = type === 'labor';
-    doc.setFillColor(isLabor ? COLORS.bluePill : COLORS.orangePill);
-    doc.roundedRect(MARGIN + 3, y + 3.2, 23, 6.5, 3, 3, 'F');
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(isLabor ? '#1561c6' : '#ed4e23');
-    doc.text(isLabor ? 'Servicio' : 'Refacción', MARGIN + 14.5, y + 7.5, { align: 'center' });
-  }
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.2);
-  doc.setTextColor(COLORS.text);
-  doc.text(lines, COLUMN_X[1] + 5, y + 7);
-  if (first) {
-    doc.text(String(quantity), COLUMN_X[3] - 10, y + 7, { align: 'center' });
-    doc.text(money(unitPrice), COLUMN_X[4] - 5, y + 7, { align: 'right' });
-    doc.setFont('helvetica', 'bold');
-    doc.text(money(amount), COLUMN_X[5] - 4, y + 7, { align: 'right' });
-  }
-  context.y += height;
-}
-
-function conditionsFor(quotation: PublicQuotation): string[] {
-  return [
-    `Cotización válida durante ${quotation.validityDays} días.`,
-    'Precios sujetos a revisión y disponibilidad de refacciones.',
-    'Cualquier trabajo adicional requiere autorización del cliente.',
-    'Garantía aplicable según el servicio o refacción.',
-    ...(!quotation.includeVat ? ['Precios sin IVA; se agregará al solicitar factura.'] : []),
-    ...[quotation.customerNotes, quotation.publicNotes]
-      .filter((note): note is string => Boolean(note?.trim()))
-      .map((note) => note.trim()),
-  ];
-}
-
-function totalRowsFor(quotation: PublicQuotation): Array<[string, string]> {
-  const rows: Array<[string, string]> = [
-    ['Refacciones', money(quotation.subtotalRefacciones)],
-    ['Mano de obra', money(quotation.subtotalManoObra)],
-  ];
-  if (quotation.laborDiscount > 0) {
-    rows.push(['Descuento M.O.', `- ${money(quotation.laborDiscount)}`]);
-  }
-  rows.push(['Subtotal', money(quotation.subtotalNeto)]);
-  rows.push([quotation.includeVat ? 'IVA (16%)' : 'IVA no incluido', money(quotation.ivaAmount)]);
-  return rows;
-}
-
-function drawNotesAndTotals(context: PdfContext): void {
-  const { doc, quotation } = context;
-  const conditions = conditionsFor(quotation);
-  const rows = totalRowsFor(quotation);
-  const noteWidth = 105;
-  const totalX = MARGIN + noteWidth + 5;
-  const totalWidth = PAGE_WIDTH - MARGIN - totalX;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.6);
-  const wrapped = conditions.map((condition) => doc.splitTextToSize(condition, noteWidth - 15) as string[]);
-  const noteCardHeight = Math.max(35, 7 + sum(wrapped.map((lines) => lines.length * 4.2 + 2)));
-  const totalHeight = rows.length * 7 + 12;
-  const sectionHeight = Math.max(9 + noteCardHeight, totalHeight);
-
-  if (sectionHeight > 225) {
-    drawLongNotes(context, conditions);
-    context.ensureSpace(totalHeight + 6);
-    drawTotalsBox(doc, totalX, context.y, totalWidth, rows, quotation.total);
-    context.y += totalHeight + 6;
-    return;
-  }
-
-  context.ensureSpace(sectionHeight + 4);
-  const top = context.y;
-  drawSectionTitle(doc, 'NOTAS Y CONDICIONES', top);
-  drawNoteCard(doc, MARGIN, top + 9, noteWidth, noteCardHeight, wrapped);
-  drawTotalsBox(doc, totalX, top, totalWidth, rows, quotation.total);
-  context.y += sectionHeight + 5;
-}
-
-function drawNoteCard(doc: jsPDF, x: number, y: number, width: number, height: number, linesByNote: string[][]): void {
-  doc.setFillColor(COLORS.card);
-  doc.roundedRect(x, y, width, height, 2, 2, 'F');
-  let lineY = y + 7;
-  for (const lines of linesByNote) {
-    doc.setFillColor(COLORS.orange);
-    doc.circle(x + 6, lineY - 0.8, 0.85, 'F');
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.6);
-    doc.setTextColor(COLORS.text);
-    doc.text(lines, x + 11, lineY);
-    lineY += lines.length * 4.2 + 2;
-  }
-}
-
-function drawLongNotes(context: PdfContext, conditions: string[]): void {
-  const { doc } = context;
-  context.ensureSpace(19);
-  drawSectionTitle(doc, 'NOTAS Y CONDICIONES', context.y);
-  context.y += 13;
-  for (const condition of conditions) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.8);
-    const lines = doc.splitTextToSize(condition, CONTENT_WIDTH - 15) as string[];
-    for (let index = 0; index < lines.length; index += 1) {
-      if (context.ensureSpace(5)) {
-        drawSectionTitle(doc, 'NOTAS Y CONDICIONES', context.y);
-        context.y += 13;
-      }
-      if (index === 0) {
-        doc.setFillColor(COLORS.orange);
-        doc.circle(MARGIN + 5, context.y - 0.8, 0.85, 'F');
-      }
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.8);
-      doc.setTextColor(COLORS.text);
-      doc.text(lines[index], MARGIN + 11, context.y);
-      context.y += 4.4;
-    }
-    context.y += 2;
-  }
-  context.y += 5;
-}
-
-function drawTotalsBox(
-  doc: jsPDF, x: number, y: number, width: number,
-  rows: Array<[string, string]>, total: number,
-): void {
-  const rowHeight = 7;
-  const totalHeight = 12;
-  const height = rows.length * rowHeight + totalHeight;
-  doc.setDrawColor(COLORS.navy);
-  doc.setLineWidth(0.35);
-  doc.roundedRect(x, y, width, height, 1.8, 1.8, 'S');
-  rows.forEach(([label, value], index) => {
-    const baseline = y + 5 + index * rowHeight;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.6);
-    doc.setTextColor(COLORS.text);
-    doc.text(label, x + 5, baseline);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.7);
-    doc.text(value, x + width - 4, baseline, { align: 'right' });
-    if (index < rows.length - 1) {
-      doc.setDrawColor(COLORS.line);
-      doc.line(x + 5, y + (index + 1) * rowHeight, x + width - 4, y + (index + 1) * rowHeight);
-    }
+  let y = top + COND_TITLE_H;
+  blocks.conditionLines.forEach((lines) => {
+    const lineHeight = mode.bulletFont * LINE;
+    page.circle(MARGIN_X + 4, y + mode.bulletPad + lineHeight / 2, 2.5, C.orange);
+    page.text(lines, MARGIN_X + BULLET_INDENT, y + mode.bulletPad, { size: mode.bulletFont, color: C.text2 });
+    y += lines.length * lineHeight + mode.bulletPad * 2;
   });
-  const totalY = y + rows.length * rowHeight;
-  doc.setFillColor(COLORS.navy);
-  doc.rect(x, totalY, width, totalHeight, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor('#ffffff');
-  doc.text('TOTAL', x + 5, totalY + 8);
-  doc.setFontSize(11.5);
-  doc.setTextColor(COLORS.orange);
-  doc.text(`MXN ${money(total)}`, x + width - 4, totalY + 8, { align: 'right' });
+
+  if (!blocks.observations) return;
+  y += 14;
+  page.rect(MARGIN_X, y, width, blocks.observationsHeight, C.obsBg, 10);
+  page.text('OBSERVACIONES', MARGIN_X + mode.obsPadX, y + mode.obsPadT, { size: 11, bold: true, color: C.orangeDark });
+  page.text(blocks.observationLines, MARGIN_X + mode.obsPadX, y + mode.obsPadT + 18, { size: mode.bulletFont, bold: true, color: C.navy });
 }
 
-function drawAuthorization(context: PdfContext): void {
-  context.ensureSpace(31);
-  const { doc } = context;
-  const y = context.y;
-  doc.setDrawColor(COLORS.line);
-  doc.setLineWidth(0.35);
-  doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 29, 1.8, 1.8, 'S');
-  doc.setFillColor(COLORS.orange);
-  doc.roundedRect(MARGIN + 2.5, y + 3.5, 1.4, 7, 0.6, 0.6, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11.5);
-  doc.setTextColor(COLORS.dark);
-  doc.text('Autorización del cliente', MARGIN + 6.5, y + 9);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.4);
-  doc.setTextColor(COLORS.text);
-  doc.text('Acepto los trabajos y condiciones descritos en esta cotización.', MARGIN + 6.5, y + 14);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.text('Nombre y firma:', MARGIN + 6.5, y + 24);
-  doc.text('Fecha:', 149, y + 24);
-  doc.setDrawColor('#8096ba');
-  doc.setLineWidth(0.25);
-  doc.line(41, y + 24.5, 136, y + 24.5);
-  doc.line(162, y + 24.5, PAGE_WIDTH - MARGIN - 6, y + 24.5);
-  context.y += 34;
-}
+function drawTotals(page: Page, mode: Mode, blocks: Blocks, total: number, top: number): void {
+  const x = RIGHT - mode.totW;
+  const radius = 12;
+  const rowsH = blocks.totalRows.length * mode.totRowH;
+  const barTop = top + rowsH;
+  page.rect(x, top, mode.totW, blocks.totalsHeight, C.white, radius);
+  // Same trick as the table header: round the whole bar, then cover its upper corners.
+  page.rect(x, barTop - radius, mode.totW, mode.barH + radius, C.navy, radius);
+  page.rect(x, barTop - radius, mode.totW, radius, C.white);
 
-function stampFooters(doc: jsPDF): void {
-  const totalPages = doc.getNumberOfPages();
-  for (let page = 1; page <= totalPages; page += 1) {
-    doc.setPage(page);
-    doc.setDrawColor(COLORS.line);
-    doc.setLineWidth(0.35);
-    doc.line(MARGIN, 274, PAGE_WIDTH - MARGIN, 274);
-    drawIcon(doc, 'pin', 13, 279, 6, COLORS.orange);
-    drawIcon(doc, 'phone', 89, 279, 6, COLORS.orange);
-    drawIcon(doc, 'mail', 144, 279, 6, COLORS.orange);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.8);
-    doc.setTextColor(COLORS.text);
-    doc.text(BUSINESS_CONTACT.addressLines[0], 24, 281.5);
-    doc.text(BUSINESS_CONTACT.addressLines[1], 24, 286);
-    doc.text(BUSINESS_CONTACT.phone, 99, 283);
-    doc.text(BUSINESS_CONTACT.email, 153, 283);
-    doc.setFontSize(7.4);
-    doc.setTextColor('#66789c');
-    doc.text('Gracias por confiar en JC Motors.', MARGIN, 294);
-    doc.text(`Página ${page} de ${totalPages}`, PAGE_WIDTH - MARGIN, 294, { align: 'right' });
-  }
-}
-
-function drawIcon(doc: jsPDF, name: IconName, x: number, y: number, size: number, color: string): void {
-  // Mantener todo el trazo dentro de la caja evita que los iconos pequeños se recorten.
-  doc.saveGraphicsState();
-  x += size * 0.1;
-  y += size * 0.1;
-  size *= 0.8;
-  doc.setDrawColor(color);
-  doc.setLineWidth(0.35);
-  doc.setLineCap('round');
-  doc.setLineJoin('round');
-  const cx = x + size / 2;
-  switch (name) {
-    case 'person':
-      doc.circle(cx, y + size * 0.28, size * 0.16, 'S');
-      doc.lines([
-        [size * 0.18, 0],
-        [0, -size * 0.22, size * 0.14, -size * 0.35, size * 0.32, -size * 0.35],
-        [size * 0.18, 0, size * 0.32, size * 0.13, size * 0.32, size * 0.35],
-      ], x + size * 0.18, y + size * 0.9, [1, 1], 'S');
-      break;
-    case 'car':
-      doc.lines([
-        [size * 0.04, -size * 0.16],
-        [size * 0.15, -size * 0.02],
-        [size * 0.12, -size * 0.24],
-        [size * 0.28, 0],
-        [size * 0.13, size * 0.24],
-        [size * 0.12, size * 0.02],
-        [size * 0.03, size * 0.16],
-        [-size * 0.87, 0],
-      ], x + size * 0.08, y + size * 0.62, [1, 1], 'S', true);
-      doc.lines([
-        [size * 0.09, -size * 0.18],
-        [size * 0.25, 0],
-        [size * 0.1, size * 0.18],
-      ], x + size * 0.31, y + size * 0.42, [1, 1], 'S');
-      doc.circle(x + size * 0.29, y + size * 0.69, size * 0.1, 'S');
-      doc.circle(x + size * 0.72, y + size * 0.69, size * 0.1, 'S');
-      break;
-    case 'phone':
-      doc.setFillColor(color);
-      doc.lines([
-        [size * 0.07, size * 0.07, size * 0.13, size * 0.13, size * 0.19, size * 0.19],
-        [-size * 0.1, size * 0.13],
-        [size * 0.28, size * 0.48, size * 0.4, size * 0.61, size * 0.31, size * 0.33],
-        [size * 0.13, -size * 0.12],
-        [size * 0.19, size * 0.19],
-        [-size * 0.13, size * 0.13],
-        [-size * 0.11, size * 0.1, -size * 0.24, size * 0.04, -size * 0.38, -size * 0.08],
-        [-size * 0.17, -size * 0.13, -size * 0.33, -size * 0.35, -size * 0.36, -size * 0.54],
-        [-size * 0.01, -size * 0.12, size * 0.06, -size * 0.21, size * 0.15, -size * 0.23],
-      ], x + size * 0.2, y + size * 0.08, [1, 1], 'F', true);
-      break;
-    case 'mail':
-      doc.roundedRect(x + size * 0.08, y + size * 0.19, size * 0.84, size * 0.62, 0.5, 0.5, 'S');
-      doc.line(x + size * 0.08, y + size * 0.25, cx, y + size * 0.57);
-      doc.line(cx, y + size * 0.57, x + size * 0.92, y + size * 0.25);
-      break;
-    case 'calendar':
-      doc.roundedRect(x + size * 0.14, y + size * 0.18, size * 0.72, size * 0.7, 0.5, 0.5, 'S');
-      doc.line(x + size * 0.14, y + size * 0.38, x + size * 0.86, y + size * 0.38);
-      doc.line(x + size * 0.33, y + size * 0.08, x + size * 0.33, y + size * 0.27);
-      doc.line(x + size * 0.67, y + size * 0.08, x + size * 0.67, y + size * 0.27);
-      break;
-    case 'plate':
-      doc.roundedRect(x + size * 0.08, y + size * 0.25, size * 0.84, size * 0.52, 0.6, 0.6, 'S');
-      doc.line(x + size * 0.25, y + size * 0.5, x + size * 0.42, y + size * 0.5);
-      doc.line(x + size * 0.59, y + size * 0.5, x + size * 0.76, y + size * 0.5);
-      break;
-    case 'pin':
-      doc.lines([
-        [-size * 0.14, -size * 0.18, -size * 0.32, -size * 0.38, -size * 0.32, -size * 0.58],
-        [0, -size * 0.18, size * 0.14, -size * 0.3, size * 0.32, -size * 0.3],
-        [size * 0.18, 0, size * 0.32, size * 0.12, size * 0.32, size * 0.3],
-        [0, size * 0.2, -size * 0.18, size * 0.4, -size * 0.32, size * 0.58],
-      ], cx, y + size * 0.96, [1, 1], 'S', true);
-      doc.circle(cx, y + size * 0.38, size * 0.1, 'S');
-      break;
-  }
-  doc.restoreGraphicsState();
-}
-
-let logoPromise: Promise<QuotationLogo | undefined> | undefined;
-
-/** Usa el logo actual de la app para el encabezado y una copia tenue de marca de agua. */
-export function loadLogoDataUrl(): Promise<QuotationLogo | undefined> {
-  logoPromise ??= fetch('/jc-motors-logo.png')
-    .then((response) => response.ok ? response.arrayBuffer() : Promise.reject(new Error('Logo no disponible')))
-    .then(createLogoImages)
-    .catch(() => undefined);
-  return logoPromise;
-}
-
-function createLogoImages(buffer: ArrayBuffer): Promise<QuotationLogo> {
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(new Blob([buffer], { type: 'image/png' }));
-    const image = new Image();
-    image.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      const header = document.createElement('canvas');
-      header.width = 220;
-      header.height = 220;
-      const watermark = document.createElement('canvas');
-      watermark.width = 320;
-      watermark.height = 320;
-      const headerContext = header.getContext('2d');
-      const watermarkContext = watermark.getContext('2d');
-      if (!headerContext || !watermarkContext) {
-        reject(new Error('Canvas no disponible'));
-        return;
-      }
-      headerContext.drawImage(image, 0, 0, 220, 220);
-      watermarkContext.globalAlpha = 0.045;
-      watermarkContext.drawImage(image, 0, 0, 320, 320);
-      resolve({ header: header.toDataURL('image/png'), watermark: watermark.toDataURL('image/png') });
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('No se pudo decodificar el logo'));
-    };
-    image.src = objectUrl;
+  const size = mode.id === 'normal' ? 14 : 13;
+  blocks.totalRows.forEach((row, index) => {
+    const rowTop = top + index * mode.totRowH;
+    const discount = row.tone === 'discount';
+    page.middle(row.label, x + 20, rowTop, mode.totRowH, { size, color: C.text2 });
+    page.middle(row.value, x + mode.totW - 20, rowTop, mode.totRowH, { size, bold: true, color: discount ? C.green : C.navy, align: 'right' });
+    if (index < blocks.totalRows.length - 1) page.hline(x + 20, x + mode.totW - 20, rowTop + mode.totRowH, C.line);
   });
+  page.middle('TOTAL', x + 20, barTop, mode.barH, { size: mode.barLabel, font: 'InterXB', color: C.white });
+  page.middle(formatMoney(total, 'formal'), x + mode.totW - 20, barTop, mode.barH, { size: mode.barValue, font: 'InterXB', color: C.orangeLight, align: 'right' });
+  page.stroke(x, top, mode.totW, blocks.totalsHeight, C.navy, 1.5, radius);
+}
+
+function drawAuthorization(page: Page, mode: Mode, blocks: Blocks, blockEnd: number): void {
+  const top = blockEnd + mode.authMargin;
+  const height = blocks.auth - mode.authMargin;
+  page.stroke(MARGIN_X, top, CONTENT_W, height, C.line, 1, 12);
+  const x = MARGIN_X + mode.authPadX;
+  const titleH = 15 * 1.25;
+  page.rect(x, top + mode.authPadT + 1, 3, titleH - 2, C.orange, 1.5);
+  page.middle('Autorización del cliente', x + 12, top + mode.authPadT, titleH, { size: 15, bold: true, color: C.navy });
+  const subTop = top + mode.authPadT + titleH + 4;
+  page.text('Acepto los trabajos y condiciones descritos en esta cotización.', x, subTop, { size: mode.bulletFont, color: C.muted });
+
+  const signTop = subTop + mode.bulletFont * 1.4 + mode.signGap;
+  const labelSize = 13;
+  const nameLabel = 'Nombre y firma:';
+  const nameW = page.width(nameLabel, { size: labelSize, bold: true });
+  page.text(nameLabel, x, signTop, { size: labelSize, bold: true, color: C.navy });
+  const lineY = signTop + labelSize * 1.4 - 2;
+  const nameEnd = MARGIN_X + CONTENT_W * 0.58;
+  page.hline(x + nameW + 8, nameEnd, lineY, C.sep, 1.2);
+
+  const dateX = nameEnd + 32;
+  page.text('Fecha:', dateX, signTop, { size: labelSize, bold: true, color: C.navy });
+  const dateW = page.width('Fecha:', { size: labelSize, bold: true });
+  page.hline(dateX + dateW + 8, RIGHT - mode.authPadX, lineY, C.sep, 1.2);
+}
+
+function drawFooter(page: Page, mode: Mode, blocks: Blocks, sheetNumber: number, sheets: number, business: BusinessInfo): void {
+  const top = PAGE_H - BAND_BOTTOM - blocks.footer;
+  const lineY = top + mode.footPadT;
+  page.hline(MARGIN_X, RIGHT, lineY, C.sep);
+
+  const rowTop = lineY + 12;
+  const rowH = 2 * 13 * 1.4;
+  const infoSize = 13;
+  const iconSize = 18;
+  const address = addressLines(business.direccion);
+  const phone = business.telefonos[0];
+  const measure = (text: string | undefined) => (text ? page.width(text, { size: infoSize }) : 0);
+  const layout = layoutFooterContacts({
+    addressWidth: Math.max(0, ...address.map((line) => measure(line))),
+    phoneWidth: measure(phone),
+    emailWidth: measure(business.correo),
+  });
+  const size = infoSize * layout.scale;
+  const iconY = rowTop + (rowH - iconSize) / 2;
+  page.icon('pin', MARGIN_X, iconY, iconSize, C.orange);
+  page.text(address, MARGIN_X + FOOTER_ICON_OFFSET, rowTop, { size, color: C.text2 });
+  if (layout.mode === 'row') {
+    if (phone && layout.phoneX !== undefined) {
+      page.icon('phone', layout.phoneX, iconY, iconSize, C.orange);
+      page.middle(phone, layout.phoneX + FOOTER_ICON_OFFSET, rowTop, rowH, { size, color: C.text2 });
+    }
+    if (business.correo) {
+      const emailW = page.width(business.correo, { size });
+      page.icon('mail', RIGHT - emailW - FOOTER_ICON_OFFSET, iconY, iconSize, C.orange);
+      page.middle(business.correo, RIGHT, rowTop, rowH, { size, color: C.text2, align: 'right' });
+    }
+  } else {
+    // The phone does not fit beside the address and the email: it goes on the line below the email, right-aligned.
+    const lineH = rowH / 2;
+    const small = iconSize * 0.8;
+    const lines: ['mail' | 'phone', string | undefined][] = [['mail', business.correo], ['phone', phone]];
+    lines.forEach(([icon, text], index) => {
+      if (!text) return;
+      const top = rowTop + index * lineH;
+      page.icon(icon, RIGHT - page.width(text, { size }) - FOOTER_ICON_OFFSET, top + (lineH - small) / 2, small, C.orange);
+      page.middle(text, RIGHT, top, lineH, { size, color: C.text2, align: 'right' });
+    });
+  }
+
+  const noteTop = rowTop + rowH + mode.noteT;
+  const note = { size: 12, color: C.muted } as const;
+  page.text(`Gracias por confiar en ${business.nombre === DEFAULT_BUSINESS_INFO.nombre ? 'JC Motors' : business.nombre}.`, MARGIN_X, noteTop, note);
+  let noteRight = RIGHT;
+  if (sheets > 1) {
+    const label = `Hoja ${sheetNumber} de ${sheets}`;
+    page.text(label, RIGHT, noteTop, { size: 12, bold: true, color: C.navy, align: 'right' });
+    noteRight -= page.width(label, { size: 12, bold: true }) + 20;
+  }
+  page.text('Esta cotización no es un comprobante fiscal.', noteRight, noteTop, { ...note, align: 'right' });
 }

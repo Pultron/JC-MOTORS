@@ -3,8 +3,10 @@ import { Download, Loader2, Printer, Share2, X } from 'lucide-react';
 import { Button } from './Button';
 import { useToast } from './ui/Toast';
 import type { PublicQuotation } from '../models/quotation';
-import type { QuotationLogo } from '../utils/pdfQuotation';
+import type { PdfAssets } from '../utils/pdfAssets';
+import { warnIfLogoMissing } from '../utils/pdfAssetsCore';
 import { savePdfFile } from '../utils/savePdfFile';
+import { userMessage } from '../utils/userMessage';
 
 type PdfModule = typeof import('../utils/pdfQuotation');
 
@@ -22,7 +24,7 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
   const toast = useToast();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [pdfModule, setPdfModule] = useState<PdfModule | null>(null);
-  const [logo, setLogo] = useState<QuotationLogo | null | undefined>();
+  const [assets, setAssets] = useState<PdfAssets | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -34,25 +36,28 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
   // jsPDF pesa ~160 kB: se carga sólo cuando el usuario pide ver un PDF.
   useEffect(() => {
     let active = true;
-    void import('../utils/pdfQuotation').then((module) => {
-      if (!active) return;
-      setPdfModule(module);
-      void module.loadLogoDataUrl().then((dataUrl) => {
-        if (active) setLogo(dataUrl ?? null);
+    void Promise.all([import('../utils/pdfQuotation'), import('../utils/pdfAssetsLoader').then((module) => module.loadPdfAssets())])
+      .then(([module, loaded]) => {
+        if (!active) return;
+        setPdfModule(module);
+        warnIfLogoMissing(loaded, toast);
+        setAssets(loaded);
+      })
+      .catch((cause) => {
+        if (active) toast.error({ title: 'No se pudo generar el PDF', description: userMessage(cause, 'pdf-generar') });
       });
-    });
     return () => {
       active = false;
     };
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
-    if (!quotation || !pdfModule || logo === undefined) return;
-    const blob = pdfModule.buildQuotationPdf(quotation, logo ?? undefined).output('blob');
+    if (!quotation || !pdfModule || !assets) return;
+    const blob = pdfModule.buildQuotationPdf(quotation, assets).output('blob');
     const url = URL.createObjectURL(blob);
     setPreview({ blob, url });
     return () => URL.revokeObjectURL(url);
-  }, [quotation, pdfModule, logo]);
+  }, [quotation, pdfModule, assets]);
 
   const file = useMemo(() => {
     if (!preview || !quotation) return null;
@@ -90,7 +95,7 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
       const path = await savePdfFile(file, quotation?.folio ?? '');
       if (path) toast.success({ title: 'PDF guardado', description: `PDF guardado en ${path}` });
     } catch (cause) {
-      toast.error({ title: 'No se pudo guardar el PDF', description: `No se pudo guardar el PDF: ${String(cause)}` });
+      toast.error({ title: 'No se pudo guardar el PDF', description: userMessage(cause, 'pdf-guardar') });
     } finally {
       setIsDownloading(false);
     }

@@ -8,8 +8,12 @@ export async function connect(port = 9223) {
   let id = 0;
   const pending = new Map();
   const errors = [];
+  /** Console / Log entries reporting a Content Security Policy violation (they survive page navigations). */
+  const violations = [];
   socket.onmessage = ({ data }) => {
     const msg = JSON.parse(data);
+    if (msg.method === 'Log.entryAdded' && /Content Security Policy|Refused to/i.test(msg.params.entry.text)) violations.push(msg.params.entry.text);
+    if (msg.method === 'Runtime.consoleAPICalled' && msg.params.type === 'error' && /Content Security Policy|Refused to/i.test(JSON.stringify(msg.params.args))) violations.push(msg.params.args.map((a) => a.value ?? a.description).join(' '));
     if (msg.method === 'Runtime.exceptionThrown') errors.push(msg.params.exceptionDetails.text);
     const call = pending.get(msg.id);
     if (call) { pending.delete(msg.id); msg.error ? call.reject(new Error(JSON.stringify(msg.error))) : call.resolve(msg.result); }
@@ -32,5 +36,9 @@ export async function connect(port = 9223) {
   };
   const screenshot = async path => { const { data } = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true }); await writeFile(path, Buffer.from(data, 'base64')); };
   await send('Runtime.enable');
-  return { send, evaluate, waitFor, click, fill, pick, screenshot, errors, close: () => socket.close() };
+  await send('Log.enable');
+  // Log.enable replays entries the page logged before we connected: only violations from now on count.
+  await new Promise((r) => setTimeout(r, 400));
+  violations.length = 0;
+  return { send, evaluate, waitFor, click, fill, pick, screenshot, errors, violations, close: () => socket.close() };
 }

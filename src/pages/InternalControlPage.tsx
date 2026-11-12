@@ -12,6 +12,7 @@ import { useQuotations } from '../store/QuotationContext';
 import { isInRange, periodRange } from '../utils/dateRangeUtils';
 import type { DateRange, Period } from '../utils/dateRangeUtils';
 import './internalControl.css';
+import { userMessage } from '../utils/userMessage';
 
 export function InternalControlPage() {
   const toast = useToast();
@@ -41,7 +42,7 @@ export function InternalControlPage() {
     let active = true;
     setLoading(true); setError('');
     internalCostsStorageService.list().then(result => { if (active) setRecords(result); })
-      .catch(e => { if (active) setError(e instanceof Error ? e.message : 'No se pudo cargar la información interna.'); })
+      .catch(e => { if (active) setError(userMessage(e, 'gastos-cargar')); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [retry]);

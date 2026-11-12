@@ -1,0 +1,40 @@
+/*
+ * Keyboard focus, one rule for the whole app (#038). Imported last so it wins over page-scoped rules.
+ * Double ring: a 2px accent outline offset by 2px, plus a 2px "gap" shadow in the surface color that separates the
+ * ring from the control. Ring/gap come from tokens so each surface picks values that keep >= 3:1 (non-text contrast):
+ *   light surfaces   ring #cc4a0b on white/#f5f5f7  -> 4.6:1 / 4.2:1
+ *   accent fills     ring #1d1d1f with a white gap   -> the fill never touches the ring (ring 16.8:1 on white)
+ *   dark sidebar     ring #ff8a4c on #102136         -> 7.0:1; light sidebar #cc4a0b on #f6f6f8 -> 4.3:1
+ *   dark palette     ring #ff9f66 on #2c2c2e         -> 6.9:1
+ */
+:root {
+  --focus-ring: var(--color-mac-accent);
+  --focus-gap: #fff;
+}
+
+:is(a[href], button, select, textarea, summary, input, [tabindex]:not([tabindex="-1"]), [role="button"], [role="combobox"], [role="switch"], [role="menuitem"]):focus-visible:not(.mac-row-input, .cli-input, .pal-input, .hi-search input, .inicio-search input, .cli-search input, .fac-search input, .profit-expense-row input) {
+  outline: 2px solid var(--focus-ring) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 2px var(--focus-gap) !important;
+}
+
+/* Controls filled with the accent color: dark ring + white gap, so it reads against both the fill and the page. */
+:is(.hi-btn--primary, .cli-btn--primary, .fac-btn-primary, .mac-btn-primary, .mac-btn-danger, .profit-primary, .bg-mac-accent, .mac-menu-item):focus-visible {
+  --focus-ring: #1d1d1f;
+  --focus-gap: #fff;
+}
+
+/* Dark / light sidebar: its own surface colors. */
+.sb { --focus-ring: var(--sb-focus); --focus-gap: #102136; }
+.sb[data-theme="light"] { --focus-gap: #f6f6f8; }
+
+/* Search palette: panel surface, brighter ring in dark mode. */
+.pal-panel { --focus-gap: var(--jc-pop-bg); }
+@media (prefers-color-scheme: dark) {
+  .pal-panel { --focus-ring: #ff9f66; }
+}
+
+/* Fields whose wrapper draws the focus ring: make that ring solid (it used to be 55% alpha, ~2:1). */
+.mac-row:focus-within, .cli-row:focus-within { box-shadow: inset 0 0 0 2px var(--color-mac-accent); }
+.cli-search:focus-within, .fac-search:focus-within { box-shadow: inset 0 0 0 2px var(--color-mac-accent); }
+.pal-input-row:focus-within { box-shadow: inset 0 -2px 0 var(--focus-ring); }

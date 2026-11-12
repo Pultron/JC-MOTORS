@@ -4,18 +4,19 @@ interface PaginationProps {
   page: number;
   pageCount: number;
   onPageChange: (page: number) => void;
+  ariaLabel?: string;
 }
 
 const NAV_BUTTON = 'inicio-btn grid size-8 place-items-center rounded-lg text-mac-ink-2 hover:bg-mac-fill hover:text-mac-ink disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent';
 
-export function Pagination({ page, pageCount, onPageChange }: PaginationProps) {
+export function Pagination({ page, pageCount, onPageChange, ariaLabel = 'Paginación de cotizaciones' }: PaginationProps) {
   if (pageCount <= 1) return null;
 
   const hasPrevious = page > 1;
   const hasNext = page < pageCount;
 
   return (
-    <nav aria-label="Paginación de cotizaciones" className="flex items-center gap-1">
+    <nav aria-label={ariaLabel} className="flex items-center gap-1">
       <button
         type="button"
         className={NAV_BUTTON}

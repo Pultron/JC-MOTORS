@@ -1,9 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import type { ChangeEvent, ClipboardEvent, FormEvent, KeyboardEvent } from 'react';
 import { Mail, Pencil, Phone, Plus, Search, Trash2, UserRound, UsersRound, X } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import type { CustomerProfile, CustomerProfileInput } from '../models/quotation';
+import { useDuplicateCustomerPrompt } from '../hooks/useDuplicateCustomerPrompt';
+import { customersNamed, resolveCustomerSave } from '../services/customerMatching';
 import { useCustomers } from '../store/CustomerContext';
+import { FieldError, errorIdFor } from '../components/ui/FieldError';
+import { EmailInput } from '../components/ui/EmailInput';
+import { usePlatform, useShortcut } from '../hooks/useShortcuts';
+import { withShortcutHint } from '../utils/shortcuts';
+import { focusFirstInvalid } from '../utils/focusFirstInvalid';
+import {
+  PHONE_DIGITS, PHONE_MAX_LENGTH, formatPhone, normalizeEmail, normalizePhone, phoneForStorage, phoneFromPaste,
+  sanitizePhoneInput, sanitizeSingleLine, stripLineBreaks, validateEmail, validatePhone,
+} from '../validation/fields';
 import '../styles/clientes.css';
 
 interface CustomerDraft {
@@ -72,13 +84,19 @@ function matchesSearch(customer: CustomerProfile, search: string): boolean {
 export function CustomersPage() {
   const { customers, createCustomer, updateCustomer, deleteCustomer } = useCustomers();
   const toast = useToast();
+  const platform = usePlatform();
+  const askDuplicateCustomer = useDuplicateCustomerPrompt();
   const [draft, setDraft] = useState<CustomerDraft>(emptyDraft);
   const [aliases, setAliases] = useState<string[]>([]);
   const [aliasText, setAliasText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const [params, setParams] = useSearchParams();
+  const [search, setSearch] = useState(() => params.get('q') ?? '');
   const [error, setError] = useState('');
+  // Phone and email errors show after blur or a failed submit, then stay live until fixed (same pattern as the quote form).
+  const [touched, setTouched] = useState<{ phone?: true; email?: true }>({});
+  const [focusRequest, setFocusRequest] = useState(0);
   const [flash, setFlash] = useState<FlashState | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const aliasRef = useRef<HTMLInputElement>(null);
@@ -86,6 +104,29 @@ export function CustomersPage() {
   const flashTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => () => window.clearTimeout(flashTimer.current), []);
+
+  // Ctrl/⌘+S saves the customer being edited (same path as the "Guardar cambios" button).
+  useShortcut('save', () => { if (editingId !== null) void saveCustomer(); });
+
+  // Runs after a failed submit, once the errors (aria-invalid) are rendered.
+  useEffect(() => {
+    if (focusRequest > 0) focusFirstInvalid();
+  }, [focusRequest]);
+
+  const phoneError = touched.phone ? validatePhone(draft.phone).mensaje : undefined;
+  const emailError = touched.email ? validateEmail(draft.email).mensaje : undefined;
+
+  // Deep link from the global search: ?cliente=<id> opens that customer for editing, once.
+  const linkedId = params.get('cliente');
+  useEffect(() => {
+    if (!linkedId) return;
+    const target = customers.find((customer) => customer.id === linkedId);
+    if (!target) return;
+    editCustomer(target);
+    flashRow(target.id, 'edit');
+    setParams((current) => { const next = new URLSearchParams(current); next.delete('cliente'); return next; }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedId, customers]);
 
   const filteredCustomers = useMemo(() => customers.filter((customer) => matchesSearch(customer, search)), [customers, search]);
 
@@ -103,10 +144,13 @@ export function CustomersPage() {
     setAliasText('');
     setEditingId(null);
     setError('');
+    setTouched({});
   }
 
   function editCustomer(customer: CustomerProfile) {
-    setDraft({ name: customer.name, phone: customer.phone, email: customer.email ?? '' });
+    // Stored values are only displayed (a 10-digit phone formatted); nothing is rewritten until the user saves.
+    setDraft({ name: customer.name, phone: formatPhone(customer.phone), email: customer.email ?? '' });
+    setTouched({});
     setAliases([...customer.aliases]);
     setAliasText('');
     setEditingId(customer.id);
@@ -158,20 +202,54 @@ export function CustomersPage() {
     aliasRef.current?.focus();
   }
 
+  function changePhone(value: string) {
+    setDraft((current) => ({ ...current, phone: value }));
+  }
+
+  function pastePhone(event: ClipboardEvent<HTMLInputElement>) {
+    // A pasted "+52 (667) 351-8806" is longer than maxLength, so the paste is resolved here instead of being truncated.
+    event.preventDefault();
+    const input = event.currentTarget;
+    const start = input.selectionStart ?? input.value.length;
+    const end = input.selectionEnd ?? start;
+    changePhone(phoneFromPaste(input.value.slice(0, start) + event.clipboardData.getData('text') + input.value.slice(end)));
+  }
+
+  function blurPhone() {
+    setTouched((current) => ({ ...current, phone: true }));
+    const digits = normalizePhone(draft.phone);
+    if (digits.length === PHONE_DIGITS && draft.phone !== formatPhone(digits)) changePhone(formatPhone(digits));
+  }
+
+  function blurEmail() {
+    setTouched((current) => ({ ...current, email: true }));
+    const clean = normalizeEmail(sanitizeSingleLine(draft.email));
+    if (clean !== draft.email) setDraft((current) => ({ ...current, email: clean }));
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    void saveCustomer();
+  }
+
+  async function saveCustomer() {
     setError('');
 
-    const name = draft.name.trim();
-    if (!name) {
-      setError('Escribe el nombre del cliente.');
-      nameRef.current?.focus();
+    const name = sanitizeSingleLine(draft.name);
+    const phoneValid = validatePhone(draft.phone).ok;
+    const emailValid = validateEmail(sanitizeSingleLine(draft.email)).ok;
+    if (!name || !phoneValid || !emailValid) {
+      if (!name) setError('Escribe el nombre del cliente.');
+      setTouched({ phone: true, email: true });
+      setFocusRequest((current) => current + 1);
       return;
     }
 
     // Lo que quede escrito sin confirmar entra como chip.
     const finalAliases = mergeAliases(aliases, aliasText).filter((alias) => normalize(alias) !== normalize(name));
-    const newTerms = [name, ...finalAliases].map(normalize);
+    // When creating, a name that already exists is not an error: it goes through the duplicate flow below (same phone: reuse; otherwise ask).
+    const duplicateName = !editingId && customersNamed(customers, name).length > 0;
+    const newTerms = (duplicateName ? finalAliases : [name, ...finalAliases]).map(normalize);
     const conflict = customers.find((customer) => customer.id !== editingId
       && customerTerms(customer).some((term) => newTerms.includes(term)));
     if (conflict) {
@@ -182,8 +260,8 @@ export function CustomersPage() {
 
     const input: CustomerProfileInput = {
       name,
-      phone: draft.phone.trim(),
-      ...(draft.email.trim() ? { email: draft.email.trim() } : {}),
+      phone: phoneForStorage(draft.phone),
+      ...(normalizeEmail(sanitizeSingleLine(draft.email)) ? { email: normalizeEmail(sanitizeSingleLine(draft.email)) } : {}),
       aliases: finalAliases,
     };
 
@@ -192,9 +270,21 @@ export function CustomersPage() {
       flashRow(editingId, 'edit');
       toast.success({ title: 'Cliente actualizado', description: `Se actualizaron los datos de ${name}.` });
     } else {
-      const created = createCustomer(input);
-      flashRow(created.id, 'add');
-      toast.success({ title: 'Cliente agregado', description: `Se agregó ${name} a la lista de clientes.` });
+      const decision = await resolveCustomerSave(customers, { name, phone: input.phone }, askDuplicateCustomer);
+      if (decision.action === 'cancel') return; // The form stays as the user left it.
+      if (decision.action === 'reuse') {
+        flashRow(decision.customer.id, 'edit');
+        toast.info({ title: 'Cliente ya registrado', description: `${decision.customer.name} ya estaba en la lista; no se duplicó.` });
+      } else if (decision.action === 'updatePhone') {
+        const { customer, phone } = decision;
+        updateCustomer(customer.id, { name: customer.name, phone, ...(customer.email ? { email: customer.email } : {}), aliases: customer.aliases });
+        flashRow(customer.id, 'edit');
+        toast.success({ title: 'Teléfono actualizado', description: `Se actualizó el teléfono de ${customer.name}.` });
+      } else {
+        const created = createCustomer(input);
+        flashRow(created.id, 'add');
+        toast.success({ title: 'Cliente agregado', description: `Se agregó ${name} a la lista de clientes.` });
+      }
     }
 
     resetForm();
@@ -236,13 +326,19 @@ export function CustomersPage() {
                 <input ref={nameRef} id="cli-name" data-testid="cli-name" className="cli-input" value={draft.name} onChange={changeName} placeholder="Ej. Jesús Pérez" required aria-required="true" aria-invalid={error ? 'true' : undefined} autoComplete="off" />
                 {error && <span role="alert" className="cli-error" data-testid="cli-error">{error}</span>}
               </div>
-              <div className="cli-row">
+              <div className="cli-row" data-invalid={phoneError ? 'true' : undefined}>
                 <label htmlFor="cli-phone" className="cli-label">Teléfono</label>
-                <input id="cli-phone" data-testid="cli-phone" className="cli-input" type="tel" value={draft.phone} onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))} placeholder="55 1234 5678" autoComplete="off" />
+                <div className="cli-field">
+                  <input id="cli-phone" data-testid="cli-phone" className="cli-input" type="tel" inputMode="tel" maxLength={PHONE_MAX_LENGTH} value={draft.phone} onChange={(event) => changePhone(sanitizePhoneInput(event.target.value))} onPaste={pastePhone} onBlur={blurPhone} aria-invalid={phoneError ? 'true' : undefined} aria-describedby={errorIdFor('cli-phone', phoneError)} placeholder="10 dígitos, sin lada internacional" autoComplete="off" />
+                  <FieldError id="cli-phone-error" message={phoneError} />
+                </div>
               </div>
-              <div className="cli-row">
+              <div className="cli-row" data-invalid={emailError ? 'true' : undefined}>
                 <label htmlFor="cli-email" className="cli-label">Correo</label>
-                <input id="cli-email" data-testid="cli-email" className="cli-input" type="email" value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} placeholder="cliente@correo.com" autoComplete="off" />
+                <div className="cli-field">
+                  <EmailInput id="cli-email" data-testid="cli-email" anchorSelector=".cli-field" className="cli-input" value={draft.email} onValueChange={(email) => setDraft((current) => ({ ...current, email: stripLineBreaks(email) }))} onBlur={blurEmail} aria-invalid={emailError ? 'true' : undefined} aria-describedby={errorIdFor('cli-email', emailError)} placeholder="cliente@correo.com" autoComplete="off" />
+                  <FieldError id="cli-email-error" message={emailError} />
+                </div>
                 <span className="cli-aux">Opcional</span>
               </div>
               <div className="cli-row cli-row--chips">
@@ -262,7 +358,7 @@ export function CustomersPage() {
 
             <div className="cli-foot">
               {editing && <button type="button" className="cli-btn cli-btn--secondary" data-testid="cli-cancel" onClick={resetForm}>Cancelar</button>}
-              <button type="submit" className="cli-btn cli-btn--primary" data-testid="cli-submit">
+              <button type="submit" className="cli-btn cli-btn--primary" data-testid="cli-submit" title={editing ? withShortcutHint('Guardar cambios', 'save', platform) : undefined}>
                 <Plus size={16} aria-hidden="true" />{editing ? 'Guardar cambios' : 'Agregar cliente'}
               </button>
             </div>
@@ -297,7 +393,7 @@ export function CustomersPage() {
                     <h3>{customer.name}{editingId === customer.id && <span className="cli-editing-badge">Editando</span>}</h3>
                     {(customer.phone || customer.email) && (
                       <div className="cli-contact">
-                        {customer.phone && <span><Phone size={13} aria-hidden="true" />{customer.phone}</span>}
+                        {customer.phone && <span><Phone size={13} aria-hidden="true" />{formatPhone(customer.phone)}</span>}
                         {customer.email && <span><Mail size={13} aria-hidden="true" />{customer.email}</span>}
                       </div>
                     )}

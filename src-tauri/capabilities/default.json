@@ -1,7 +1,12 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permisos base de la ventana principal",
+  "description": "Main window: only the app's own \"Save as\" commands. No core, fs, shell or dialog permissions are exposed to the webview.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "allow-save-quotation-pdf",
+    "allow-save-invoice-pdf",
+    "allow-save-invoice-xml",
+    "allow-save-backup-json"
+  ]
 }

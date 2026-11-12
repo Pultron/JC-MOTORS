@@ -103,6 +103,8 @@ export interface PublicQuotation {
   vehicle: Vehicle;
   items: Array<Pick<QuotationItem, 'id' | 'type' | 'description' | 'quantity' | 'saleUnitPrice' | 'amount'>>;
   laborDiscount: number;
+  /** Percentage that produced `laborDiscount`; absent when the discount is a fixed amount. */
+  laborDiscountPercent?: number;
   subtotalRefacciones: number;
   subtotalManoObra: number;
   subtotalNeto: number;

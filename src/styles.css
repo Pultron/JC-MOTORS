@@ -25,6 +25,12 @@
   --color-mac-separator: rgb(60 60 67 / 12%);
   --color-mac-success: #1b7a3e;
   --color-mac-danger: #c4161c;
+  --color-mac-warning-bg: rgb(255 149 0 / 14%);
+  --color-mac-warning-text: #8a4b00;
+  /* Warning-toned text for hints on the always-light content surface (7:1 on white); not switched in dark mode because the content area stays light. */
+  --color-mac-notice-text: #8a4b00;
+  --color-mac-danger-bg: rgb(196 22 28 / 12%);
+  --color-mac-danger-text: #c4161c;
   --color-mac-ink-3: #3a3a3c;
   --color-mac-info-bg:rgb(0 122 255 / 8%);
   --color-mac-info-text: #0b4a99;
@@ -36,6 +42,15 @@
   @keyframes card-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes row-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 }
+
+@media (prefers-color-scheme: dark) {
+  :root { --color-mac-warning-bg: rgb(255 159 10 / 20%); --color-mac-warning-text: #ffb340; --color-mac-danger-bg: rgb(255 69 58 / 22%); --color-mac-danger-text: #ff6961; }
+}
+
+.mac-concept-counter { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: var(--color-mac-fill); color: var(--color-mac-ink-2); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; transition: background-color 180ms var(--ease-mac), color 180ms var(--ease-mac); }
+.mac-concept-counter[data-level="warning"] { background: var(--color-mac-warning-bg); color: var(--color-mac-warning-text); }
+.mac-concept-counter[data-level="full"] { background: var(--color-mac-danger-bg); color: var(--color-mac-danger-text); }
+.mac-zero-price { display: inline-flex; align-items: center; margin-top: 4px; padding: 2px 8px; border-radius: 6px; background: var(--color-mac-warning-bg); color: var(--color-mac-warning-text); font-size: 12px; font-weight: 600; }
 
 :root {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -159,6 +174,15 @@ input[type="number"]::-webkit-outer-spin-button {
 .mac-row { position: relative; display: flex; align-items: center; min-height: 44px; padding: 0 16px; border-top: 1px solid var(--color-mac-separator); transition: background-color 180ms ease, box-shadow 180ms ease; }
 .mac-row:focus-within { background: var(--color-mac-row-focus); box-shadow: inset 0 0 0 2px rgb(204 74 11 / 55%); }
 .mac-row[data-invalid="true"] { box-shadow: inset 0 0 0 2px var(--color-mac-danger); }
+.mac-field-error { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 180ms var(--ease-mac), opacity 180ms var(--ease-mac); }
+.mac-field-error[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
+.mac-field-error > div { min-height: 0; overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { .mac-field-error { transition: none; } }
+.mac-discount-flash[data-flash="a"] { animation: mac-flash-a 1100ms var(--ease-mac); }
+.mac-discount-flash[data-flash="b"] { animation: mac-flash-b 1100ms var(--ease-mac); }
+@keyframes mac-flash-a { 0%, 35% { box-shadow: 0 0 0 3px var(--color-mac-accent); } 100% { box-shadow: 0 0 0 3px transparent; } }
+@keyframes mac-flash-b { 0%, 35% { box-shadow: 0 0 0 3px var(--color-mac-accent); } 100% { box-shadow: 0 0 0 3px transparent; } }
+@media (prefers-reduced-motion: reduce) { .mac-discount-flash { animation: none !important; } }
 .mac-row-input { flex: 1; min-width: 0; height: 44px; border: 0; background: transparent; padding: 0; color: var(--color-mac-ink); font-size: 14px; }
 .mac-row-input:focus-visible { outline: none !important; }
 textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
@@ -179,6 +203,55 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .mac-option-detail { display: block; font-size: 12px; line-height: 16px; color: var(--color-mac-ink-2); }
 .mac-option[data-active="true"] .mac-option-detail { color: rgb(255 255 255 / 82%); }
 .mac-option-separator { height: 1px; margin: 4px 10px; background: rgb(60 60 67 / 18%); list-style: none; }
+/* Email domain suggestions (EmailInput) and quote templates popover: compact variants of the shared listbox. */
+:root { --jc-pop-bg: rgb(255 255 255); --jc-pop-ink: var(--color-mac-ink); --jc-pop-ink-2: var(--color-mac-ink-2); --jc-pop-border: rgb(60 60 67 / 18%); --jc-pop-hover: var(--color-mac-fill); }
+@media (prefers-color-scheme: dark) {
+  :root { --jc-pop-bg: rgb(44 44 46); --jc-pop-ink: rgb(245 245 247); --jc-pop-ink-2: rgb(174 174 178); --jc-pop-border: rgb(255 255 255 / 16%); --jc-pop-hover: rgb(255 255 255 / 10%); }
+}
+.jc-suggest-pop { max-width: 300px; padding: 4px; border-color: var(--jc-pop-border); background: var(--jc-pop-bg); color: var(--jc-pop-ink); }
+.jc-suggest-pop .mac-option { min-height: 32px; }
+.jc-suggest-pop .mac-option:not([data-active="true"]) { color: var(--jc-pop-ink); }
+.jc-suggest-pop .mac-option[data-kind="typo"] { gap: 10px; }
+.jc-suggest-apply { flex: none; padding: 2px 9px; border-radius: 6px; background: var(--color-mac-tint); color: var(--color-mac-accent-text); font-size: 12px; font-weight: 600; }
+.jc-suggest-pop .mac-option[data-active="true"] .jc-suggest-apply { background: rgb(255 255 255 / 26%); color: rgb(255 255 255); }
+.jc-tpl-pop { max-width: min(360px, calc(100vw - 16px)); padding: 6px; border-color: var(--jc-pop-border); background: var(--jc-pop-bg); color: var(--jc-pop-ink); font-size: 13px; }
+.jc-tpl-pop [role="dialog"]:focus { outline: none; }
+.jc-tpl-title { margin: 0; padding: 6px 10px 4px; color: var(--jc-pop-ink-2); font-size: 12px; font-weight: 600; }
+.jc-tpl-empty, .jc-tpl-note { margin: 0; padding: 6px 10px; color: var(--jc-pop-ink-2); font-size: 12px; line-height: 1.4; }
+.jc-tpl-note--error { color: var(--color-mac-danger-text); font-weight: 600; }
+.jc-tpl-list { margin: 0; padding: 0; list-style: none; }
+.jc-tpl-row { display: flex; align-items: center; gap: 2px; border-radius: 8px; }
+.jc-tpl-row:hover, .jc-tpl-row:focus-within { background: var(--jc-pop-hover); }
+.jc-tpl-apply { display: flex; min-width: 0; flex: 1; flex-direction: column; align-items: flex-start; padding: 6px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--jc-pop-ink); font: inherit; text-align: left; cursor: pointer; }
+.jc-tpl-apply > .truncate { max-width: 100%; }
+.jc-tpl-detail { color: var(--jc-pop-ink-2); font-size: 12px; }
+.jc-tpl-icon { display: grid; width: 30px; height: 30px; flex: none; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--jc-pop-ink-2); cursor: pointer; }
+.jc-tpl-icon:hover, .jc-tpl-icon:focus-visible { background: var(--jc-pop-hover); color: var(--jc-pop-ink); }
+.jc-tpl-icon--danger:hover, .jc-tpl-icon--danger:focus-visible { color: var(--color-mac-danger-text); }
+.jc-tpl-apply:focus-visible, .jc-tpl-icon:focus-visible, .jc-tpl-action:focus-visible { outline: 2px solid var(--color-mac-accent); outline-offset: -2px; }
+.jc-tpl-sep { height: 1px; margin: 5px 8px; background: var(--jc-pop-border); }
+.jc-tpl-action { display: flex; width: 100%; align-items: center; gap: 8px; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--color-mac-accent-text); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.jc-tpl-action:hover:not(:disabled) { background: var(--jc-pop-hover); }
+.jc-tpl-action:disabled { cursor: not-allowed; opacity: 0.5; }
+.jc-tpl-form { display: flex; flex-direction: column; padding: 4px 10px 8px; }
+.jc-tpl-label { padding-bottom: 4px; color: var(--jc-pop-ink-2); font-size: 12px; }
+.jc-tpl-input { height: 36px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--color-mac-fill); color: var(--jc-pop-ink); font: inherit; }
+.jc-tpl-input:focus-visible { outline: 2px solid var(--color-mac-accent); }
+.jc-tpl-input[aria-invalid="true"] { box-shadow: inset 0 0 0 2px var(--color-mac-danger); }
+.jc-tpl-form .jc-tpl-note { padding-inline: 0; }
+.jc-tpl-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.jc-tpl-buttons .mac-btn { height: 34px; }
+.jc-kbd { display: inline-flex; min-width: 28px; height: 24px; flex: none; align-items: center; justify-content: center; padding: 0 8px; border-radius: 6px; background: var(--color-mac-fill); color: var(--color-mac-ink-2); font-family: var(--font-mac); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.jc-shortcuts { max-width: 720px; margin: 0 auto; color: var(--color-mac-ink); font-family: var(--font-mac); }
+.jc-shortcuts h1 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.015em; }
+.jc-shortcuts header p { margin: 6px 0 0; color: var(--color-mac-ink-2); font-size: 14px; line-height: 1.45; }
+.jc-shortcuts h2 { margin: 28px 0 8px; padding-inline: 4px; color: var(--color-mac-ink-2); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.jc-shortcuts ul { margin: 0; padding: 0; overflow: hidden; border-radius: 14px; background: var(--jc-pop-bg); box-shadow: var(--shadow-mac-card); list-style: none; }
+.jc-shortcuts li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; }
+.jc-shortcuts li + li { border-top: 1px solid var(--color-mac-separator); }
+.jc-shortcuts li div { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.jc-shortcuts li strong { font-size: 14px; font-weight: 600; color: var(--jc-pop-ink); }
+.jc-shortcuts li span { color: var(--jc-pop-ink-2); font-size: 13px; line-height: 1.4; }
 .mac-option-empty { margin: 0; padding: 8px 12px; font-size: 12px; color: var(--color-mac-ink-2); }
 .mac-option-action { display: block; width: 100%; margin-top: 4px; padding: 8px 12px; border: 0; border-top: 1px solid rgb(60 60 67 / 18%); border-radius: 8px; background: transparent; color: var(--color-mac-accent-text); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
 .mac-option-action:hover { background: var(--color-mac-tint); }
@@ -256,6 +329,8 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .mac-dialog-description { max-width: 320px; margin: 6px auto 0; color: var(--color-mac-ink-2); font-size: 13px; line-height: 1.45; }
 .mac-dialog-actions { display: flex; gap: 10px; margin-top: 22px; }
 .mac-dialog-actions .mac-btn { flex: 1; }
+.mac-dialog-actions--stack { flex-direction: column; }
+.mac-dialog-actions--stack .mac-btn { flex: none; width: 100%; height: auto; min-height: 40px; padding-block: 9px; }
 .mac-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation-name: draw; animation-timing-function: cubic-bezier(.4, 0, .2, 1); animation-fill-mode: forwards; }
 .mac-draw-circle { animation-duration: 450ms; animation-delay: 200ms; }
 .mac-draw-mark { animation-duration: 400ms; animation-delay: 500ms; }
@@ -301,10 +376,6 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 }
 
 /* No se usa animation: none: sin animationend, diálogos y toasts se quedarían pegados. */
-@media (prefers-reduced-motion: reduce) {
-  *, ::before, ::after { animation-duration: .01ms !important; animation-delay: 0ms !important; transition-duration: .01ms !important; }
-  .tbar { animation-duration: 5s !important; }
-}
 
 @media print {
   .toast-viewport, .mac-scrim { display: none !important; }
@@ -313,4 +384,22 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
   main { margin: 0 !important; max-width: none !important; padding: 0 !important; }
   .print-area { color: #111827; }
   .print-area section { break-inside: avoid; box-shadow: none; }
+}
+
+/* Fade when the printed-sheet count changes. */
+.sheet-count-fade { animation: sheet-count-in 160ms cubic-bezier(.2, .8, .2, 1); }
+@keyframes sheet-count-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .sheet-count-fade { animation: none; } }
+
+/* Reduced motion: no movement anywhere. Durations collapse to ~0 so end states apply instantly and nothing animates;
+   behavior never depends on animation events (the toast dismisses on a JavaScript timer). Keep this block last. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
 }

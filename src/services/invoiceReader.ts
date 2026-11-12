@@ -1,7 +1,7 @@
 import type { CampoDudoso, InvoiceBorrador, InvoiceOrigen } from '../models/invoice';
 import { bufferToBase64 } from '../utils/base64';
 import { CfdiParseError, parseCfdi } from './cfdiParser';
-import { selloValido } from './invoiceValidation';
+import { rfcInvalido, selloValido } from './invoiceValidation';
 import { abrirPdf, buscarXmlAdjunto, extraerDeTexto, leerLineas, leerQr } from './pdfInvoice';
 
 export interface LecturaFactura {
@@ -17,6 +17,7 @@ const MIN_CARACTERES_TEXTO = 200;
 export async function leerFactura(file: File): Promise<LecturaFactura> {
   const lectura = await leer(file);
   lectura.datos.selloIncompleto = !selloValido(lectura.datos.timbre.selloCFD) || !selloValido(lectura.datos.timbre.selloSAT);
+  lectura.datos.rfcInvalido = rfcInvalido(lectura.datos);
   return lectura;
 }
 

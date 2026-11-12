@@ -9,8 +9,10 @@ import { calculateProfit } from '../../services/profitCalculationService';
 import type { QuoteProfit } from '../../services/profitCalculationService';
 import { internalCostsStorageService } from '../../services/internalCostsStorageService';
 import { createId } from '../../utils/quotation';
-import { formatCents, parseCents } from '../../utils/currencyUtils';
+import { parseCents } from '../../utils/currencyUtils';
+import { formatMoney } from '../../utils/money';
 import { profitColor, vehicleLabel } from './ProfitOverview';
+import { userMessage } from '../../utils/userMessage';
 
 interface ExpenseDraft { id: string; description: string; amount: string }
 interface Draft { costs: Record<string, string>; expenses: ExpenseDraft[] }
@@ -56,7 +58,7 @@ export function ProfitDetailPanel({ quote, record, onSaved, onClose, onDirty, on
       }),
     };
     try { return { current, totals: calculateProfit(quote, current), error: errors[0] }; }
-    catch (e) { return { current, totals: calculateProfit(quote), error: (e as Error).message }; }
+    catch (e) { return { current, totals: calculateProfit(quote), error: userMessage(e, 'gastos-guardar') }; }
   }, [draft, quote, record]);
 
   async function save() {
@@ -66,7 +68,7 @@ export function ProfitDetailPanel({ quote, record, onSaved, onClose, onDirty, on
       const saved = await internalCostsStorageService.save(preview.current);
       const next = initialDraft(quote, saved);
       baseline.current = JSON.stringify(next); setDraft(next); onDirty(false); onSaved(saved);
-    } catch (e) { toast.error({ title: 'Error al guardar gastos', description: e instanceof Error ? e.message : 'No se pudieron guardar los gastos. Intenta de nuevo.' }); }
+    } catch (e) { toast.error({ title: 'Error al guardar gastos', description: userMessage(e, 'gastos-guardar') }); }
     finally { savingRef.current = false; setSaving(false); onBusy(false); }
   }
 
@@ -108,7 +110,7 @@ function MoneyInput({ value, onChange, label }: { value: string; onChange: (valu
 }
 
 export function InternalItemCostRow({ item, value, onChange }: { item: QuoteProfit['items'][number]; value: string; onChange: (value: string) => void }) {
-  return <tr><td>{item.description}{item.quantity !== 1 && <small>{item.quantity} unidades · costo por unidad</small>}</td><td>{formatCents(item.customerTotalCents)}</td><td><MoneyInput value={value} onChange={onChange} label={`Costo pagado por unidad: ${item.description}`} />{item.quantity !== 1 && item.actualTotalCostCents !== null && <small>Total: {formatCents(item.actualTotalCostCents)}</small>}</td><td className={item.profitCents === null ? '' : profitColor(item.profitCents)}>{item.profitCents === null ? '—' : formatCents(item.profitCents)}</td></tr>;
+  return <tr><td>{item.description}{item.quantity !== 1 && <small>{item.quantity} unidades · costo por unidad</small>}</td><td>{formatMoney(item.customerTotalCents / 100)}</td><td><MoneyInput value={value} onChange={onChange} label={`Costo pagado por unidad: ${item.description}`} />{item.quantity !== 1 && item.actualTotalCostCents !== null && <small>Total: {formatMoney(item.actualTotalCostCents / 100)}</small>}</td><td className={item.profitCents === null ? '' : profitColor(item.profitCents)}>{item.profitCents === null ? '—' : formatMoney(item.profitCents / 100)}</td></tr>;
 }
 
 export function AdditionalExpensesSection({ expenses, onChange, onRemove }: { expenses: ExpenseDraft[]; onChange: (expenses: ExpenseDraft[]) => void; onRemove: (id: string) => void }) {
@@ -128,8 +130,8 @@ export function ProfitTotals({ totals }: { totals: QuoteProfit }) {
   const tone = totals.profitCents < 0 ? 'negative' : 'positive';
   const margin = totals.marginPercentage.toFixed(1);
   const fill = Math.min(100, Math.max(0, totals.marginPercentage));
-  return <dl className="profit-totals"><div><dt>Total vendido</dt><dd>{formatCents(totals.soldTotalCents)}</dd></div><div><dt>Total gastado</dt><dd>{formatCents(totals.spentTotalCents)}</dd></div>
-    <div className={`profit-total-result profit-tone-${tone}`}><dt>Ganancia obtenida</dt><dd className={profitColor(totals.profitCents)}>{formatCents(totals.profitCents)}</dd></div>
+  return <dl className="profit-totals"><div><dt>Total vendido</dt><dd>{formatMoney(totals.soldTotalCents / 100)}</dd></div><div><dt>Total gastado</dt><dd>{formatMoney(totals.spentTotalCents / 100)}</dd></div>
+    <div className={`profit-total-result profit-tone-${tone}`}><dt>Ganancia obtenida</dt><dd className={profitColor(totals.profitCents)}>{formatMoney(totals.profitCents / 100)}</dd></div>
     <div className="profit-margin"><dt>Margen</dt><dd className={profitColor(totals.profitCents)}>{margin}%</dd></div>
     <div className="profit-bar" role="img" aria-label={`Margen de ganancia ${margin}%`}><span className={`profit-bar-fill profit-tone-${tone}`} style={{ width: `${fill}%` }} /></div></dl>;
 }
