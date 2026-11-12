@@ -1,3 +1,4 @@
+import { UserMessageError } from '../utils/userMessage';
 import type { InternalCostRecord, InternalCostsRepository } from '../models/internalCosts';
 import { createId, calculateRealUnitCost } from '../utils/quotation';
 import { toCents } from '../utils/currencyUtils';
@@ -60,7 +61,7 @@ export class LocalStorageInternalCostsRepository implements InternalCostsReposit
   async list(): Promise<InternalCostRecord[]> { return this.read(); }
 
   async save(record: InternalCostRecord): Promise<InternalCostRecord> {
-    if (!validRecord(record)) throw new Error('Revisa los costos y las descripciones de los gastos.');
+    if (!validRecord(record)) throw new UserMessageError('Revisa los costos y las descripciones de los gastos.');
     const records = this.read();
     const existing = records.find(r => r.quoteId === record.quoteId);
     const saved = { ...record, id: existing?.id ?? record.id,

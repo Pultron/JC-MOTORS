@@ -19,6 +19,7 @@ import type { DateRange } from '../utils/dateRangeUtils';
 import { formatearFolio, formatMoney, nombreArchivoFactura } from '../utils/invoiceFormat';
 import { warnIfLogoMissing } from '../utils/pdfAssetsCore';
 import { savePdfFile } from '../utils/savePdfFile';
+import { userMessage } from '../utils/userMessage';
 import '../styles/facturas.css';
 
 const SIN_RANGO: DateRange = { start: '', end: '' };
@@ -147,7 +148,7 @@ export function FacturasPage() {
       const path = await savePdfFile(file, `${nombreArchivoFactura(selected.folio)} original`, esPdf ? 'save_invoice_pdf' : 'save_invoice_xml');
       if (path !== null) toast.success({ title: 'Original guardado', description: path ?? file.name });
     } catch (error) {
-      toast.error({ title: 'No se pudo guardar el original', description: error instanceof Error ? error.message : undefined });
+      toast.error({ title: 'No se pudo guardar el original', description: userMessage(error, 'factura-original') });
     }
   }
 
@@ -166,7 +167,7 @@ export function FacturasPage() {
       const path = await savePdfFile(file, nombre.replace(/\.pdf$/, ''), 'save_invoice_pdf');
       if (path !== null) toast.success({ title: 'PDF de la factura guardado', description: path ?? file.name });
     } catch (error) {
-      toast.error({ title: 'No se pudo generar el PDF', description: error instanceof Error ? error.message : undefined });
+      toast.error({ title: 'No se pudo generar el PDF', description: userMessage(error, 'factura-pdf') });
     } finally {
       setBusy(false);
     }

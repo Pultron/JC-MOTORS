@@ -6,6 +6,7 @@ import type { PublicQuotation } from '../models/quotation';
 import type { PdfAssets } from '../utils/pdfAssets';
 import { warnIfLogoMissing } from '../utils/pdfAssetsCore';
 import { savePdfFile } from '../utils/savePdfFile';
+import { userMessage } from '../utils/userMessage';
 
 type PdfModule = typeof import('../utils/pdfQuotation');
 
@@ -43,7 +44,7 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
         setAssets(loaded);
       })
       .catch((cause) => {
-        if (active) toast.error({ title: 'No se pudo generar el PDF', description: String(cause) });
+        if (active) toast.error({ title: 'No se pudo generar el PDF', description: userMessage(cause, 'pdf-generar') });
       });
     return () => {
       active = false;
@@ -94,7 +95,7 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
       const path = await savePdfFile(file, quotation?.folio ?? '');
       if (path) toast.success({ title: 'PDF guardado', description: `PDF guardado en ${path}` });
     } catch (cause) {
-      toast.error({ title: 'No se pudo guardar el PDF', description: `No se pudo guardar el PDF: ${String(cause)}` });
+      toast.error({ title: 'No se pudo guardar el PDF', description: userMessage(cause, 'pdf-guardar') });
     } finally {
       setIsDownloading(false);
     }

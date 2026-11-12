@@ -12,6 +12,7 @@ import { createId } from '../../utils/quotation';
 import { parseCents } from '../../utils/currencyUtils';
 import { formatMoney } from '../../utils/money';
 import { profitColor, vehicleLabel } from './ProfitOverview';
+import { userMessage } from '../../utils/userMessage';
 
 interface ExpenseDraft { id: string; description: string; amount: string }
 interface Draft { costs: Record<string, string>; expenses: ExpenseDraft[] }
@@ -57,7 +58,7 @@ export function ProfitDetailPanel({ quote, record, onSaved, onClose, onDirty, on
       }),
     };
     try { return { current, totals: calculateProfit(quote, current), error: errors[0] }; }
-    catch (e) { return { current, totals: calculateProfit(quote), error: (e as Error).message }; }
+    catch (e) { return { current, totals: calculateProfit(quote), error: userMessage(e, 'gastos-guardar') }; }
   }, [draft, quote, record]);
 
   async function save() {
@@ -67,7 +68,7 @@ export function ProfitDetailPanel({ quote, record, onSaved, onClose, onDirty, on
       const saved = await internalCostsStorageService.save(preview.current);
       const next = initialDraft(quote, saved);
       baseline.current = JSON.stringify(next); setDraft(next); onDirty(false); onSaved(saved);
-    } catch (e) { toast.error({ title: 'Error al guardar gastos', description: e instanceof Error ? e.message : 'No se pudieron guardar los gastos. Intenta de nuevo.' }); }
+    } catch (e) { toast.error({ title: 'Error al guardar gastos', description: userMessage(e, 'gastos-guardar') }); }
     finally { savingRef.current = false; setSaving(false); onBusy(false); }
   }
 

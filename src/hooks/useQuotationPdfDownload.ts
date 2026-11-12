@@ -2,6 +2,7 @@ import { useToast } from '../components/ui/Toast';
 import type { Quotation } from '../models/quotation';
 import { toPublicQuotation } from '../utils/quotation';
 import { savePdfFile } from '../utils/savePdfFile';
+import { userMessage } from '../utils/userMessage';
 
 /** Genera y guarda el PDF público (sin costos internos) directamente, sin abrir la vista previa. */
 export function useQuotationPdfDownload() {
@@ -18,7 +19,7 @@ export function useQuotationPdfDownload() {
       const path = await savePdfFile(file, quotation.folio);
       if (path) toast.success({ title: 'PDF guardado', description: `PDF guardado en ${path}` });
     } catch (cause) {
-      toast.error({ title: 'No se pudo guardar el PDF', description: `No se pudo guardar el PDF: ${String(cause)}` });
+      toast.error({ title: 'No se pudo guardar el PDF', description: userMessage(cause, 'pdf-guardar') });
     }
   }
 
