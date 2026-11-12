@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router';
 import { EmptyState } from '../components/ui/EmptyState';
 import { useShortcut } from '../hooks/useShortcuts';
 import type { Invoice } from '../models/invoice';
-import { LocalStorageInvoiceRepository } from '../repositories/LocalStorageInvoiceRepository';
+import { createInvoiceRepository } from '../repositories/repositoryFactory';
 import { useCustomers } from '../store/CustomerContext';
 import { useQuotations } from '../store/QuotationContext';
 import '../styles/palette.css';
@@ -48,7 +48,7 @@ function PaletteDialog({ opener, onClose }: { opener: HTMLElement | null; onClos
 
   useEffect(() => {
     let cancelled = false;
-    void new LocalStorageInvoiceRepository().getAll().then((all) => { if (!cancelled) setInvoices(all); });
+    void createInvoiceRepository().getAll().then((all) => { if (!cancelled) setInvoices(all); });
     inputRef.current?.focus();
     return () => {
       cancelled = true;

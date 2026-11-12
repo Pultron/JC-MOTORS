@@ -1,7 +1,15 @@
 /** Acceso defensivo a localStorage: nunca lanza al leer ni al listar; escribir sí lanza para que quien guarda sepa que falló. */
 import { legacyKeyFor, STORAGE_KEYS } from './storageKeys';
 
+let storageOverride: Storage | undefined;
+
+/** Sustituye localStorage por otro almacén (SQLite en memoria). `undefined` vuelve a localStorage. */
+export function setStorageOverride(storage: Storage | undefined): void {
+  storageOverride = storage;
+}
+
 export function getStorage(): Storage | undefined {
+  if (storageOverride) return storageOverride;
   try {
     return globalThis.localStorage ?? undefined;
   } catch {
