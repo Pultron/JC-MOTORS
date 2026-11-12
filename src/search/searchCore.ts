@@ -60,3 +60,32 @@ export function tokenize(query: string): QueryToken[] {
     /^\d+$/.test(value) ? { kind: 'number', value } : { kind: 'text', value },
   );
 }
+
+export interface TokenHaystack {
+  text: string;
+  /** Numeric folio, when the entity has one (quotation JC-0005 -> 5, invoice Nº 0042 -> 42). */
+  folioNumber: number | null;
+}
+
+/**
+ * AND over every token. With a folio, a number of 1-3 digits matches only that folio so "5" does not hit
+ * every phone containing a 5; anything else is a substring of the normalized haystack.
+ */
+export function matchesTokens(tokens: readonly QueryToken[], haystack: TokenHaystack): boolean {
+  return tokens.every((token) => {
+    if (token.kind === 'number' && token.value.length <= 3 && haystack.folioNumber !== null) {
+      return haystack.folioNumber === Number(token.value);
+    }
+    return haystack.text.includes(token.value);
+  });
+}
+
+/** Memoized haystacks keyed by the (immutable) record object. */
+export function memoByObject<T extends object>(build: (item: T) => TokenHaystack): (item: T) => TokenHaystack {
+  const cache = new WeakMap<T, TokenHaystack>();
+  return (item) => {
+    let hit = cache.get(item);
+    if (!hit) { hit = build(item); cache.set(item, hit); }
+    return hit;
+  };
+}

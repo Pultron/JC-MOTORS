@@ -1,0 +1,35 @@
+/* Global search palette (Spotlight style). Colors come from the shared popover variables, which already switch for dark mode. */
+.pal-backdrop { position: fixed; inset: 0; z-index: 90; display: flex; align-items: flex-start; justify-content: center; padding: 14vh 16px 16px; background: rgb(0 0 0 / 32%); animation: pal-fade 140ms ease-out both; }
+.pal-panel {
+  display: flex; width: min(640px, 100%); max-height: min(560px, 74vh); flex-direction: column; overflow: hidden;
+  border: 1px solid var(--jc-pop-border); border-radius: 16px; background: var(--jc-pop-bg); color: var(--jc-pop-ink);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 32%); animation: pal-pop 160ms cubic-bezier(.2, .8, .2, 1) both;
+}
+@media (prefers-color-scheme: dark) {
+  .pal-panel { --color-mac-ink: rgb(245 245 247); --color-mac-ink-2: rgb(174 174 178); --color-mac-tint: rgb(255 255 255 / 10%); --color-mac-accent-text: #ff9f66; }
+}
+.pal-input-row { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--jc-pop-border); color: var(--jc-pop-ink-2); }
+.pal-input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--jc-pop-ink); font: inherit; font-size: 20px; letter-spacing: -.01em; }
+.pal-input::placeholder { color: var(--jc-pop-ink-2); opacity: 1; }
+.pal-esc { padding: 2px 6px; border-radius: 6px; background: var(--jc-pop-hover); color: var(--jc-pop-ink-2); font: inherit; font-size: 11px; }
+.pal-results { min-height: 0; flex: 1; overflow-y: auto; padding: 6px 8px 10px; }
+.pal-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 10px 4px; color: var(--jc-pop-ink-2); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.pal-all { border: 0; border-radius: 6px; padding: 2px 6px; background: transparent; color: var(--color-mac-accent-text, #b84209); font: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; cursor: default; }
+.pal-all:hover { background: var(--jc-pop-hover); }
+.pal-option { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 10px; border-radius: 10px; cursor: default; }
+.pal-option[aria-selected="true"] { background: var(--color-mac-accent, #cc4a0b); color: #fff; }
+.pal-main { min-width: 0; flex: 1; }
+.pal-title, .pal-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pal-title { font-size: 14px; font-weight: 600; }
+.pal-sub { font-size: 12px; color: var(--jc-pop-ink-2); }
+.pal-option[aria-selected="true"] .pal-sub { color: rgb(255 255 255 / 82%); }
+.pal-trail { flex: none; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pal-panel :focus-visible { outline: 2px solid var(--color-mac-accent, #cc4a0b); outline-offset: 1px; }
+.pal-panel .pal-input:focus-visible { outline: 0; }
+.pal-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sb-search { display: flex; width: calc(100% - 20px); height: 34px; margin: 12px 10px 0; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--sb-border); border-radius: 9px; background: transparent; color: var(--sb-muted); font: inherit; font-size: 13px; cursor: default; }
+.sb-search:hover { color: var(--sb-text); }
+.sb-search kbd { margin-left: auto; font: inherit; font-size: 11px; opacity: .85; }
+@keyframes pal-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pal-pop { from { opacity: 0; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .pal-backdrop, .pal-panel { animation: none; } }

@@ -1,6 +1,7 @@
-import { ChartNoAxesColumn, DatabaseBackup, FilePlus2, FileText, Gauge, History, Keyboard, Store, UsersRound } from 'lucide-react';
+import { ChartNoAxesColumn, DatabaseBackup, FilePlus2, FileText, Gauge, History, Keyboard, Search, Store, UsersRound } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router';
 import { usePlatform } from '../../hooks/useShortcuts';
+import { useCommandPalette } from '../../search/CommandPalette';
 import { useSidebarTheme } from '../../hooks/useSidebarTheme';
 import { shortcutLabel } from '../../utils/shortcuts';
 import type { ShortcutAction } from '../../utils/shortcuts';
@@ -32,6 +33,7 @@ export function Sidebar() {
   const { theme } = useSidebarTheme();
   const index = activeIndex(pathname);
   const platform = usePlatform();
+  const palette = useCommandPalette();
 
   return (
     <aside className="sb" data-theme={theme} data-testid="sidebar">
@@ -39,6 +41,11 @@ export function Sidebar() {
         <JcLogo />
         <p className="sb-brand-sub">Cotizador</p>
       </div>
+      <button type="button" className="sb-search" data-testid="sb-search" aria-keyshortcuts={platform === 'mac' ? 'Meta+K' : 'Control+K'} title={`Buscar (${shortcutLabel('search', platform)})`} onClick={palette.open}>
+        <Search size={15} aria-hidden="true" />
+        <span>Buscar…</span>
+        <kbd aria-hidden="true">{shortcutLabel('search', platform)}</kbd>
+      </button>
       <nav className="sb-nav" aria-label="Menú principal">
         <p className="sb-label" aria-hidden="true">Menú principal</p>
         <div className="sb-list">

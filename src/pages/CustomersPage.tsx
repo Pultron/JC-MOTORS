@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import type { ChangeEvent, ClipboardEvent, FormEvent, KeyboardEvent } from 'react';
 import { Mail, Pencil, Phone, Plus, Search, Trash2, UserRound, UsersRound, X } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
@@ -90,7 +91,8 @@ export function CustomersPage() {
   const [aliasText, setAliasText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const [params, setParams] = useSearchParams();
+  const [search, setSearch] = useState(() => params.get('q') ?? '');
   const [error, setError] = useState('');
   // Phone and email errors show after blur or a failed submit, then stay live until fixed (same pattern as the quote form).
   const [touched, setTouched] = useState<{ phone?: true; email?: true }>({});
@@ -113,6 +115,18 @@ export function CustomersPage() {
 
   const phoneError = touched.phone ? validatePhone(draft.phone).mensaje : undefined;
   const emailError = touched.email ? validateEmail(draft.email).mensaje : undefined;
+
+  // Deep link from the global search: ?cliente=<id> opens that customer for editing, once.
+  const linkedId = params.get('cliente');
+  useEffect(() => {
+    if (!linkedId) return;
+    const target = customers.find((customer) => customer.id === linkedId);
+    if (!target) return;
+    editCustomer(target);
+    flashRow(target.id, 'edit');
+    setParams((current) => { const next = new URLSearchParams(current); next.delete('cliente'); return next; }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedId, customers]);
 
   const filteredCustomers = useMemo(() => customers.filter((customer) => matchesSearch(customer, search)), [customers, search]);
 

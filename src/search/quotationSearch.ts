@@ -1,14 +1,6 @@
 import type { Quotation } from '../models/quotation';
-import { digitsOnly, normalize, tokenize } from './searchCore';
-
-interface Haystack {
-  text: string;
-  folioNumber: number | null;
-}
-
-// Quotations are replaced (never mutated) on edit, so object identity is the
-// edit marker: a changed quotation gets a fresh haystack, an untouched one is reused.
-const cache = new WeakMap<Quotation, Haystack>();
+import { digitsOnly, matchesTokens, memoByObject, normalize, tokenize } from './searchCore';
+import type { TokenHaystack } from './searchCore';
 
 function folioVariants(folio: string): { variants: string[]; number: number | null } {
   const digits = digitsOnly(folio);
@@ -21,9 +13,7 @@ function folioVariants(folio: string): { variants: string[]; number: number | nu
   };
 }
 
-export function buildHaystack(quotation: Quotation): Haystack {
-  const cached = cache.get(quotation);
-  if (cached) return cached;
+function build(quotation: Quotation): TokenHaystack {
   const { variants, number } = folioVariants(quotation.folio);
   const parts = [
     ...variants,
@@ -37,25 +27,21 @@ export function buildHaystack(quotation: Quotation): Haystack {
     normalize(quotation.status),
     ...(quotation.items ?? []).map((item) => normalize(item.description)),
   ];
-  const haystack: Haystack = { text: parts.filter(Boolean).join(' '), folioNumber: number };
-  cache.set(quotation, haystack);
-  return haystack;
+  return { text: parts.filter(Boolean).join(' '), folioNumber: number };
 }
+
+// Quotations are replaced (never mutated) on edit, so object identity is the edit marker:
+// a changed quotation gets a fresh haystack, an untouched one is reused.
+export const buildHaystack = memoByObject<Quotation>(build);
 
 export function matchesQuotation(quotation: Quotation, query: string): boolean {
   const tokens = tokenize(query);
-  if (tokens.length === 0) return true;
-  const haystack = buildHaystack(quotation);
-  return tokens.every((token) => {
-    if (token.kind === 'number' && token.value.length <= 3) {
-      return haystack.folioNumber !== null && haystack.folioNumber === Number(token.value);
-    }
-    return haystack.text.includes(token.value);
-  });
+  return tokens.length === 0 || matchesTokens(tokens, buildHaystack(quotation));
 }
 
-/** Filters keeping the incoming order. Empty query returns the same list. */
+/** Filters keeping the incoming order. Empty query returns a copy of the same list. */
 export function searchQuotations(quotations: readonly Quotation[], query: string): Quotation[] {
-  if (tokenize(query).length === 0) return quotations.slice();
-  return quotations.filter((quotation) => matchesQuotation(quotation, query));
+  const tokens = tokenize(query);
+  if (tokens.length === 0) return quotations.slice();
+  return quotations.filter((quotation) => matchesTokens(tokens, buildHaystack(quotation)));
 }

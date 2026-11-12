@@ -4,7 +4,7 @@
  */
 
 export type Platform = 'mac' | 'other';
-export type ShortcutAction = 'save' | 'new';
+export type ShortcutAction = 'save' | 'new' | 'search';
 
 export interface ShortcutKeyInput {
   key: string;
@@ -41,6 +41,7 @@ export interface ShortcutInfo {
 export const SHORTCUTS: readonly ShortcutInfo[] = [
   { action: 'save', key: 's', label: 'Guardar', description: 'Guarda la cotización en Nueva cotización, o el cliente que estás editando en Clientes.' },
   { action: 'new', key: 'n', label: 'Nueva cotización', description: 'Abre una cotización nueva y deja el cursor en el primer campo. Lo que tenías sin guardar se conserva como borrador.' },
+  { action: 'search', key: 'k', label: 'Buscar', description: 'Abre la búsqueda global: cotizaciones, clientes y facturas desde cualquier pantalla. Flechas para recorrer, Enter para abrir, Esc para cerrar.' },
 ];
 
 /** macOS (and iPadOS desktop mode) use Command; everything else uses Control. */

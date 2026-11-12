@@ -49,5 +49,5 @@ test('labels follow the platform', () => {
   assert.equal(shortcutLabel('save', 'other'), 'Ctrl+S');
   assert.equal(shortcutLabel('new', 'mac'), '⌘N');
   assert.equal(withShortcutHint('Guardar cotización', 'save', 'other'), 'Guardar cotización (Ctrl+S)');
-  assert.deepEqual(SHORTCUTS.map((shortcut) => shortcut.action), ['save', 'new']);
+  assert.deepEqual(SHORTCUTS.map((shortcut) => shortcut.action), ['save', 'new', 'search']);
 });
