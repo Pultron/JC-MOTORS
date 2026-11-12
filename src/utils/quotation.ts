@@ -137,8 +137,25 @@ export function toPublicQuotation(quotation: Quotation): PublicQuotation {
 }
 
 
-export function createId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `quotation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+/** RFC 4122 version 4 UUID from 16 random bytes (same format as crypto.randomUUID). */
+export function uuidV4FromBytes(bytes: Uint8Array): string {
+  const b = Uint8Array.from(bytes.subarray(0, 16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const hex = Array.from(b, (value) => value.toString(16).padStart(2, '0'));
+  return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
+}
+
+type RandomSource = Pick<Crypto, 'getRandomValues'> & { randomUUID?: () => string };
+
+/**
+ * crypto.randomUUID when the engine has it (Safari 15.4+, Chromium 92+); otherwise the same UUID format built from
+ * crypto.getRandomValues, which every target engine has. There is deliberately no Math.random fallback.
+ */
+export function createId(source: RandomSource | undefined = globalThis.crypto): string {
+  if (typeof source?.randomUUID === 'function') return source.randomUUID();
+  if (typeof source?.getRandomValues === 'function') return uuidV4FromBytes(source.getRandomValues(new Uint8Array(16)));
+  throw new Error('Este entorno no tiene un generador de números aleatorios seguro.');
 }
 
 export { roundCurrency };
