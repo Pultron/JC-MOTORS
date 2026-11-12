@@ -4,6 +4,7 @@ import App from './App';
 import { bootStorage } from './storage/bootStorage';
 import { preloadPdfWhenIdle } from './utils/pdfPreload';
 import './styles.css';
+import './styles/focus.css';
 
 bootStorage();
 preloadPdfWhenIdle();

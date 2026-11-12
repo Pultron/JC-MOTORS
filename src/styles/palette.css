@@ -24,7 +24,6 @@
 .pal-sub { font-size: 12px; color: var(--jc-pop-ink-2); }
 .pal-option[aria-selected="true"] .pal-sub { color: rgb(255 255 255 / 82%); }
 .pal-trail { flex: none; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.pal-panel :focus-visible { outline: 2px solid var(--color-mac-accent, #cc4a0b); outline-offset: 1px; }
 .pal-panel .pal-input:focus-visible { outline: 0; }
 .pal-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .sb-search { display: flex; width: calc(100% - 20px); height: 34px; margin: 12px 10px 0; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--sb-border); border-radius: 9px; background: transparent; color: var(--sb-muted); font: inherit; font-size: 13px; cursor: default; }
