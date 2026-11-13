@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Copy, Download, Eye, FileText, Plus, Search, SearchX } from 'lucide-react';
+import { FileText, Plus, Search, SearchX } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Pagination } from '../components/Pagination';
 import { EmptyState, emptyKind } from '../components/ui/EmptyState';
@@ -13,7 +13,7 @@ import { SharedMark } from '../components/share/SharedMark';
 import { useQuotationActions } from '../hooks/useQuotationActions';
 import { useCancelledQuotationDeletion } from '../hooks/useCancelledQuotationDeletion';
 import { useQuotationPdfDownload } from '../hooks/useQuotationPdfDownload';
-import type { PublicQuotation, Quotation, QuotationStatus } from '../models/quotation';
+import type { PublicQuotation, QuotationStatus } from '../models/quotation';
 import { useQuotations } from '../store/QuotationContext';
 import { localDate } from '../utils/dateRangeUtils';
 import type { DateRange } from '../utils/dateRangeUtils';
@@ -27,8 +27,6 @@ type OpenMenu = 'status' | 'range' | null;
 
 const NO_RANGE: DateRange = { start: '', end: '' };
 const STATUSES: StatusFilter[] = ['Todas', 'Aprobada', 'Pendiente', 'Cancelada', 'Vencida'];
-const FLASH_MS = 2000;
-const TOAST_MS = 3300;
 
 const PAGE_SIZE = 20;
 const statusFromParam = (value: string | null): StatusFilter => STATUSES.find((entry) => entry.toLowerCase() === value?.toLowerCase()) ?? 'Todas';
@@ -37,7 +35,7 @@ const folioNumber = (folio: string) => Number(folio.replace(/\D/g, '')) || 0;
 
 export function HistoryPage() {
   const navigate = useNavigate();
-  const { quotations, duplicateQuotation, isLoading } = useQuotations();
+  const { quotations, isLoading } = useQuotations();
   const { requestApprove, requestCancel } = useQuotationActions();
   const { requestDelete } = useCancelledQuotationDeletion();
   const downloadPdf = useQuotationPdfDownload();
@@ -54,16 +52,6 @@ export function HistoryPage() {
   const [pdfTarget, setPdfTarget] = useState<PublicQuotation | null>(null);
   // `tick` alterna entre dos keyframes idénticos para reiniciar la cascada de filas en cada cambio.
   const [tick, setTick] = useState(0);
-  const [flashId, setFlashId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ key: number; folio: string } | null>(null);
-  const toastKey = useRef(0);
-  const flashTimer = useRef<number>();
-  const toastTimer = useRef<number>();
-
-  useEffect(() => () => {
-    window.clearTimeout(flashTimer.current);
-    window.clearTimeout(toastTimer.current);
-  }, []);
 
   const sorted = useMemo(() => [...quotations].sort((a, b) => {
     const byDate = Date.parse(b.createdAt) - Date.parse(a.createdAt);
@@ -132,21 +120,6 @@ export function HistoryPage() {
     bump();
   }
 
-  async function handleDuplicate(quotation: Quotation) {
-    const created = await duplicateQuotation(quotation.id, { silent: true });
-    if (!created) return;
-    clearFilters();
-    setFlashId(created.id);
-    window.clearTimeout(flashTimer.current);
-    flashTimer.current = window.setTimeout(() => setFlashId(null), FLASH_MS);
-
-    const key = ++toastKey.current;
-    setToast({ key, folio: created.folio });
-    window.clearTimeout(toastTimer.current);
-    // Un toast anterior no debe cerrar al nuevo: solo se limpia si sigue siendo el vigente.
-    toastTimer.current = window.setTimeout(() => setToast((current) => (current?.key === key ? null : current)), TOAST_MS);
-  }
-
   const countLabel = `${filtered.length} ${filtered.length === 1 ? 'resultado' : 'resultados'}`;
   const kind = emptyKind(quotations.length, searched.length, filtered.length, committedSearch.trim() !== '', status !== 'Todas');
 
@@ -209,7 +182,7 @@ export function HistoryPage() {
                     return (
                       <tr
                         key={quotation.id}
-                        className={`hi-row${quotation.id === flashId ? ' hi-flash' : ''}`}
+                        className="hi-row"
                         data-testid="hi-row"
                         data-folio={quotation.folio}
                         style={{ animationName: tick % 2 === 0 ? 'hiRowInA' : 'hiRowInB', animationDelay: `${Math.min(index, 10) * 35}ms` }}
@@ -222,14 +195,12 @@ export function HistoryPage() {
                         <td className="hi-right hi-total">{formatMoney(total)}</td>
                         <td>
                           <div className="hi-actions">
-                            <button type="button" className="hi-icon" data-testid={`hi-view-${quotation.folio}`} title={`Ver detalle ${quotation.folio}`} aria-label={`Ver detalle ${quotation.folio}`} onClick={() => navigate(`/cotizaciones/${quotation.id}`)}><Eye size={18} aria-hidden="true" /></button>
-                            <button type="button" className="hi-icon" data-testid={`hi-dup-${quotation.folio}`} title={`Duplicar ${quotation.folio}`} aria-label={`Duplicar ${quotation.folio}`} onClick={() => void handleDuplicate(quotation)}><Copy size={18} aria-hidden="true" /></button>
-                            <button type="button" className="hi-icon" data-testid={`hi-pdf-${quotation.folio}`} title={`Descargar PDF ${quotation.folio}`} aria-label={`Descargar PDF ${quotation.folio}`} onClick={() => downloadPdf(quotation)}><Download size={18} aria-hidden="true" /></button>
                             <QuotationActionsMenu
                               quotation={quotation}
-                              omit={['view', 'download', 'duplicate']}
+                              omit={['view']}
                               triggerClassName="hi-icon"
                               onOpenPdf={(target) => setPdfTarget(toPublicQuotation(target))}
+                              onDownloadPdf={downloadPdf}
                               onApprove={requestApprove}
                               onCancel={requestCancel}
                               onDelete={requestDelete}
@@ -264,15 +235,6 @@ export function HistoryPage() {
           )}
         </section>
       </div>
-
-      {toast && (
-        <div key={toast.key} className="hi-toast" role="status" data-testid="hi-toast">
-          <span className="hi-toast-check" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5.5 12.5l4.2 4.2L18.5 7.8" pathLength="1" className="hi-draw" /></svg>
-          </span>
-          Cotización duplicada como {toast.folio}
-        </div>
-      )}
 
       {pdfTarget && <QuotationPdfDialog quotation={pdfTarget} onClose={() => setPdfTarget(null)} />}
     </div>
