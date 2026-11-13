@@ -120,9 +120,24 @@ export function ConfirmDialog({ title, description, confirmLabel = 'Confirmar', 
     return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, [finish]);
 
+  // The dialog must resolve exactly once, even if the exit animation never reports its end
+  // (window hidden/throttled, animations disabled): otherwise the scrim would stay and block every click.
+  const resolvedRef = useRef(false);
+  const resolveOnce = useCallback(() => {
+    if (resolvedRef.current) return;
+    resolvedRef.current = true;
+    onResolve(result.current);
+  }, [onResolve]);
+
+  useEffect(() => {
+    if (phase !== 'out') return undefined;
+    const timer = window.setTimeout(resolveOnce, 450);
+    return () => window.clearTimeout(timer);
+  }, [phase, resolveOnce]);
+
   function handleAnimationEnd(event: AnimationEvent<HTMLDivElement>) {
     // Los eventos de pop, draw y scrim también burbujean hasta aquí.
-    if (event.animationName === 'dlgOut') onResolve(result.current);
+    if (event.animationName === 'dlgOut') resolveOnce();
   }
 
   const isDanger = tone === 'danger';

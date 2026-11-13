@@ -513,7 +513,7 @@ export function useCotizacionForm() {
   useEffect(() => {
     if (blocker.state !== 'blocked' || askingRef.current) return;
     askingRef.current = true;
-    void askToLeaveRef.current().then((canLeave) => {
+    void askToLeaveRef.current().catch(() => false).then((canLeave) => {
       askingRef.current = false;
       if (canLeave) blocker.proceed(); else blocker.reset();
     });
