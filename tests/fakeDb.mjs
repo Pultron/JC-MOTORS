@@ -28,6 +28,12 @@ export function createFakeDb(initial = {}) {
     pickBackup: async () => null,
     applyBackup: async () => { throw new Error('no implementado'); },
     discardBackup: async () => {},
+    wipeAllData: async (includeWorkshop) => {
+      state.wipeCalls = [...(state.wipeCalls ?? []), includeWorkshop];
+      if (state.failWipe) throw new Error('falla simulada');
+      state.store.clear();
+      return { quotations: 0, customers: 0, invoices: 0, backupPath: 'x', filesRemoved: 0, filesFailed: 0 };
+    },
   };
   return { db, state };
 }

@@ -40,3 +40,17 @@ test('taller-guardar context keeps the edits-stay-on-screen wording and logs the
     console.error = original;
   }
 });
+
+test('borrar-datos context returns a generic message and logs the detail', () => {
+  const original = console.error;
+  const logged = [];
+  console.error = (...args) => logged.push(args);
+  try {
+    const message = userMessage(new Error('disk I/O error at C:\secret\jcmotors.db'), 'borrar-datos');
+    assert.match(message, /No se pudieron borrar los datos/);
+    assert.doesNotMatch(message, /secret|disk/);
+    assert.equal(logged.length, 1);
+  } finally {
+    console.error = original;
+  }
+});

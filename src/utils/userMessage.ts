@@ -19,7 +19,8 @@ export type ErrorContext =
   | 'factura-original'
   | 'gastos-guardar'
   | 'gastos-cargar'
-  | 'taller-guardar';
+  | 'taller-guardar'
+  | 'borrar-datos';
 
 const GENERIC: Record<ErrorContext, string> = {
   'pdf-generar': 'No se pudo generar el PDF. Intenta de nuevo.',
@@ -29,6 +30,7 @@ const GENERIC: Record<ErrorContext, string> = {
   'gastos-guardar': 'No se pudieron guardar los gastos. Intenta de nuevo.',
   'gastos-cargar': 'No se pudo cargar la información interna. Intenta de nuevo.',
   'taller-guardar': 'No se pudieron guardar los datos del taller. Tus cambios siguen en pantalla; intenta de nuevo.',
+  'borrar-datos': 'No se pudieron borrar los datos. No se borró nada; intenta de nuevo.',
 };
 
 export function userMessage(error: unknown, context: ErrorContext, keep?: (error: unknown) => boolean): string {

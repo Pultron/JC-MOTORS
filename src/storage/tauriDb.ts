@@ -71,6 +71,15 @@ export interface RestoreResult {
   localKeys?: Record<string, string>;
 }
 
+export interface WipeResult {
+  quotations: number;
+  customers: number;
+  invoices: number;
+  backupPath: string;
+  filesRemoved: number;
+  filesFailed: number;
+}
+
 export interface TauriDb {
   open(): Promise<DbStatus>;
   loadSnapshot(): Promise<Record<string, string>>;
@@ -83,6 +92,8 @@ export interface TauriDb {
   pickBackup(): Promise<PickedBackup | null>;
   applyBackup(): Promise<RestoreResult>;
   discardBackup(): Promise<void>;
+  /** Copia previa verificada + borrado transaccional. Rechaza sin borrar nada si algo falla. */
+  wipeAllData(includeWorkshop: boolean): Promise<WipeResult>;
 }
 
 export function isTauri(): boolean {
@@ -110,6 +121,7 @@ export function createTauriDb(invoke: Invoke): TauriDb {
     pickBackup: () => call('backup_pick'),
     applyBackup: () => call('backup_apply'),
     discardBackup: () => call('backup_discard'),
+    wipeAllData: (includeWorkshop) => call('wipe_all_data', { includeWorkshop }),
   };
 }
 

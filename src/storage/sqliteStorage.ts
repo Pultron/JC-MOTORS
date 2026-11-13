@@ -128,6 +128,19 @@ export class SqliteRoutedStorage implements Storage {
     return new Promise<void>((resolve, reject) => { this.waiters.push({ resolve, reject }); });
   }
 
+  /**
+   * Tras un borrado confirmado en SQLite: quita de la memoria las claves que ya no existen allí, sin encolar escrituras
+   * (la base ya está limpia). Así ninguna lectura devuelve datos viejos antes de recargar.
+   */
+  resetAfterWipe(shouldRemove: (key: string) => boolean): void {
+    for (const key of [...this.mirror.keys()]) {
+      if (!shouldRemove(key)) continue;
+      this.mirror.delete(key);
+      this.confirmed.delete(key);
+      this.pending.delete(key);
+    }
+  }
+
   /** Cambios todavía sin confirmar (para pruebas y diagnóstico). */
   get hasPending(): boolean {
     return this.scheduled || this.pending.size > 0 || this.inFlight !== null;
