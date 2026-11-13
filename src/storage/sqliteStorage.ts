@@ -60,6 +60,10 @@ export class SqliteRoutedStorage implements Storage {
   private pending = new Map<string, string | null>();
   private inFlight: Map<string, string | null> | null = null;
   private scheduled = false;
+  /** While held, writes accumulate but are not sent (a restore is about to replace the database file). */
+  private held = false;
+  /** After the database file was replaced this mirror is stale: nothing may be written until the window reloads. */
+  private dead = false;
   private waiters: Waiter[] = [];
   private readonly apply: SqliteStorageOptions['apply'];
   private readonly fallback: Storage | undefined;
@@ -141,6 +145,27 @@ export class SqliteRoutedStorage implements Storage {
     }
   }
 
+  /** Stops sending writes (they keep accumulating). Call after `flush()` and before swapping the database file. */
+  hold(): void {
+    this.held = true;
+  }
+
+  /** The swap failed and the old database is still in place: resume sending what accumulated. */
+  release(): void {
+    this.held = false;
+    if (!this.dead && this.pending.size > 0 && !this.scheduled) {
+      this.scheduled = true;
+      void Promise.resolve().then(() => this.drain());
+    }
+  }
+
+  /** The database file was replaced: drop anything queued and ignore further SQLite writes (the page reloads next). */
+  invalidate(): void {
+    this.dead = true;
+    this.held = false;
+    this.pending = new Map();
+  }
+
   /** Cambios todavía sin confirmar (para pruebas y diagnóstico). */
   get hasPending(): boolean {
     return this.scheduled || this.pending.size > 0 || this.inFlight !== null;
@@ -158,8 +183,9 @@ export class SqliteRoutedStorage implements Storage {
   }
 
   private enqueue(key: string, value: string | null): void {
+    if (this.dead) return;
     this.pending.set(key, value);
-    if (this.scheduled) return;
+    if (this.held || this.scheduled) return;
     this.scheduled = true;
     // Un microtask de espera: lo que se escribe en el mismo turno (contador + cotización) viaja en UN lote.
     void Promise.resolve().then(() => this.drain());

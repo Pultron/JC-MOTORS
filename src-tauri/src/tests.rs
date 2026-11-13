@@ -267,6 +267,7 @@ fn export_pick_apply_roundtrip_on_a_new_data_dir() {
     let (staged, summary) = backup::stage_backup(pc_b.path(), &usb.path().join("Respaldo.jcm"), false).unwrap();
     assert_eq!((summary.kind.as_str(), summary.quotations, summary.customers, summary.invoices), ("jcm", 3, 2, 2));
     assert_eq!((summary.last_quotation_folio, summary.last_invoice_folio), (9, 4));
+    assert_eq!(summary.size_bytes, fs::metadata(usb.path().join("Respaldo.jcm")).unwrap().len(), "the summary carries the file size");
     let mut slot = Some(open(pc_b.path()));
     let restored = backup::restore(&mut slot, pc_b.path(), &staged, Local::now(), false).unwrap();
     assert_eq!((restored.quotations, restored.customers, restored.invoices), (3, 2, 2));

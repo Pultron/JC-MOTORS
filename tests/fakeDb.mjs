@@ -26,6 +26,7 @@ export function createFakeDb(initial = {}) {
     autoBackup: async () => { state.autoBackups += 1; return null; },
     exportBackup: async () => null,
     pickBackup: async () => null,
+    pickDroppedBackup: async () => null,
     applyBackup: async () => { throw new Error('no implementado'); },
     discardBackup: async () => {},
     wipeAllData: async (includeWorkshop) => {

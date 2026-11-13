@@ -100,3 +100,44 @@
   .bv-ok path { animation: none !important; stroke-dashoffset: 0; }
   .bv-primary { transition: none !important; }
 }
+
+/* ---------- step 2b: restore ---------- */
+.bv-drop { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; box-sizing: border-box; margin-top: 24px; padding: 34px 20px; border: 1.5px dashed rgba(60, 60, 67, .32); border-radius: 16px; background: rgba(255, 255, 255, .55); color: inherit; font: inherit; text-align: center; cursor: pointer; transition: background-color 180ms ease, border-color 180ms ease, transform 120ms ease; }
+.bv-drop:hover, .bv-drop[data-over="true"] { border-color: #3B82F6; background: rgba(59, 130, 246, .06); }
+.bv-drop:disabled { opacity: .6; cursor: default; }
+.bv-drop-icon { display: grid; place-items: center; width: 56px; height: 56px; margin-bottom: 8px; border-radius: 16px; background: rgba(59, 130, 246, .13); color: #3B82F6; }
+.bv-drop-title { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.bv-drop-sub { color: var(--color-mac-ink-2); font-size: 13.5px; }
+
+.bv-file { margin-top: 24px; padding: 18px; border-radius: 16px; background: #fff; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .08), 0 1px 3px rgba(0, 0, 0, .05); }
+.bv-file-head { display: flex; align-items: center; gap: 14px; }
+.bv-file-icon { display: grid; flex: none; place-items: center; width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg, #3B82F6, #1C3A5E); color: #fff; }
+.bv-file-info { flex: 1; min-width: 0; }
+.bv-file-name { margin: 0; overflow: hidden; font-size: 15px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.bv-file-meta { margin: 2px 0 0; color: var(--color-mac-ink-2); font-size: 13px; }
+.bv-badge { display: inline-flex; flex: none; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; background: rgba(52, 199, 89, .15); color: #1B7A3E; font-size: 12.5px; font-weight: 600; }
+.bv-figures { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 16px 0 0; padding: 14px 0 0; border-top: 1px solid var(--color-mac-separator); }
+.bv-figure { min-width: 0; text-align: center; }
+.bv-figure strong { display: block; overflow: hidden; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bv-figure span { display: block; margin-top: 2px; color: var(--color-mac-ink-2); font-size: 12px; }
+.bv-file-note { margin: 14px 0 0; color: var(--color-mac-ink-2); font-size: 13px; }
+.bv-link { padding: 6px 4px; border: 0; border-radius: 6px; background: transparent; color: var(--color-mac-accent); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
+.bv-link:hover:not(:disabled) { text-decoration: underline; }
+.bv-link:disabled { opacity: .5; cursor: default; }
+
+/* ---------- step 3a: restoring ---------- */
+.bv-progress { height: 8px; margin-top: 26px; overflow: hidden; border-radius: 999px; background: rgba(60, 60, 67, .14); }
+.bv-progress > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #F58A3C, #CC4A0B); transition: width 500ms var(--ease-mac); }
+.bv-phases { margin: 22px 0 0; padding: 0; list-style: none; }
+.bv-phase { display: flex; align-items: center; gap: 12px; padding: 9px 0; color: var(--color-mac-ink-2); font-size: 15px; transition: color 200ms ease; }
+.bv-phase[data-status="active"] { color: var(--color-mac-ink); font-weight: 600; }
+.bv-phase[data-status="done"] { color: var(--color-mac-ink); }
+.bv-phase-icon { display: grid; flex: none; place-items: center; width: 22px; height: 22px; border-radius: 50%; }
+.bv-phase[data-status="done"] .bv-phase-icon { background: #34C759; color: #fff; }
+.bv-phase[data-status="pending"] .bv-phase-icon { border: 2px solid rgba(60, 60, 67, .25); box-sizing: border-box; }
+.bv-phase[data-status="active"] .bv-phase-icon { border: 2.5px solid rgba(204, 74, 11, .22); border-top-color: #CC4A0B; box-sizing: border-box; animation: bv-spin 800ms linear infinite; }
+@keyframes bv-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .bv-phase[data-status="active"] .bv-phase-icon { animation: none !important; }
+  .bv-progress > span, .bv-drop, .bv-phase { transition: none !important; }
+}

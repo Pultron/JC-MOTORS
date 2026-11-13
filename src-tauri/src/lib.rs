@@ -1,6 +1,7 @@
 pub mod backup;
 pub mod close_guard;
 pub mod db;
+pub mod drop_files;
 pub mod error;
 pub mod files;
 pub mod migrate;
@@ -25,6 +26,8 @@ use tauri_plugin_dialog::DialogExt;
 struct AppState {
     conn: Mutex<Option<Connection>>,
     staged: Mutex<Option<backup::Staged>>,
+    /// The single backup file dropped on the window; only `backup_pick_dropped` consumes it.
+    dropped: Mutex<Option<PathBuf>>,
 }
 
 const LOCKED: &str = "La base de datos está ocupada; intenta de nuevo.";
@@ -123,6 +126,17 @@ async fn backup_export(app: tauri::AppHandle, state: State<'_, AppState>) -> Res
     with_conn(&state, |conn| backup::export_to(conn, &dir, &path, chrono::Utc::now())).map(Some)
 }
 
+/// Validates and prepares `path` (never given by JavaScript: it comes from the native dialog or from a window drop).
+fn stage_path(dir: &std::path::Path, state: &AppState, path: &std::path::Path) -> Result<backup::PickedBackup, String> {
+    if let Some(previous) = state.staged.lock().map_err(|_| LOCKED.to_string())?.take() {
+        previous.discard();
+    }
+    let has_data = with_conn(state, store::has_data)?;
+    let (staged, summary) = backup::stage_backup(dir, path, has_data).map_err(String::from)?;
+    *state.staged.lock().map_err(|_| LOCKED.to_string())? = Some(staged);
+    Ok(summary)
+}
+
 #[tauri::command]
 async fn backup_pick(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<Option<backup::PickedBackup>, String> {
     let dir = data_dir(&app)?;
@@ -134,13 +148,15 @@ async fn backup_pick(app: tauri::AppHandle, state: State<'_, AppState>) -> Resul
         .blocking_pick_file();
     let Some(selected) = selected else { return Ok(None) };
     let path: PathBuf = selected.into_path().map_err(|error| error.to_string())?;
-    if let Some(previous) = state.staged.lock().map_err(|_| LOCKED.to_string())?.take() {
-        previous.discard();
-    }
-    let has_data = with_conn(&state, store::has_data)?;
-    let (staged, summary) = backup::stage_backup(&dir, &path, has_data).map_err(String::from)?;
-    *state.staged.lock().map_err(|_| LOCKED.to_string())? = Some(staged);
-    Ok(Some(summary))
+    stage_path(&dir, &state, &path).map(Some)
+}
+
+/// Stages the file the user dropped on the window. Takes no arguments: the path was stored by the window-event handler.
+#[tauri::command]
+async fn backup_pick_dropped(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<Option<backup::PickedBackup>, String> {
+    let dir = data_dir(&app)?;
+    let Some(path) = state.dropped.lock().map_err(|_| LOCKED.to_string())?.take() else { return Ok(None) };
+    stage_path(&dir, &state, &path).map(Some)
 }
 
 #[tauri::command]
@@ -173,6 +189,7 @@ async fn wipe_all_data(app: tauri::AppHandle, state: State<'_, AppState>, includ
 
 #[tauri::command]
 async fn backup_discard(state: State<'_, AppState>) -> Result<(), String> {
+    *state.dropped.lock().map_err(|_| LOCKED.to_string())? = None;
     if let Some(previous) = state.staged.lock().map_err(|_| LOCKED.to_string())?.take() {
         previous.discard();
     }
@@ -346,17 +363,43 @@ pub fn run() {
         .manage(AppState::default())
         .manage(close_guard::CloseGuard::default())
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() != "main" {
-                    return;
-                }
-                if window.state::<close_guard::CloseGuard>().on_close_requested() {
-                    api.prevent_close();
-                    if let Some(webview) = window.app_handle().get_webview_window("main") {
-                        // Constant script, no user data; evaluated from Rust so no event permission is needed.
-                        let _ = webview.eval(close_guard::CLOSE_REQUESTED_SCRIPT);
+            if window.label() != "main" {
+                return;
+            }
+            match event {
+                tauri::WindowEvent::CloseRequested { api, .. } => {
+                    if window.state::<close_guard::CloseGuard>().on_close_requested() {
+                        api.prevent_close();
+                        if let Some(webview) = window.app_handle().get_webview_window("main") {
+                            // Constant script, no user data; evaluated from Rust so no event permission is needed.
+                            let _ = webview.eval(close_guard::CLOSE_REQUESTED_SCRIPT);
+                        }
                     }
                 }
+                tauri::WindowEvent::DragDrop(drag) => {
+                    let Some(webview) = window.app_handle().get_webview_window("main") else { return };
+                    match drag {
+                        tauri::DragDropEvent::Enter { .. } => {
+                            let _ = webview.eval(drop_files::DRAG_ENTER_SCRIPT);
+                        }
+                        tauri::DragDropEvent::Leave => {
+                            let _ = webview.eval(drop_files::DRAG_LEAVE_SCRIPT);
+                        }
+                        tauri::DragDropEvent::Drop { paths, .. } => match drop_files::accepted_drop(paths) {
+                            Some(path) => {
+                                if let Ok(mut slot) = window.state::<AppState>().dropped.lock() {
+                                    *slot = Some(path);
+                                }
+                                let _ = webview.eval(drop_files::DROPPED_SCRIPT);
+                            }
+                            None => {
+                                let _ = webview.eval(drop_files::REJECTED_SCRIPT);
+                            }
+                        },
+                        _ => {}
+                    }
+                }
+                _ => {}
             }
         })
         .setup(|app| {
@@ -380,6 +423,7 @@ pub fn run() {
             db_auto_backup,
             backup_export,
             backup_pick,
+            backup_pick_dropped,
             backup_apply,
             backup_discard,
             wipe_all_data,

@@ -17,6 +17,7 @@ fn main() {
                 "db_auto_backup",
                 "backup_export",
                 "backup_pick",
+                "backup_pick_dropped",
                 "backup_apply",
                 "backup_discard",
                 "wipe_all_data",

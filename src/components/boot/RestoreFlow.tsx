@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { applyStagedBackup } from '../../services/welcomeRestore';
 import { queueToastAfterReload } from '../../storage/dataBoot';
 import { formatInvoiceFolio, formatLastBackup, formatQuotationFolio, formatRestoredCounts, restoredMessage } from '../../storage/backupFormat';
 import { writeRaw } from '../../storage/safeStorage';
+import { getActiveSqliteStorage } from '../../storage/sqliteStorage';
 import { tauriDb } from '../../storage/tauriDb';
 import type { PickedBackup } from '../../storage/tauriDb';
 import { formatDate } from '../../utils/dateFormat';
@@ -58,10 +60,8 @@ export function RestoreFlow({ buttonLabel, buttonClassName = 'mac-btn mac-btn-se
     setBusy(true);
     setError(null);
     try {
-      const result = await tauriDb().applyBackup();
-      for (const [key, value] of Object.entries(result.localKeys ?? {})) {
-        try { writeRaw(key, value); } catch { /* Una preferencia (p. ej. el tema) no justifica fallar la restauración. */ }
-      }
+      // Shared with the welcome: flushes and holds pending writes during the swap, then applies the preferences.
+      const result = await applyStagedBackup({ db: tauriDb(), sqlite: getActiveSqliteStorage(), writeLocal: writeRaw });
       queueToastAfterReload({ level: 'success', title: restoredMessage(result) });
       if (onRestored) onRestored(); else window.location.reload();
     } catch (caught) {

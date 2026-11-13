@@ -65,6 +65,8 @@ pub struct PickedBackup {
     pub last_quotation_folio: i64,
     pub last_invoice_folio: i64,
     pub has_current_data: bool,
+    /// Size of the chosen file on disk, in bytes (shown on the restore summary).
+    pub size_bytes: u64,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -299,10 +301,13 @@ fn sniff(path: &Path) -> R<&'static str> {
 /// Valida y prepara (sin tocar los datos actuales). Devuelve lo preparado y su resumen.
 pub fn stage_backup(data_dir: &Path, path: &Path, has_current_data: bool) -> R<(Staged, PickedBackup)> {
     let file_name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    match sniff(path)? {
+    let size_bytes = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+    let (staged, mut summary) = match sniff(path)? {
         "jcm" => stage_jcm(data_dir, path, &file_name, has_current_data),
         _ => stage_json(path, &file_name, has_current_data),
-    }
+    }?;
+    summary.size_bytes = size_bytes;
+    Ok((staged, summary))
 }
 
 fn stage_jcm(data_dir: &Path, path: &Path, file_name: &str, has_current_data: bool) -> R<(Staged, PickedBackup)> {
@@ -334,6 +339,7 @@ fn stage_jcm(data_dir: &Path, path: &Path, file_name: &str, has_current_data: bo
             last_quotation_folio: folios.quotation,
             last_invoice_folio: folios.invoice,
             has_current_data,
+            size_bytes: 0,
         })
     })();
     match result {
@@ -388,6 +394,7 @@ fn stage_json(path: &Path, file_name: &str, has_current_data: bool) -> R<(Staged
         last_quotation_folio: counter_q.max(store::highest_quotation_folio(lists.get(store::K_QUOTATIONS).unwrap_or(&empty))),
         last_invoice_folio: counter_i.max(store::highest_invoice_folio(lists.get(store::K_INVOICES).unwrap_or(&empty))),
         has_current_data,
+        size_bytes: 0,
     };
     Ok((Staged::Json { claves }, summary))
 }

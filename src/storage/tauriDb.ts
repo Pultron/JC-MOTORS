@@ -59,6 +59,8 @@ export interface PickedBackup {
   lastQuotationFolio: number;
   lastInvoiceFolio: number;
   hasCurrentData: boolean;
+  /** Size of the chosen file in bytes. */
+  sizeBytes: number;
 }
 
 export interface RestoreResult {
@@ -90,6 +92,8 @@ export interface TauriDb {
   autoBackup(): Promise<string | null>;
   exportBackup(): Promise<ExportResult | null>;
   pickBackup(): Promise<PickedBackup | null>;
+  /** Stages the file dropped on the window. Rust keeps the path; JavaScript passes nothing. */
+  pickDroppedBackup(): Promise<PickedBackup | null>;
   applyBackup(): Promise<RestoreResult>;
   discardBackup(): Promise<void>;
   /** Copia previa verificada + borrado transaccional. Rechaza sin borrar nada si algo falla. */
@@ -119,6 +123,7 @@ export function createTauriDb(invoke: Invoke): TauriDb {
     autoBackup: () => call('db_auto_backup'),
     exportBackup: () => call('backup_export'),
     pickBackup: () => call('backup_pick'),
+    pickDroppedBackup: () => call('backup_pick_dropped'),
     applyBackup: () => call('backup_apply'),
     discardBackup: () => call('backup_discard'),
     wipeAllData: (includeWorkshop) => call('wipe_all_data', { includeWorkshop }),

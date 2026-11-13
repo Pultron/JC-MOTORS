@@ -17,6 +17,7 @@
     "allow-db-auto-backup",
     "allow-backup-export",
     "allow-backup-pick",
+    "allow-backup-pick-dropped",
     "allow-backup-apply",
     "allow-backup-discard",
     "allow-wipe-all-data",

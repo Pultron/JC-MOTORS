@@ -93,6 +93,7 @@ Antes del lote 5 la capability `default` solo tenía `core:default` (permisos de
     "allow-db-auto-backup",
     "allow-backup-export",
     "allow-backup-pick",
+    "allow-backup-pick-dropped",
     "allow-backup-apply",
     "allow-backup-discard"
   ]
@@ -121,13 +122,14 @@ Se agregaron **solo** estos permisos, uno por comando nuevo; la CSP **no cambió
 | `allow-db-auto-backup` | `db_auto_backup` | Copia diaria consistente en `respaldos-auto/` (conserva 7). |
 | `allow-backup-export` | `backup_export` | Crea el `.jcm` y abre «Guardar como» desde Rust. |
 | `allow-backup-pick` | `backup_pick` | Abre el diálogo, valida (app, hashes, versión) y deja el respaldo en una carpeta temporal interna. |
+| `allow-backup-pick-dropped` | `backup_pick_dropped` | Bienvenida: prepara (misma validación que `backup_pick`) el archivo que el usuario soltó sobre la ventana. **No recibe argumentos**: Rust guarda la ruta al recibir `WindowEvent::DragDrop` (solo un archivo `.jcm`/`.json`) y avisa a la página con un script constante (`jc:file-dropped`, sin datos), igual que `close_guard`. Por eso no hacen falta permisos `core:event` ni `core:webview`. |
 | `allow-backup-apply` | `backup_apply` | Aplica el respaldo preparado por `backup_pick` de forma atómica. |
 | `allow-backup-discard` | `backup_discard` | Descarta lo preparado. |
 | `allow-wipe-all-data` | `wipe_all_data` | «Borrar todos los datos» (Respaldo → Zona de peligro). Primero guarda y verifica una copia `.jcm` en `respaldos-auto/antes-de-borrar-<fecha>.jcm`; si falla, no borra nada. Luego vacía las tablas de negocio en una sola transacción (con rollback) y, solo después del commit, el contenido de `facturas/` y `enviados/`. Recibe solo un booleano (`include_workshop`); JavaScript no entrega rutas. |
 
 Notas de seguridad:
 
-- JavaScript **nunca entrega rutas**: los diálogos de archivo los abre Rust, y la restauración solo aplica lo que Rust mismo preparó con `backup_pick`.
+- JavaScript **nunca entrega rutas**: los diálogos de archivo los abre Rust, y la restauración solo aplica lo que Rust mismo preparó con `backup_pick` o `backup_pick_dropped` (esta última usa la ruta que Rust guardó al recibir el evento de arrastrar y soltar; JavaScript nunca la entrega).
 - Los PDF y XML originales de facturas son archivos en `facturas/` dentro de la carpeta de datos; en la base solo quedan la ruta relativa y el SHA-256.
 - **Ganchos de prueba:** la variable de entorno `JCM_DATA_DIR` cambia la carpeta de datos (para pruebas aisladas), y `JCM_TEST_FAIL_MIGRATION` / `JCM_TEST_FAIL_RESTORE` simulan fallos. Los ganchos de fallo están **inertes** a menos que `JCM_DATA_DIR` también esté definida; un usuario normal nunca la define.
 

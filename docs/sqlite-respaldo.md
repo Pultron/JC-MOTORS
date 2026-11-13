@@ -75,6 +75,7 @@ Los nombres se agregan a `build.rs` y a `capabilities/default.json` como `allow-
 | `db_auto_backup() -> Option<String>` | copia diaria (ver §6). |
 | `backup_export() -> Option<ExportResult { path, sizeBytes, exportedAt, counts }>` | ver §5. |
 | `backup_pick() -> Option<PickedBackup>` | diálogo «Abrir», valida y deja el respaldo en una carpeta temporal DENTRO de `<datos>` (guardada en estado administrado `Staged`; JS nunca da rutas). |
+| `backup_pick_dropped() -> Option<PickedBackup>` | igual que `backup_pick`, pero con el archivo que el usuario soltó sobre la ventana (bienvenida). Sin argumentos: Rust guardó la ruta al recibir `WindowEvent::DragDrop` (un solo `.jcm`/`.json`). `PickedBackup` incluye `sizeBytes`. |
 | `backup_apply() -> RestoreResult { quotations, customers, invoices, lastQuotationFolio, lastInvoiceFolio }` | aplica el respaldo preparado por `backup_pick`. |
 | `backup_discard() -> ()` | descarta lo preparado. |
 
