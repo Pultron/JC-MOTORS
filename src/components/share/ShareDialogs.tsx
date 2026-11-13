@@ -172,7 +172,7 @@ export function MissingContactDialog<T>({ target, name, docNoun, note, medium, i
     <Sheet labelId={titleId} busy={busy} onClose={onClose}>
       <h2 id={titleId} className="text-lg font-bold text-navy-950">{name} no tiene {noun} registrado</h2>
       <p className="mt-1 text-sm text-slate-500">
-        {medium === 'whatsapp' ? `Escribe su teléfono de 10 dígitos para abrir WhatsApp con la ${docNoun}.` : `Escribe su correo para abrir tu correo con la ${docNoun}.`}
+        {medium === 'whatsapp' ? `Escribe su teléfono de 10 dígitos para abrir WhatsApp con la ${docNoun}.` : `Escribe su correo para abrir Gmail con la ${docNoun}.`}
       </p>
       <div className="mt-4">
         <label htmlFor={fieldId} className="mb-1 block text-xs font-medium text-slate-500">{medium === 'whatsapp' ? 'Teléfono' : 'Correo'}</label>
@@ -202,22 +202,22 @@ function doneText(state: ShareDoneState): string {
   const file = state.fileLabel ?? 'PDF';
   if (!opened) {
     return native
-      ? `No se pudo abrir ${medium === 'whatsapp' ? 'WhatsApp' : 'tu correo'}. El ${file} quedó guardado: muéstralo en la carpeta y envíalo a mano.`
+      ? `No se pudo abrir ${medium === 'whatsapp' ? 'WhatsApp' : 'Gmail'}. El ${file} quedó guardado: muéstralo en la carpeta y envíalo a mano.`
       : `No se pudo abrir la ventana de envío. El ${file} se descargó: adjúntalo a mano.`;
   }
   if (!native) {
     return medium === 'whatsapp'
       ? `Se abrió WhatsApp con ${recipient}. El ${file} se descargó: adjúntalo desde tus descargas y presiona Enviar.`
-      : `Se abrió tu correo. El ${file} se descargó: adjúntalo desde tus descargas.`;
+      : `Se abrió Gmail. El ${file} se descargó: adjúntalo desde tus descargas.`;
   }
   if (!clipboardOk) {
     return medium === 'whatsapp'
       ? `Se abrió WhatsApp con ${recipient}. No se pudo copiar el ${file}: arrástralo desde la carpeta y presiona Enviar.`
-      : `Se abrió tu correo. No se pudo copiar el ${file}: arrástralo desde la carpeta.`;
+      : `Se abrió Gmail. No se pudo copiar el ${file}: arrástralo desde la carpeta.`;
   }
   return medium === 'whatsapp'
     ? `Se abrió WhatsApp con ${recipient}. Presiona Ctrl+V para adjuntar el ${file} y luego Enviar.`
-    : `Se abrió tu correo. Pega el ${file} con Ctrl+V o arrástralo desde la carpeta.`;
+    : `Se abrió Gmail. Pega el ${file} con Ctrl+V o arrástralo desde la carpeta.`;
 }
 
 export function DoneSheet({ state, onClose, onReveal, onOpenGmail }: { state: ShareDoneState; onClose: () => void; onReveal: (path: string) => void; onOpenGmail: (state: ShareDoneState) => void }) {
@@ -234,7 +234,7 @@ export function DoneSheet({ state, onClose, onReveal, onOpenGmail }: { state: Sh
           <Button variant="secondary" data-testid="share-reveal" icon={<FolderOpen size={16} aria-hidden="true" />} onClick={() => onReveal(state.path as string)}>Mostrar archivo en la carpeta</Button>
         )}
         {state.medium === 'email' && (
-          <Button variant="secondary" data-testid="share-gmail" icon={<Mail size={16} aria-hidden="true" />} onClick={() => onOpenGmail(state)}>Abrir en Gmail</Button>
+          <Button variant="secondary" data-testid="share-gmail" icon={<Mail size={16} aria-hidden="true" />} onClick={() => onOpenGmail(state)}>Abrir Gmail de nuevo</Button>
         )}
         <Button variant="primary" data-testid="share-done" onClick={onClose}>Listo</Button>
       </div>

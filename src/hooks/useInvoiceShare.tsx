@@ -86,7 +86,7 @@ export function useInvoiceShare(markShared: (uuid: string, via: ShareMedium) => 
           opened = true;
         } catch (cause) {
           console.error('[compartir] abrir', cause);
-          toast.error({ title: medium === 'whatsapp' ? 'No se pudo abrir WhatsApp' : 'No se pudo abrir tu correo', description: `El ${fileLabel} quedó guardado; puedes mostrarlo en la carpeta y enviarlo a mano.` });
+          toast.error({ title: medium === 'whatsapp' ? 'No se pudo abrir WhatsApp' : 'No se pudo abrir Gmail', description: `El ${fileLabel} quedó guardado; puedes mostrarlo en la carpeta y enviarlo a mano.` });
         }
       } else {
         clipboardOk = false;

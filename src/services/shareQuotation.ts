@@ -137,11 +137,11 @@ export async function saveSharedFile(invoke: Invoke, bytes: Uint8Array, filename
 export const copyFileToClipboard = (invoke: Invoke, path: string) => invoke<void>('copy_file_to_clipboard', { path });
 export const revealInFolder = (invoke: Invoke, path: string) => invoke<void>('reveal_in_folder', { path });
 
-/** Opens WhatsApp / the mail client with RAW text (Rust percent-encodes). */
+/** Opens WhatsApp / Gmail (email never goes through the default mail client) with RAW text (Rust percent-encodes). */
 export function openShareLink(invoke: Invoke, medium: ShareMedium, contact: ShareContact, message: { subject: string; text: string }): Promise<void> {
   return medium === 'whatsapp'
     ? invoke<void>('open_whatsapp', { phone: whatsappDigits(contact.phone), text: message.text })
-    : invoke<void>('open_mailto', { email: contact.email.trim(), subject: message.subject, body: message.text });
+    : invoke<void>('open_gmail', { email: contact.email.trim(), subject: message.subject, body: message.text });
 }
 
 export const openGmail = (invoke: Invoke, contact: ShareContact, message: { subject: string; text: string }) => invoke<void>('open_gmail', { email: contact.email.trim(), subject: message.subject, body: message.text });
@@ -150,8 +150,6 @@ export const openGmail = (invoke: Invoke, contact: ShareContact, message: { subj
 export function openShareUrlInBrowser(medium: ShareMedium | 'gmail', contact: ShareContact, message: { subject: string; text: string }): boolean {
   const url = medium === 'whatsapp'
     ? buildWhatsAppUrl(contact.phone, message.text)
-    : medium === 'gmail'
-      ? buildGmailUrl(contact.email, message.subject, message.text)
-      : buildMailtoUrl(contact.email, message.subject, message.text);
+    : buildGmailUrl(contact.email, message.subject, message.text);
   return window.open(url, '_blank') !== null;
 }
