@@ -144,9 +144,7 @@ export function HistoryPage() {
 
       <header className="hi-header">
         <div>
-          <p className="hi-eyebrow">Cotizaciones</p>
           <h1>Historial</h1>
-          <p className="hi-sub">Busca, revisa y duplica cotizaciones anteriores.</p>
         </div>
         <button type="button" className="hi-btn hi-btn--primary" data-testid="hi-new" onClick={() => navigate('/nueva-cotizacion')}>
           <Plus size={16} strokeWidth={2.4} aria-hidden="true" />Nueva cotización

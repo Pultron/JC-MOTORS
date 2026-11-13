@@ -13,9 +13,7 @@
 
 /* Encabezado */
 .profit-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin: 0 2px 22px; flex-wrap: wrap; }
-.profit-eyebrow { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--orange-hover); }
 .profit-title h1 { font-size: 26px; font-weight: 700; letter-spacing: -.02em; line-height: 1.2; margin-top: 2px; }
-.profit-subtitle { font-size: 13px; color: var(--ink-2); margin-top: 3px; }
 .profit-period { display: flex; align-items: center; gap: 12px; flex-shrink: 0; flex-wrap: wrap; }
 .profit-segments { display: flex; padding: 2px; gap: 2px; border-radius: 9px; background: var(--fill); }
 .profit-segments button { padding: 6px 16px; min-height: 28px; font-size: 13px; font-weight: 500; border-radius: 7px; color: var(--ink); }

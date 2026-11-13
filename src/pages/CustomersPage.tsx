@@ -308,9 +308,7 @@ export function CustomersPage() {
     <div className="cli-page" data-testid="clientes-page">
       <header className="cli-header">
         <div className="cli-header-inner">
-          <p className="cli-eyebrow">Directorio</p>
           <h1>Clientes</h1>
-          <p className="cli-sub">Agrega clientes y sus apodos para encontrarlos rápido al crear una cotización.</p>
         </div>
       </header>
 
