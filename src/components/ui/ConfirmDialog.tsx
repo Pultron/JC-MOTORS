@@ -158,7 +158,7 @@ export function ConfirmDialog({ title, description, confirmLabel = 'Confirmar', 
         <h2 id={titleId}>{title}</h2>
         <p id={descriptionId} className="mac-dialog-description">{description}</p>
         {content && <div className="mac-dialog-content">{content}</div>}
-        <div className="mac-dialog-actions">
+        <div className={secondaryLabel ? "mac-dialog-actions mac-dialog-actions--stack" : "mac-dialog-actions"}>
           {secondaryLabel && <button type="button" data-testid="confirm-secondary" className="mac-btn mac-btn-secondary" onClick={() => finish('secondary')}>{secondaryLabel}</button>}
           <button type="button" data-testid="confirm-cancel" className="mac-btn mac-btn-secondary" onClick={() => finish('cancel')}>{cancelLabel}</button>
           <button ref={confirmRef} type="button" data-testid="confirm-accept" className={`mac-btn ${isDanger ? 'mac-btn-danger' : 'mac-btn-primary'}`} autoFocus disabled={confirmDisabled} onClick={() => finish('primary')}>{confirmLabel}</button>

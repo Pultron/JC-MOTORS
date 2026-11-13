@@ -336,7 +336,7 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .mac-dialog-description { max-width: 320px; margin: 6px auto 0; color: var(--color-mac-ink-2); font-size: 13px; line-height: 1.45; }
 .mac-dialog-actions { display: flex; gap: 10px; margin-top: 22px; }
 .mac-dialog-actions .mac-btn { flex: 1; }
-.mac-dialog-actions--stack { flex-direction: column; }
+.mac-dialog-actions--stack { flex-direction: column-reverse; }
 .mac-dialog-actions--stack .mac-btn { flex: none; width: 100%; height: auto; min-height: 40px; padding-block: 9px; }
 .mac-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation-name: draw; animation-timing-function: cubic-bezier(.4, 0, .2, 1); animation-fill-mode: forwards; }
 .mac-draw-circle { animation-duration: 450ms; animation-delay: 200ms; }
