@@ -18,7 +18,9 @@ export function validateQuoteForm(form: QuoteFormData, totals: QuotationTotals):
   if (!form.model.trim()) errors.model = 'Selecciona o escribe un modelo.';
   const plates = form.plates.trim() ? validatePlates(form.plates) : { ok: false, mensaje: 'Escribe las placas.' };
   if (!plates.ok) errors.plates = plates.mensaje ?? 'Escribe unas placas válidas.';
-  if (form.year) {
+  if (!form.year.trim()) {
+    errors.year = 'Selecciona o escribe un año.';
+  } else {
     const year = validateYear(Number(form.year));
     if (!year.ok) errors.year = year.mensaje ?? 'Elige un año válido.';
   }

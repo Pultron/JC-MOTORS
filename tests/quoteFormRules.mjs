@@ -6,7 +6,7 @@ import { MAX_YEAR, MIN_YEAR } from '../src/validation/fields.ts';
 
 const totals = { subtotalRefacciones: 100, subtotalManoObra: 0, laborDiscount: 0, subtotalNeto: 100, ivaAmount: 16, total: 116 };
 const baseForm = (overrides = {}) => ({
-  customerId: '', customerName: 'Ana', phone: '(667) 351-8806', email: '', make: 'Nissan', model: 'Versa', year: '', plates: 'ABC-123-A',
+  customerId: '', customerName: 'Ana', phone: '(667) 351-8806', email: '', make: 'Nissan', model: 'Versa', year: '2020', plates: 'ABC-123-A',
   items: [{ id: 'a', type: 'part', description: 'Filtro', quantity: '1', unitPrice: '100' }],
   laborAmount: '', laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true, validityDays: '15', publicNotes: '', customerNotes: '',
   ...overrides,
@@ -19,6 +19,11 @@ test('#006 year uses the single MIN_YEAR/MAX_YEAR range', () => {
   assert.equal(validateQuoteForm(baseForm({ year: String(MAX_YEAR) }), totals).year, undefined);
   assert.match(validateQuoteForm(baseForm({ year: String(MIN_YEAR - 1) }), totals).year, new RegExp(String(MIN_YEAR)));
   assert.ok(validateQuoteForm(baseForm({ year: String(MAX_YEAR + 1) }), totals).year);
+});
+
+test('year is required', () => {
+  assert.ok(validateQuoteForm(baseForm({ year: '' }), totals).year);
+  assert.ok(validateQuoteForm(baseForm({ year: '  ' }), totals).year);
 });
 
 const item = (overrides) => ({ id: 'a', type: 'part', description: 'Filtro', quantity: '1', unitPrice: '100', ...overrides });
