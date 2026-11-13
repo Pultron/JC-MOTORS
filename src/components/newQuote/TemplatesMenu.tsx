@@ -160,7 +160,7 @@ export function TemplatesMenu({ onApply }: Props) {
 
   return <>
     <button ref={triggerRef} type="button" data-testid="plantillas-boton" aria-haspopup="dialog" aria-expanded={open} className="mac-press flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold text-mac-accent-text hover:bg-mac-fill" onClick={toggle}>
-      <LayoutTemplate size={15} aria-hidden="true" />Conceptos
+      <LayoutTemplate size={15} aria-hidden="true" />Crear concepto
     </button>
     <FloatingPanel open={open} anchor={triggerRef.current} minWidth={isEditor ? 440 : 320} maxHeight={isEditor ? 520 : 420} panelRef={panelRef} keepFocus={false} className={isEditor ? 'jc-tpl-pop jc-tpl-pop--wide' : 'jc-tpl-pop'}>
       <div role="dialog" aria-label={title} data-testid="plantillas-popover" tabIndex={-1} onKeyDown={onKeyDown}>
