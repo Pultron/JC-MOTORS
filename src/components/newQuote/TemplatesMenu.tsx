@@ -5,7 +5,7 @@ import { TEMPLATE_FAILURE_MESSAGES, quoteTemplateService, deriveTemplateName } f
 import type { QuoteTemplate, QuoteTemplateItem } from '../../services/quoteTemplateService';
 import { MAX_CONCEPTS } from '../../services/quotationLayout';
 import { createId } from '../../utils/quotation';
-import { sanitizeMoneyInput, sanitizeSingleLine } from '../../validation/fields';
+import { sanitizeMoneyInput, sanitizeSingleLine, stripLineBreaks } from '../../validation/fields';
 import { useConfirm } from '../../hooks/useConfirm';
 import { FieldError } from '../ui/FieldError';
 import { FloatingPanel } from '../ui/FloatingPanel';
@@ -201,7 +201,7 @@ export function TemplatesMenu({ onApply }: Props) {
             <p className="jc-tpl-label jc-tpl-label--section">Conceptos</p>
             <div className="jc-tpl-rows" role="group" aria-label="Líneas del concepto">
               {rows.map((row, index) => <div key={row.key} className="jc-tpl-concept" data-testid="plantilla-concepto">
-                <input data-tpl-desc={row.key} data-autofocus={index === 0 ? true : undefined} data-testid={`plantilla-descripcion-${index}`} className="jc-tpl-input jc-tpl-desc" aria-label={`Descripción del concepto ${index + 1}`} placeholder="Descripción" autoComplete="off" value={row.description} onChange={(event) => updateRow(row.key, { description: sanitizeSingleLine(event.target.value) })} />
+                <input data-tpl-desc={row.key} data-autofocus={index === 0 ? true : undefined} data-testid={`plantilla-descripcion-${index}`} className="jc-tpl-input jc-tpl-desc" aria-label={`Descripción del concepto ${index + 1}`} placeholder="Descripción" autoComplete="off" value={row.description} onChange={(event) => updateRow(row.key, { description: stripLineBreaks(event.target.value) })} onBlur={() => updateRow(row.key, { description: sanitizeSingleLine(row.description) })} />
                 <div className="mac-money jc-tpl-money"><span aria-hidden="true">$</span><input data-testid={`plantilla-precio-${index}`} className="tnum" autoComplete="off" inputMode="decimal" aria-label={`Precio del concepto ${index + 1} (opcional)`} placeholder="Precio" value={row.unitPrice} onChange={(event) => updateRow(row.key, { unitPrice: sanitizeMoneyInput(event.target.value) })} /></div>
                 <button type="button" className="jc-tpl-icon jc-tpl-icon--danger" aria-label={`Quitar concepto ${index + 1}`} disabled={rows.length === 1} onClick={() => { setRows((current) => current.filter((item) => item.key !== row.key)); if (error) setError(''); }}><X size={14} aria-hidden="true" /></button>
               </div>)}

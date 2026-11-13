@@ -12,7 +12,7 @@
   --focus-gap: #fff;
 }
 
-:is(a[href], button, select, textarea, summary, input, [tabindex]:not([tabindex="-1"]), [role="button"], [role="combobox"], [role="switch"], [role="menuitem"]):focus-visible:not(.mac-row-input, .cli-input, .pal-input, .hi-search input, .inicio-search input, .cli-search input, .fac-search input, .profit-expense-row input) {
+:is(a[href], button, select, textarea, summary, input, [tabindex]:not([tabindex="-1"]), [role="button"], [role="combobox"], [role="switch"], [role="menuitem"]):focus-visible:not(.mac-row-input, .cli-input, .pal-input, .hi-search input, .inicio-search input, .cli-search input, .fac-search input, .profit-expense-row input, .mac-money input) {
   outline: 2px solid var(--focus-ring) !important;
   outline-offset: 2px !important;
   box-shadow: 0 0 0 2px var(--focus-gap) !important;
