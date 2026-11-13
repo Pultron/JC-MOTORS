@@ -1,6 +1,7 @@
-import { Ban, Check, Copy, Download, Eye, FileText, LockKeyhole, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { Ban, Check, Copy, Download, Eye, FileText, LockKeyhole, Mail, MessageCircle, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import type { Quotation } from '../models/quotation';
+import type { Quotation, ShareMedium } from '../models/quotation';
+import { useShareQuotation } from '../store/ShareContext';
 import { MacMenu } from './ui/MacMenu';
 import type { MacMenuItem } from './ui/MacMenu';
 
@@ -20,10 +21,11 @@ interface QuotationActionsMenuProps {
 export function QuotationActionsMenu(props: QuotationActionsMenuProps) {
   const navigate = useNavigate();
   const { quotation } = props;
+  const { shareQuotation, canUse } = useShareQuotation();
 
   return (
     <MacMenu
-      items={buildMenuItems({ ...props, navigate })}
+      items={buildMenuItems({ ...props, navigate, share: (medium) => shareQuotation(quotation, medium), canShare: (medium) => canUse(quotation, medium) })}
       triggerLabel={`Más acciones para ${quotation.folio}`}
       menuLabel={`Acciones para ${quotation.folio}`}
       triggerIcon={<MoreVertical size={17} aria-hidden="true" />}
@@ -35,15 +37,25 @@ export function QuotationActionsMenu(props: QuotationActionsMenuProps) {
 
 interface MenuItemsInput extends QuotationActionsMenuProps {
   navigate: ReturnType<typeof useNavigate>;
+  share: (medium: ShareMedium) => void;
+  canShare: (medium: ShareMedium) => boolean;
 }
 
-function buildMenuItems({ quotation, navigate, onOpenPdf, onDownloadPdf, onApprove, onCancel, onDuplicate, onDelete, omit }: MenuItemsInput): MacMenuItem[] {
+function buildMenuItems({ quotation, navigate, onOpenPdf, onDownloadPdf, onApprove, onCancel, onDuplicate, onDelete, omit, share, canShare }: MenuItemsInput): MacMenuItem[] {
   const items: MacMenuItem[] = [
     { key: 'view', label: 'Ver detalle', icon: Eye, onSelect: () => navigate(`/cotizaciones/${quotation.id}`) },
     { key: 'pdf', label: 'Ver cotización', icon: FileText, onSelect: () => onOpenPdf(quotation) },
   ];
 
   if (onDownloadPdf) items.push({ key: 'download', label: 'Descargar PDF', icon: Download, onSelect: () => onDownloadPdf(quotation) });
+
+  if (quotation.status !== 'Cancelada') {
+    // Without that contact medium the item looks inactive but still opens the "add it" dialog.
+    items.push(
+      { key: 'whatsapp', label: 'Enviar por WhatsApp', icon: MessageCircle, muted: !canShare('whatsapp'), hint: canShare('whatsapp') ? undefined : 'Sin teléfono registrado: te lo pediremos.', onSelect: () => share('whatsapp') },
+      { key: 'email', label: 'Enviar por correo', icon: Mail, muted: !canShare('email'), hint: canShare('email') ? undefined : 'Sin correo registrado: te lo pediremos.', onSelect: () => share('email') },
+    );
+  }
 
   if (quotation.status === 'Pendiente') {
     items.push({ key: 'edit', label: 'Editar cotización', icon: Pencil, onSelect: () => navigate(`/nueva-cotizacion?editar=${quotation.id}`) });

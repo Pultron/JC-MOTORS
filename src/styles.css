@@ -298,6 +298,7 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .mac-menu-item:focus { outline: none; }
 .mac-menu-item:focus-visible, .mac-menu-item:focus, .mac-menu-item:hover { background: var(--color-mac-accent); color: #fff; }
 .mac-menu-item:focus svg, .mac-menu-item:hover svg { color: #fff; }
+.mac-menu-item[data-muted="true"]:not(:hover):not(:focus), .mac-menu-item[data-muted="true"]:not(:hover):not(:focus) svg { color: var(--color-mac-ink-2); opacity: .7; }
 .mac-menu-item[data-tone="danger"], .mac-menu-item[data-tone="danger"] svg { color: #c0262d; }
 .mac-menu-item[data-tone="danger"]:focus, .mac-menu-item[data-tone="danger"]:hover { background: #c0262d; color: #fff; }
 .mac-menu-item[data-tone="danger"]:focus svg, .mac-menu-item[data-tone="danger"]:hover svg { color: #fff; }

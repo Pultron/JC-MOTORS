@@ -4,11 +4,14 @@ import { useNavigate, useParams } from 'react-router';
 import logoUrl from '../assets/jc-motors-logo.png?url';
 import { Button } from '../components/Button';
 import { QuotationPdfDialog } from '../components/QuotationPdfDialog';
+import { ShareButton } from '../components/share/ShareDialogs';
+import { SharedMark } from '../components/share/SharedMark';
 import { SectionCard } from '../components/SectionCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { useQuotationActions } from '../hooks/useQuotationActions';
 import type { Quotation } from '../models/quotation';
 import { useQuotations } from '../store/QuotationContext';
+import { useShareQuotation } from '../store/ShareContext';
 import { formatMoney } from '../utils/money';
 import { toPublicQuotation } from '../utils/quotation';
 import { formatDate } from '../utils/dateFormat';
@@ -22,6 +25,7 @@ export function QuotationDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPdfOpen, setIsPdfOpen] = useState(false);
   const { requestApprove, requestCancel } = useQuotationActions(setQuotation);
+  const { shareQuotation, canUse, busy: shareBusy } = useShareQuotation();
   const publicQuotation = useMemo(() => quotation ? toPublicQuotation(quotation) : undefined, [quotation]);
 
   useEffect(() => {
@@ -48,8 +52,8 @@ export function QuotationDetailPage() {
     <div className="print-area">
       <h1 className="sr-only">Cotización {publicQuotation.folio}</h1>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <p className="text-[13px] text-slate-500">{publicQuotation.folio} · Creada el {formatDate(publicQuotation.createdAt, 'medium')}</p>
-        <div className="flex flex-wrap gap-2"><Button icon={<ArrowLeft size={16} />} onClick={() => navigate(-1)}>Regresar</Button>{quotation.status === 'Pendiente' && <><Button icon={<Pencil size={16} />} onClick={() => navigate(`/nueva-cotizacion?editar=${quotation.id}`)}>Editar</Button><Button variant="secondary" icon={<Check size={16} />} onClick={() => requestApprove(quotation)}>Aprobar cotización</Button><Button variant="danger" icon={<Ban size={16} />} onClick={() => requestCancel(quotation)}>Cancelar</Button></>}<Button icon={<Copy size={16} />} onClick={() => void handleDuplicate()}>Duplicar</Button><Button icon={<FileText size={16} />} onClick={() => setIsPdfOpen(true)}>Ver PDF</Button><Button variant="primary" icon={<Printer size={16} />} onClick={() => window.print()}>Imprimir</Button></div>
+        <div><p className="text-[13px] text-slate-500">{publicQuotation.folio} · Creada el {formatDate(publicQuotation.createdAt, 'medium')}</p><SharedMark quotation={quotation} showText /></div>
+        <div className="flex flex-wrap gap-2"><Button icon={<ArrowLeft size={16} />} onClick={() => navigate(-1)}>Regresar</Button>{quotation.status === 'Pendiente' && <><Button icon={<Pencil size={16} />} onClick={() => navigate(`/nueva-cotizacion?editar=${quotation.id}`)}>Editar</Button><Button variant="secondary" icon={<Check size={16} />} onClick={() => requestApprove(quotation)}>Aprobar cotización</Button><Button variant="danger" icon={<Ban size={16} />} onClick={() => requestCancel(quotation)}>Cancelar</Button></>}<Button icon={<Copy size={16} />} onClick={() => void handleDuplicate()}>Duplicar</Button><Button icon={<FileText size={16} />} onClick={() => setIsPdfOpen(true)}>Ver PDF</Button>{quotation.status !== 'Cancelada' && (['whatsapp', 'email'] as const).map((medium) => <ShareButton key={medium} medium={medium} active={canUse(quotation, medium)} busy={shareBusy} onClick={() => shareQuotation(quotation, medium)} />)}<Button variant="primary" icon={<Printer size={16} />} onClick={() => window.print()}>Imprimir</Button></div>
       </div>
       <div className="mb-5 hidden items-center gap-4 border-b-2 border-orange-500 pb-4 print:flex">
         <img src={logoUrl} alt="" className="size-16 object-contain" />

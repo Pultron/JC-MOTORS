@@ -16,6 +16,7 @@ import type { QuoteTemplate } from '../services/quoteTemplateService';
 import { MAX_CONCEPTS_MESSAGE, normalizeQuoteForm, validateQuoteForm } from '../services/quoteValidation';
 import { useCustomers } from '../store/CustomerContext';
 import { useQuotations } from '../store/QuotationContext';
+import { useShareQuotation } from '../store/ShareContext';
 import { parseDecimal } from '../utils/currency';
 import { AMOUNT_TOO_LARGE_MESSAGE, QuotationAmountError, calculateQuotationTotals, countZeroPriceItems, createId } from '../utils/quotation';
 import type { QuotationTotals } from '../utils/quotation';
@@ -110,6 +111,7 @@ export function useCotizacionForm() {
   const { quotations, isLoading, createQuotation, updateQuotation } = useQuotations();
   const toast = useToast();
   const confirm = useConfirm();
+  const { offerAfterSave } = useShareQuotation();
   const [form, setForm] = useState<QuoteFormData>(emptyForm);
   const [editReady, setEditReady] = useState(!editId);
   const [drafts, setDrafts] = useState<QuoteDraft[]>(() => quoteDraftService.list());
@@ -388,6 +390,8 @@ export function useCotizacionForm() {
         setDirty(false);
       }
       navigate('/historial');
+      // Persistent confirmation (not a 5-second toast) with the send buttons; it stays over the history screen.
+      offerAfterSave(quote);
     } catch (error) {
       if (error instanceof QuotationAmountError) toast.error({ title: AMOUNT_TOO_LARGE_MESSAGE });
       else toast.error({ title: 'Error al guardar', description: 'No se pudo guardar la cotización. Inténtalo de nuevo.' });
