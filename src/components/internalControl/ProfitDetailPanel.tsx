@@ -86,7 +86,7 @@ export function ProfitDetailPanel({ quote, record, onSaved, onClose, onDirty, on
     <form onSubmit={e => { e.preventDefault(); void save(); }}>
       <fieldset disabled={saving}>
         <div className="profit-items-scroll"><table className="profit-items"><thead><tr><th scope="col">Concepto</th><th scope="col">Precio al cliente</th><th scope="col">Costo pagado</th><th scope="col">Ganancia</th></tr></thead>
-          <tbody>{preview.totals.items.map(item => <InternalItemCostRow key={item.id} item={item} value={draft.costs[item.id]} onChange={value => setDraft(current => ({ ...current, costs: { ...current.costs, [item.id]: value } }))} />)}</tbody>
+          <tbody>{preview.totals.laborCents > 0 && <LaborRow cents={preview.totals.laborCents} discountCents={preview.totals.laborDiscountCents} />}{preview.totals.items.map(item => <InternalItemCostRow key={item.id} item={item} value={draft.costs[item.id]} onChange={value => setDraft(current => ({ ...current, costs: { ...current.costs, [item.id]: value } }))} />)}</tbody>
         </table></div>
         {preview.totals.items.length === 0 && <p className="profit-help">Esta cotización no incluye refacciones. Puedes registrar servicios externos en Otros costos.</p>}
         <AdditionalExpensesSection expenses={draft.expenses} onChange={expenses => setDraft(current => ({ ...current, expenses }))} onRemove={id => record?.additionalExpenses.some(e => e.id === id) ? void confirmRemoval(id) : removeExpense(id)} />
@@ -98,6 +98,16 @@ export function ProfitDetailPanel({ quote, record, onSaved, onClose, onDirty, on
       <div className="profit-detail-actions"><Button type="submit" variant="primary" className="profit-primary" disabled={saving || Boolean(preview.error)}>{saving ? 'Guardando…' : 'Guardar gastos'}</Button><Button type="button" className="profit-outline" disabled={saving} onClick={onClose}>Cerrar</Button></div>
     </form>
   </aside>;
+}
+
+/** Read-only row: labor is already part of the sold total and is pure profit, shown so the sum is transparent. */
+function LaborRow({ cents, discountCents }: { cents: number; discountCents: number }) {
+  return <tr className="profit-labor-row" data-testid="profit-labor-row">
+    <td>Mano de obra{discountCents > 0 && <small>Con descuento de {formatMoney(discountCents / 100)}</small>}</td>
+    <td>{formatMoney(cents / 100)}</td>
+    <td><span className="profit-labor-lock"><LockKeyhole size={12} aria-hidden="true" />Incluida · no editable</span></td>
+    <td>{formatMoney(cents / 100)}</td>
+  </tr>;
 }
 
 function MoneyInput({ value, onChange, label }: { value: string; onChange: (value: string) => void; label: string }) {

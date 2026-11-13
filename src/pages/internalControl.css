@@ -184,3 +184,9 @@ body:has(.profit-page) main { max-width: 1800px; padding: 30px 26px 26px; }
   .profit-detail { padding: 16px 12px; }
 }
 @media print { .profit-page { display: none !important; } }
+
+.profit-items .profit-labor-row td { background: #eaf3ff; color: #0b4a8f; font-weight: 600; }
+.profit-items .profit-labor-row td:first-child { padding-left: 8px; border-radius: 8px 0 0 8px; }
+.profit-items .profit-labor-row td:last-child { padding-right: 8px; border-radius: 0 8px 8px 0; color: var(--green); }
+.profit-items .profit-labor-row small { color: #0b4a8f; opacity: .75; font-weight: 500; }
+.profit-labor-lock { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; background: #d6e8ff; font-size: 11px; white-space: nowrap; }
