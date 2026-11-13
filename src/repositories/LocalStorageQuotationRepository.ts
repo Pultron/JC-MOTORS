@@ -4,6 +4,7 @@ import type {
   DiscountType,
   Quotation,
   QuotationItem,
+  ShareMedium,
   QuotationStatus,
   Vehicle,
 } from '../models/quotation';
@@ -137,6 +138,9 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
       customerNotes: input.customerNotes ?? '',
       status: 'Pendiente',
       approvedAt: undefined,
+      // The content changed after it was sent, so the old share record no longer describes this quotation.
+      sharedAt: undefined,
+      sharedVia: undefined,
     };
     this.writeAll(quotations.map((entry) => entry.id === id ? updated : entry));
     return cloneQuotation(updated);
@@ -180,6 +184,30 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
     const cancelled: Quotation = { ...quotation, status: 'Cancelada' };
     this.writeAll(quotations.map((entry) => entry.id === id ? cancelled : entry));
     return cloneQuotation(cancelled);
+  }
+
+  async markShared(id: string, via: ShareMedium): Promise<Quotation | undefined> {
+    const quotations = this.readAll();
+    const quotation = quotations.find((entry) => entry.id === id);
+    if (!quotation) return undefined;
+    const shared: Quotation = { ...quotation, sharedAt: new Date().toISOString(), sharedVia: via };
+    this.writeAll(quotations.map((entry) => entry.id === id ? shared : entry));
+    return cloneQuotation(shared);
+  }
+
+  async updateCustomerContact(id: string, contact: { phone?: string; email?: string }): Promise<Quotation | undefined> {
+    const quotations = this.readAll();
+    const quotation = quotations.find((entry) => entry.id === id);
+    if (!quotation) return undefined;
+    const customer = { ...quotation.customer };
+    if (contact.phone !== undefined) customer.phone = contact.phone;
+    if (contact.email !== undefined) {
+      if (contact.email) customer.email = contact.email;
+      else delete customer.email;
+    }
+    const updated: Quotation = { ...quotation, customer };
+    this.writeAll(quotations.map((entry) => entry.id === id ? updated : entry));
+    return cloneQuotation(updated);
   }
 
   async deleteCancelled(id: string): Promise<Quotation | undefined> {
@@ -301,6 +329,7 @@ function normalizeQuotation(value: LegacyQuotation, index: number): Quotation {
     customerNotes: typeof value.customerNotes === 'string' ? value.customerNotes : '',
     status,
     ...(status === 'Aprobada' ? { approvedAt: value.approvedAt ?? createdAt } : {}),
+    ...(typeof value.sharedAt === 'string' && (value.sharedVia === 'whatsapp' || value.sharedVia === 'email') ? { sharedAt: value.sharedAt, sharedVia: value.sharedVia } : {}),
   };
 }
 

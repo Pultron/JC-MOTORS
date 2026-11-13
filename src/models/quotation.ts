@@ -1,3 +1,5 @@
+export type ShareMedium = 'whatsapp' | 'email';
+
 export type QuotationStatus = 'Pendiente' | 'Aprobada' | 'Cancelada' | 'Vencida';
 
 /** Estados terminales: una cotización aprobada, cancelada o vencida ya no admite cambios. */
@@ -56,6 +58,9 @@ export interface Quotation {
   customerNotes?: string;
   status: QuotationStatus;
   approvedAt?: string;
+  /** ISO time at which the app launched WhatsApp/email for this quotation (record only; never part of PublicQuotation). */
+  sharedAt?: string;
+  sharedVia?: ShareMedium;
 }
 
 export interface CreateQuotationInput {

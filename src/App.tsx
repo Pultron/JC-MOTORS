@@ -18,6 +18,7 @@ import { FULL_BLEED } from './routes/routeHandle';
 import { StorageNoticeBridge } from './storage/StorageNoticeBridge';
 import { CustomerProvider } from './store/CustomerContext';
 import { QuotationProvider } from './store/QuotationContext';
+import { ShareProvider } from './store/ShareContext';
 
 /** App-wide providers. They live inside the router so any of them may use router hooks. */
 function Providers() {
@@ -28,7 +29,9 @@ function Providers() {
         <ChoiceProvider>
           <QuotationProvider>
             <CustomerProvider>
-              <Outlet />
+              <ShareProvider>
+                <Outlet />
+              </ShareProvider>
             </CustomerProvider>
           </QuotationProvider>
         </ChoiceProvider>

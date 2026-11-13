@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { CreateQuotationInput, Quotation } from '../models/quotation';
+import type { CreateQuotationInput, Quotation, ShareMedium } from '../models/quotation';
 import { quotationService } from '../services/quotationService';
 import { internalControlService } from '../services/internalControlService';
 import { useToast } from '../components/ui/Toast';
@@ -17,6 +17,10 @@ interface QuotationContextValue {
   approveQuotation: (id: string) => Promise<Quotation | undefined>;
   cancelQuotation: (id: string) => Promise<Quotation | undefined>;
   deleteCancelledQuotation: (id: string) => Promise<boolean>;
+  /** Records the share silently (no toast: the share sheet is the feedback). */
+  markQuotationShared: (id: string, via: ShareMedium) => Promise<Quotation | undefined>;
+  /** Completes the customer's phone/email on the quotation itself; returns the updated quotation. */
+  updateQuotationContact: (id: string, contact: { phone?: string; email?: string }) => Promise<Quotation | undefined>;
 }
 
 const QuotationContext = createContext<QuotationContextValue | null>(null);
@@ -107,6 +111,18 @@ export function QuotationProvider({ children }: { children: ReactNode }) {
     return true;
   }, [toast]);
 
+  const markQuotationShared = useCallback(async (id: string, via: ShareMedium) => {
+    const quotation = await quotationService.markShared(id, via);
+    if (quotation) setQuotations(await quotationService.list());
+    return quotation;
+  }, []);
+
+  const updateQuotationContact = useCallback(async (id: string, contact: { phone?: string; email?: string }) => {
+    const quotation = await quotationService.updateCustomerContact(id, contact);
+    if (quotation) setQuotations(await quotationService.list());
+    return quotation;
+  }, []);
+
   const value = useMemo<QuotationContextValue>(
     () => ({
       quotations,
@@ -118,8 +134,10 @@ export function QuotationProvider({ children }: { children: ReactNode }) {
       approveQuotation,
       cancelQuotation,
       deleteCancelledQuotation,
+      markQuotationShared,
+      updateQuotationContact,
     }),
-    [quotations, isLoading, getQuotation, createQuotation, updateQuotation, duplicateQuotation, approveQuotation, cancelQuotation, deleteCancelledQuotation],
+    [quotations, isLoading, getQuotation, createQuotation, updateQuotation, duplicateQuotation, approveQuotation, cancelQuotation, deleteCancelledQuotation, markQuotationShared, updateQuotationContact],
   );
 
   return <QuotationContext.Provider value={value}>{children}</QuotationContext.Provider>;
