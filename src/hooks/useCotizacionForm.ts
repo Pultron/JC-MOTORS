@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useBlocker } from 'react-router';
+import { useUnsavedGuard } from './useUnsavedGuard';
+import { shouldBlockNavigation } from '../services/workshopForm';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useToast } from '../components/ui/Toast';
 import { useConfirm } from './useConfirm';
@@ -104,6 +107,8 @@ export function useCotizacionForm() {
   const { quotations, isLoading, createQuotation, updateQuotation } = useQuotations();
   const toast = useToast();
   const confirm = useConfirm();
+  // Editing a saved quotation has no autosave: leaving with unsaved changes must ask first.
+  const skipGuard = useRef(false);
   const { offerAfterSave } = useShareQuotation();
   const [form, setForm] = useState<QuoteFormData>(emptyForm);
   const [editReady, setEditReady] = useState(!editId);
@@ -129,6 +134,7 @@ export function useCotizacionForm() {
     if (!editId || isLoading) return;
     if (loadedEditId.current === editId) return;
     if (!quotationToEdit || quotationToEdit.status !== 'Pendiente') {
+      skipGuard.current = true;
       navigate(quotationToEdit ? `/cotizaciones/${editId}` : '/historial', { replace: true });
       return;
     }
@@ -397,6 +403,7 @@ export function useCotizacionForm() {
         quoteDraftService.deleteTemporary();
         setDirty(false);
       }
+      skipGuard.current = true;
       navigate('/historial');
       // Persistent confirmation (not a 5-second toast) with the send buttons; it stays over the history screen.
       offerAfterSave(quote);
@@ -480,6 +487,28 @@ export function useCotizacionForm() {
     quoteDraftService.deleteTemporary();
     setRecovery(null);
   }
+
+  const guardActive = Boolean(editId) && dirty;
+  const guardRef = useRef(guardActive);
+  guardRef.current = guardActive;
+  async function askToLeaveEdit() {
+    return confirm({ title: '¿Salir sin guardar?', description: 'Tienes cambios sin guardar en esta cotización. Si sales ahora se perderán.', confirmLabel: 'Salir sin guardar', cancelLabel: 'Seguir editando', tone: 'danger' });
+  }
+  const askToLeaveRef = useRef(askToLeaveEdit);
+  askToLeaveRef.current = askToLeaveEdit;
+  useUnsavedGuard(guardActive, () => askToLeaveRef.current());
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => !skipGuard.current && shouldBlockNavigation(guardRef.current, currentLocation, nextLocation));
+  const askingRef = useRef(false);
+  useEffect(() => {
+    if (blocker.state !== 'blocked' || askingRef.current) return;
+    askingRef.current = true;
+    void askToLeaveRef.current().then((canLeave) => {
+      askingRef.current = false;
+      if (canLeave) blocker.proceed(); else blocker.reset();
+    });
+    // The prompt reads everything through refs, so only the blocker state drives this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blocker.state]);
 
   return {
     form, errors, totals, discountFlash, suggestions, customers, busy, saveState,
