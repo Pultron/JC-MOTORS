@@ -216,8 +216,8 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .mac-option-detail { font-size: 12px; line-height: 16px; color: var(--color-mac-ink-2); font-variant-numeric: tabular-nums; }
 .mac-option-badge { padding: 0 7px; border-radius: 999px; background: var(--color-mac-tint); color: var(--color-mac-accent-text); font-size: 11px; font-weight: 600; line-height: 18px; }
 .mac-option[data-active="true"] .mac-option-badge { background: rgb(255 255 255 / 24%); color: #fff; }
-.mac-row-lead-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin-left: -6px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
-.mac-row-lead-btn:hover, .mac-row-lead-btn[aria-expanded="true"] { background: var(--color-mac-tint); color: var(--color-mac-accent-text); }
+.cli-search-btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid rgb(204 77 14 / 28%); border-radius: 999px; background: var(--color-mac-tint); color: var(--color-mac-accent-text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.cli-search-btn:hover, .cli-search-btn[aria-expanded="true"] { background: var(--color-mac-accent); border-color: var(--color-mac-accent); color: #fff; }
 .mac-option[data-active="true"] .mac-option-detail { color: rgb(255 255 255 / 82%); }
 .mac-option-separator { height: 1px; margin: 4px 10px; background: rgb(60 60 67 / 18%); list-style: none; }
 /* Email domain suggestions (EmailInput) and quote templates popover: compact variants of the shared listbox. */

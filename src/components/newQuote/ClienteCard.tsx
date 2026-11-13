@@ -1,6 +1,6 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { User, Sparkles } from 'lucide-react';
+import { User, Sparkles, Search } from 'lucide-react';
 import type { QuoteFormData } from '../../models/quoteDraft';
 import type { CustomerProfile } from '../../models/quotation';
 import { Card } from './primitives/Card';
@@ -24,6 +24,7 @@ interface Props {
 
 export function ClienteCard({ form, errors, customers, onChange, onCustomerChange, onSelectCustomer, onBlurField, onCommitText }: Props) {
   const navigate = useNavigate();
+  const [pickerOpen, setPickerOpen] = useState(false);
   const typed = form.customerName.trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('es-MX');
   const aliasMatch = !form.customerId && typed ? customers.find((customer) => customer.aliases.some((alias) => alias.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('es-MX') === typed)) : undefined;
   const phoneId = useId();
@@ -33,8 +34,12 @@ export function ClienteCard({ form, errors, customers, onChange, onCustomerChang
   const emailOptional = showOptionalHint('correo', contact);
   return <div className="min-w-0 flex-[1_1_280px]">
     <Card allowOverflow>
-      <CardHeader icon={<User size={18} />} title="Datos del cliente" />
-      <SearchCombobox label="Nombre" required testId="cliente-nombre" value={form.customerName} options={customers.map((customer) => ({ value: customer.id, label: customer.name, detail: customer.phone, badges: customer.aliases }))} onChange={onCustomerChange} onSelect={onSelectCustomer} error={errors.customerName} onCommit={() => onCommitText('customerName')} searchIcon openOnlyFromIcon actionLabel="Crear nuevo cliente" onAction={() => navigate('/clientes')} />
+      <CardHeader icon={<User size={18} />} title="Datos del cliente" trailing={
+        <button type="button" className="cli-search-btn mac-press" data-testid="cliente-buscar" aria-expanded={pickerOpen} aria-label="Buscar cliente guardado"
+          onMouseDown={(event) => event.preventDefault()} onClick={() => setPickerOpen((current) => !current)}>
+          <Search size={14} aria-hidden="true" />Buscar
+        </button>} />
+      <SearchCombobox label="Nombre" required testId="cliente-nombre" value={form.customerName} options={customers.map((customer) => ({ value: customer.id, label: customer.name, detail: customer.phone, badges: customer.aliases }))} onChange={onCustomerChange} onSelect={onSelectCustomer} error={errors.customerName} onCommit={() => onCommitText('customerName')} manualOpen open={pickerOpen} onOpenChange={setPickerOpen} actionLabel="Crear nuevo cliente" onAction={() => navigate('/clientes')} />
       {aliasMatch && <button type="button" className="cli-alias-suggest mac-press" data-testid="cliente-sugerencia-apodo" onClick={() => onSelectCustomer(aliasMatch.id)}>
         <Sparkles size={14} aria-hidden="true" />
         <span>¿Es <strong>{aliasMatch.name}</strong>? Autocompletar datos</span>
