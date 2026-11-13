@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FileText, Plus, Search, SearchX } from 'lucide-react';
+import { FileText, Plus, Search, SearchX, Send } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Pagination } from '../components/Pagination';
 import { EmptyState, emptyKind } from '../components/ui/EmptyState';
@@ -7,6 +7,8 @@ import { searchQuotations } from '../search/quotationSearch';
 import { useDebouncedValue } from '../search/useDebouncedValue';
 import { DateRangeFilter } from '../components/historial/DateRangeFilter';
 import { StatusCombo } from '../components/historial/StatusCombo';
+import { filterByShare, SHARE_FILTERS, SHARE_FILTER_LABEL, shareFilterEmptyTitle, shareFilterFromParam } from '../services/shareFilter';
+import type { ShareFilter } from '../services/shareFilter';
 import { QuotationActionsMenu } from '../components/QuotationActionsMenu';
 import { QuotationPdfDialog } from '../components/QuotationPdfDialog';
 import { ShareStatusLine } from '../components/share/ShareStatusLine';
@@ -23,7 +25,7 @@ import { formatDate } from '../utils/dateFormat';
 import '../styles/historial.css';
 
 type StatusFilter = 'Todas' | QuotationStatus;
-type OpenMenu = 'status' | 'range' | null;
+type OpenMenu = 'status' | 'envio' | 'range' | null;
 
 const NO_RANGE: DateRange = { start: '', end: '' };
 const STATUSES: StatusFilter[] = ['Todas', 'Aprobada', 'Pendiente', 'Cancelada', 'Vencida'];
@@ -43,6 +45,7 @@ export function HistoryPage() {
   const [params, setParams] = useSearchParams();
   const committedSearch = params.get('q') ?? '';
   const status = statusFromParam(params.get('estado'));
+  const share = shareFilterFromParam(params.get('envio'));
   const requestedPage = pageFromParam(params.get('p'));
   const [search, setSearch] = useState(committedSearch);
   const debouncedSearch = useDebouncedValue(search);
@@ -65,21 +68,24 @@ export function HistoryPage() {
     return day >= range.start && day <= range.end;
   })), [searched, range, hasRange]);
 
-  const filtered = useMemo(
+  const byStatus = useMemo(
     () => (status === 'Todas' ? searchAndRange : searchAndRange.filter((quotation) => quotation.status === status)),
     [searchAndRange, status],
   );
+  const filtered = useMemo(() => filterByShare(byStatus, share), [byStatus, share]);
+  const byShare = useMemo(() => filterByShare(searchAndRange, share), [searchAndRange, share]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const page = Math.min(requestedPage, pageCount);
   const pageStart = (page - 1) * PAGE_SIZE;
   const visible = useMemo(() => filtered.slice(pageStart, pageStart + PAGE_SIZE), [filtered, pageStart]);
 
-  function updateParams(changes: { q?: string; estado?: StatusFilter; p?: number }) {
+  function updateParams(changes: { q?: string; estado?: StatusFilter; envio?: ShareFilter; p?: number }) {
     setParams((current) => {
       const next = new URLSearchParams(current);
       if (changes.q !== undefined) { if (changes.q.trim()) next.set('q', changes.q); else next.delete('q'); }
       if (changes.estado !== undefined) { if (changes.estado !== 'Todas') next.set('estado', changes.estado.toLowerCase()); else next.delete('estado'); }
+      if (changes.envio !== undefined) { if (changes.envio !== 'todas') next.set('envio', changes.envio); else next.delete('envio'); }
       if (changes.p !== undefined && changes.p > 1) next.set('p', String(changes.p));
       else next.delete('p');
       return next;
@@ -95,15 +101,22 @@ export function HistoryPage() {
   const statusOptions = useMemo(() => STATUSES.map((value) => ({
     value,
     label: value,
-    count: value === 'Todas' ? searchAndRange.length : searchAndRange.filter((quotation) => quotation.status === value).length,
-  })), [searchAndRange]);
+    count: value === 'Todas' ? byShare.length : byShare.filter((quotation) => quotation.status === value).length,
+  })), [byShare]);
 
-  const hasFilters = search.trim() !== '' || committedSearch !== '' || status !== 'Todas' || hasRange;
+  const shareOptions = useMemo(() => SHARE_FILTERS.map((value) => ({
+    value,
+    label: SHARE_FILTER_LABEL[value],
+    count: filterByShare(status === 'Todas' ? searchAndRange : searchAndRange.filter((quotation) => quotation.status === status), value).length,
+  })), [searchAndRange, status]);
+
+  const hasFilters = search.trim() !== '' || committedSearch !== '' || status !== 'Todas' || share !== 'todas' || hasRange;
   const bump = () => setTick((value) => value + 1);
 
   function changeSearch(value: string) { setSearch(value); }
   // Any filter change goes through updateParams without `p`, which restarts at page 1.
   function changeStatus(value: string) { updateParams({ estado: value as StatusFilter }); bump(); }
+  function changeShare(value: string) { updateParams({ envio: value as ShareFilter }); bump(); }
   function changeRange(value: DateRange) { setRange(value); updateParams({}); bump(); }
   function changePage(next: number) {
     updateParams({ p: next });
@@ -121,7 +134,9 @@ export function HistoryPage() {
   }
 
   const countLabel = `${filtered.length} ${filtered.length === 1 ? 'resultado' : 'resultados'}`;
-  const kind = emptyKind(quotations.length, searched.length, filtered.length, committedSearch.trim() !== '', status !== 'Todas');
+  // A share filter counts as an active filter for emptyKind; when it is the reason for the empty result it gets its own message.
+  const baseKind = emptyKind(quotations.length, searched.length, filtered.length, committedSearch.trim() !== '', status !== 'Todas' || share !== 'todas');
+  const kind = baseKind === 'status' && share !== 'todas' ? 'envio' : baseKind;
 
   return (
     <div className="hi-page" data-testid="historial-page">
@@ -154,6 +169,18 @@ export function HistoryPage() {
               />
             </label>
             <StatusCombo value={status} options={statusOptions} open={openMenu === 'status'} onOpenChange={(open) => setOpenMenu(open ? 'status' : null)} onChange={changeStatus} />
+            <StatusCombo
+              value={share}
+              options={shareOptions}
+              open={openMenu === 'envio'}
+              onOpenChange={(open) => setOpenMenu(open ? 'envio' : null)}
+              onChange={changeShare}
+              testId="hi-envio"
+              ariaLabel="Filtrar por envío"
+              menuLabel="Envío"
+              className="hi-ctl--share"
+              icon={<Send size={15} aria-hidden="true" className="hi-ctl-lead" />}
+            />
             <DateRangeFilter value={range} open={openMenu === 'range'} onOpenChange={(open) => setOpenMenu(open ? 'range' : null)} onChange={changeRange} />
           </div>
 
@@ -231,6 +258,9 @@ export function HistoryPage() {
           )}
           {!isLoading && filtered.length === 0 && kind === 'status' && (
             <EmptyState testId="hi-empty" icon={<SearchX size={22} />} title={`No hay cotizaciones con estado ${status}`} action={{ label: 'Quitar filtro', testId: 'hi-empty-clear', onClick: () => changeStatus('Todas') }} />
+          )}
+          {!isLoading && filtered.length === 0 && kind === 'envio' && (
+            <EmptyState testId="hi-empty" icon={<SearchX size={22} />} title={shareFilterEmptyTitle(share)} action={{ label: 'Quitar filtro', testId: 'hi-empty-clear', onClick: () => changeShare('todas') }} />
           )}
         </section>
       </div>
