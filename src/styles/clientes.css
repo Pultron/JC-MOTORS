@@ -44,7 +44,7 @@
 .cli-input::placeholder { color: var(--text-3); }
 .cli-field { display: flex; flex: 1; flex-direction: column; min-width: 0; padding-bottom: 0; }
 .cli-field .cli-input { flex: none; width: 100%; }
-.cli-field .mac-field-error p { padding-bottom: 8px; color: var(--danger); }
+.cli-row-error { padding: 4px 16px 8px; }
 .cli-note { margin: 8px 16px 0; color: var(--text-2); font-size: 12px; line-height: 1.4; }
 .cli-aux { flex: none; color: var(--text-2); font-size: 12px; }
 .cli-error { flex: none; max-width: 55%; color: var(--danger); font-size: 12px; text-align: right; animation: cliSwap 220ms var(--ease) both; }

@@ -335,18 +335,18 @@ export function CustomersPage() {
                 <label htmlFor="cli-phone" className="cli-label">Teléfono</label>
                 <div className="cli-field">
                   <PhoneInput id="cli-phone" data-testid="cli-phone" className="cli-input" value={draft.phone} onValueChange={changePhone} onBlur={blurPhone} aria-invalid={phoneError ? 'true' : undefined} aria-describedby={[errorIdFor('cli-phone', phoneError), phoneOptional ? 'cli-phone-optional' : ''].filter(Boolean).join(' ') || undefined} />
-                  <FieldError id="cli-phone-error" message={phoneError} />
                 </div>
                 {phoneOptional && <span id="cli-phone-optional" className="cli-aux">Opcional</span>}
               </div>
+              <FieldError id="cli-phone-error" message={phoneError} className="cli-row-error" />
               <div className="cli-row" data-invalid={emailError ? 'true' : undefined}>
                 <label htmlFor="cli-email" className="cli-label">Correo</label>
                 <div className="cli-field">
                   <EmailInput id="cli-email" data-testid="cli-email" anchorSelector=".cli-field" className="cli-input" value={draft.email} onValueChange={(email) => setDraft((current) => ({ ...current, email: stripLineBreaks(email) }))} onBlur={blurEmail} aria-invalid={emailError ? 'true' : undefined} aria-describedby={[errorIdFor('cli-email', emailError), emailOptional ? 'cli-email-optional' : ''].filter(Boolean).join(' ') || undefined} autoComplete="off" />
-                  <FieldError id="cli-email-error" message={emailError} />
                 </div>
                 {emailOptional && <span id="cli-email-optional" className="cli-aux">Opcional</span>}
               </div>
+              <FieldError id="cli-email-error" message={emailError} className="cli-row-error" />
               <div className="cli-row cli-row--chips">
                 <label htmlFor="cli-alias-input" className="cli-label">Apodos</label>
                 <div className="cli-chips" data-testid="cli-chips">
