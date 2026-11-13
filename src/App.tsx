@@ -13,11 +13,12 @@ import { InternalControlPage } from './pages/InternalControlPage';
 import { InternalControlDetailPage } from './pages/InternalControlDetailPage';
 import { BackupPage } from './pages/BackupPage';
 import { WorkshopPage } from './pages/WorkshopPage';
-import { ShortcutsPage } from './pages/ShortcutsPage';
+import { WelcomeGuard, WelcomeRoute } from './pages/WelcomeRoute';
 import { FULL_BLEED } from './routes/routeHandle';
 import { StorageNoticeBridge } from './storage/StorageNoticeBridge';
 import { CustomerProvider } from './store/CustomerContext';
 import { QuotationProvider } from './store/QuotationContext';
+import { ShareProvider } from './store/ShareContext';
 
 /** App-wide providers. They live inside the router so any of them may use router hooks. */
 function Providers() {
@@ -28,7 +29,9 @@ function Providers() {
         <ChoiceProvider>
           <QuotationProvider>
             <CustomerProvider>
-              <Outlet />
+              <ShareProvider>
+                <Outlet />
+              </ShareProvider>
             </CustomerProvider>
           </QuotationProvider>
         </ChoiceProvider>
@@ -42,21 +45,27 @@ const router = createHashRouter([
   {
     element: <Providers />,
     children: [
+      // Full window, no sidebar, but inside the providers (it needs the Toast).
+      { path: 'bienvenida', element: <WelcomeRoute /> },
       {
-        element: <AppLayout />,
+        element: <WelcomeGuard />,
         children: [
-          { index: true, element: <Inicio />, handle: FULL_BLEED },
-          { path: 'nueva-cotizacion', element: <NuevaCotizacionPage />, handle: FULL_BLEED },
-          { path: 'historial', element: <HistoryPage />, handle: FULL_BLEED },
-          { path: 'clientes', element: <CustomersPage />, handle: FULL_BLEED },
-          { path: 'facturas', element: <FacturasPage />, handle: FULL_BLEED },
-          { path: 'control-interno', element: <InternalControlPage /> },
-          { path: 'control-interno/:quotationId', element: <InternalControlDetailPage /> },
-          { path: 'respaldo', element: <BackupPage /> },
-          { path: 'datos-del-taller', element: <WorkshopPage /> },
-          { path: 'atajos', element: <ShortcutsPage /> },
-          { path: 'cotizaciones/:id', element: <QuotationDetailPage /> },
-          { path: '*', element: <Navigate to="/" replace /> },
+          {
+            element: <AppLayout />,
+            children: [
+              { index: true, element: <Inicio />, handle: FULL_BLEED },
+              { path: 'nueva-cotizacion', element: <NuevaCotizacionPage />, handle: FULL_BLEED },
+              { path: 'historial', element: <HistoryPage />, handle: FULL_BLEED },
+              { path: 'clientes', element: <CustomersPage />, handle: FULL_BLEED },
+              { path: 'facturas', element: <FacturasPage />, handle: FULL_BLEED },
+              { path: 'control-interno', element: <InternalControlPage /> },
+              { path: 'control-interno/:quotationId', element: <InternalControlDetailPage /> },
+              { path: 'respaldo', element: <BackupPage /> },
+              { path: 'datos-del-taller', element: <WorkshopPage /> },
+              { path: 'cotizaciones/:id', element: <QuotationDetailPage /> },
+              { path: '*', element: <Navigate to="/" replace /> },
+            ],
+          },
         ],
       },
     ],

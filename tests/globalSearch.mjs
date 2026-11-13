@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MAX_PER_GROUP, moveActive, searchAll } from '../src/search/globalSearch.ts';
-import { resolveShortcut, shortcutLabel } from '../src/utils/shortcuts.ts';
 
 const quote = (id, folio, name, customerId, make, model, plates, price = 1000) => ({
   id, folio, createdAt: '2026-01-01T00:00:00.000Z', status: 'Pendiente', customerId,
@@ -84,10 +83,3 @@ test('arrow navigation walks every result of every group and wraps', () => {
   assert.equal(moveActive(0, 1, 0), -1);
 });
 
-test('Ctrl/Cmd+K resolves to the search action and is blocked while another modal is open', () => {
-  assert.equal(resolveShortcut({ key: 'k', ctrlKey: true }, { platform: 'other', modalOpen: false }).action, 'search');
-  assert.equal(resolveShortcut({ key: 'k', metaKey: true }, { platform: 'mac', modalOpen: false }).action, 'search');
-  assert.equal(resolveShortcut({ key: 'k', ctrlKey: true }, { platform: 'other', modalOpen: true }).action, null);
-  assert.equal(shortcutLabel('search', 'mac'), '⌘K');
-  assert.equal(shortcutLabel('search', 'other'), 'Ctrl+K');
-});

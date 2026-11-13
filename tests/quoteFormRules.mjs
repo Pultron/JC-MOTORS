@@ -6,7 +6,7 @@ import { MAX_YEAR, MIN_YEAR } from '../src/validation/fields.ts';
 
 const totals = { subtotalRefacciones: 100, subtotalManoObra: 0, laborDiscount: 0, subtotalNeto: 100, ivaAmount: 16, total: 116 };
 const baseForm = (overrides = {}) => ({
-  customerId: '', customerName: 'Ana', phone: '', email: '', make: 'Nissan', model: 'Versa', year: '', plates: '',
+  customerId: '', customerName: 'Ana', phone: '(667) 351-8806', email: '', make: 'Nissan', model: 'Versa', year: '2020', plates: 'ABC-123-A',
   items: [{ id: 'a', type: 'part', description: 'Filtro', quantity: '1', unitPrice: '100' }],
   laborAmount: '', laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true, validityDays: '15', publicNotes: '', customerNotes: '',
   ...overrides,
@@ -19,6 +19,11 @@ test('#006 year uses the single MIN_YEAR/MAX_YEAR range', () => {
   assert.equal(validateQuoteForm(baseForm({ year: String(MAX_YEAR) }), totals).year, undefined);
   assert.match(validateQuoteForm(baseForm({ year: String(MIN_YEAR - 1) }), totals).year, new RegExp(String(MIN_YEAR)));
   assert.ok(validateQuoteForm(baseForm({ year: String(MAX_YEAR + 1) }), totals).year);
+});
+
+test('year is required', () => {
+  assert.ok(validateQuoteForm(baseForm({ year: '' }), totals).year);
+  assert.ok(validateQuoteForm(baseForm({ year: '  ' }), totals).year);
 });
 
 const item = (overrides) => ({ id: 'a', type: 'part', description: 'Filtro', quantity: '1', unitPrice: '100', ...overrides });
@@ -89,12 +94,28 @@ test('#011 single-line fields lose tabs, newlines and repeated spaces; notes kee
   assert.equal(form.customerNotes, 'Línea 1\nLínea 2');
 });
 
-test('#012 plates: optional, min 3 chars, saved uppercase, letters/digits/hyphen/space only', async () => {
+test('#012 plates: required, min 3 chars, saved uppercase, letters/digits/hyphen/space only', async () => {
   const { sanitizePlatesInput } = await import('../src/validation/fields.ts');
-  assert.equal(validateQuoteForm(baseForm({ plates: '' }), totals).plates, undefined);
+  assert.equal(validateQuoteForm(baseForm({ plates: '' }), totals).plates, 'Escribe las placas.');
+  assert.equal(validateQuoteForm(baseForm({ plates: '   ' }), totals).plates, 'Escribe las placas.');
   assert.ok(validateQuoteForm(baseForm({ plates: 'ab' }), totals).plates);
   assert.equal(validateQuoteForm(baseForm({ plates: 'abc-123-a' }), totals).plates, undefined);
   assert.ok(validateQuoteForm(baseForm({ plates: 'ABC#123' }), totals).plates);
   assert.equal(sanitizePlatesInput('abc#-12 3\t'), 'ABC-12 3 ');
   assert.equal(buildQuotationInput(normalizeQuoteForm(baseForm({ plates: ' abc-123-a ' }))).vehicle.plates, 'ABC-123-A');
+});
+
+test('contact: neither phone nor email fails on both; either one alone passes; legacy data is only checked on save', () => {
+  const both = validateQuoteForm(baseForm({ phone: '', email: '' }), totals);
+  assert.equal(both.phone, 'Agrega un teléfono o un correo');
+  assert.equal(both.email, 'Agrega un teléfono o un correo');
+  assert.deepEqual(validateQuoteForm(baseForm({ phone: '', email: 'ana@correo.com' }), totals), {});
+  assert.deepEqual(validateQuoteForm(baseForm({ phone: '6673518806', email: '' }), totals), {});
+  const incomplete = validateQuoteForm(baseForm({ phone: '66735', email: '' }), totals);
+  assert.match(incomplete.phone, /Faltan/);
+  assert.equal(incomplete.email, undefined);
+  assert.ok(validateQuoteForm(baseForm({ phone: '', email: 'foo' }), totals).email);
+  // A legacy customer (no phone, no email) selected in a new quotation does not crash; saving then requires contact.
+  const legacy = validateQuoteForm(baseForm({ customerId: 'legacy', phone: '', email: '' }), totals);
+  assert.ok(legacy.phone && legacy.email);
 });

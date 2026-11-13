@@ -64,6 +64,12 @@ export function nextFolio(folios: string[]): string {
   return `JC-${String(next).padStart(4, '0')}`;
 }
 
+/** The folio the next quotation will get, without reserving it (the counter is not written). */
+export function peekNextFolio(folios: string[] = []): string {
+  const highestExisting = folios.reduce((value, folio) => Math.max(value, folioNumber(folio)), 0);
+  return `JC-${String(Math.max(readQuotationCounter(), highestExisting) + 1).padStart(4, '0')}`;
+}
+
 /** Sube el contador de cotizaciones hasta un folio ya emitido (p. ej. el de un borrador o un respaldo importado). */
 export function ensureQuotationFolioAtLeast(folio: string): void {
   const number = folioNumber(folio);

@@ -7,13 +7,16 @@ import { Segmented } from '../components/newQuote/primitives/Segmented';
 import { Card } from '../components/newQuote/primitives/Card';
 import { CardHeader } from '../components/newQuote/primitives/CardHeader';
 import { useToast } from '../components/ui/Toast';
+import { WipeDangerZone } from '../components/respaldo/WipeDangerZone';
 import { useConfirm } from '../hooks/useConfirm';
 import {
   BackupError, applyBackup, backupFileName, buildBackup, formatSummary, markBackupExported, parseBackup, readLastBackupAt,
   saveSafetySnapshot, serializeBackup, summarizeBackup, summarizeCurrent,
 } from '../storage/backupService';
 import type { BackupFile, ImportMode } from '../storage/backupService';
+import { isSqliteActive } from '../storage/sqliteStorage';
 import { savePdfFile } from '../utils/savePdfFile';
+import { SqliteBackupPage } from './SqliteBackupPage';
 import '../styles/respaldo.css';
 
 interface PendingImport {
@@ -26,7 +29,12 @@ function formatBackupDate(iso: string | null): string {
   return iso ? formatDate(iso, 'dateTime') : 'Todavía no has exportado un respaldo';
 }
 
+/** Con SQLite activo (app de escritorio) se usa el respaldo .jcm; en navegador o si la migración falló, el JSON de siempre. */
 export function BackupPage() {
+  return isSqliteActive() ? <SqliteBackupPage /> : <JsonBackupPage />;
+}
+
+function JsonBackupPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -163,6 +171,8 @@ export function BackupPage() {
           </div>
         </>}
       </Card>
+
+      <WipeDangerZone disabled={busy} onBusyChange={setBusy} />
     </div>
   </div>;
 }

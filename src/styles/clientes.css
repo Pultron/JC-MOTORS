@@ -18,9 +18,7 @@
 /* ---- Encabezado ---- */
 .cli-header { position: sticky; top: 0; z-index: 10; padding: 22px 0 18px; border-bottom: 1px solid var(--sep); background: rgb(245 245 247 / 82%); -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); }
 .cli-header-inner { max-width: 920px; margin: 0 auto; padding: 0 32px; box-sizing: border-box; }
-.cli-eyebrow { color: var(--accent-text); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .cli-header h1 { margin-top: 2px; font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
-.cli-sub { margin-top: 4px; color: var(--text-2); font-size: 13px; }
 
 /* ---- Cuerpo y tarjetas ---- */
 .cli-body { display: flex; flex-direction: column; gap: 20px; max-width: 920px; margin: 0 auto; padding: 24px 32px 48px; }
@@ -44,7 +42,8 @@
 .cli-input::placeholder { color: var(--text-3); }
 .cli-field { display: flex; flex: 1; flex-direction: column; min-width: 0; padding-bottom: 0; }
 .cli-field .cli-input { flex: none; width: 100%; }
-.cli-field .mac-field-error p { padding-bottom: 8px; color: var(--danger); }
+.cli-row-error { padding: 4px 16px 8px; }
+.cli-page .cli-note { margin: 8px 16px 0; color: var(--text-2); font-size: 12px; line-height: 1.4; }
 .cli-aux { flex: none; color: var(--text-2); font-size: 12px; }
 .cli-error { flex: none; max-width: 55%; color: var(--danger); font-size: 12px; text-align: right; animation: cliSwap 220ms var(--ease) both; }
 .cli-row--chips { align-items: flex-start; }

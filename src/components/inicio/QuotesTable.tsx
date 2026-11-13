@@ -8,11 +8,13 @@ import { searchQuotations } from '../../search/quotationSearch';
 import { useDebouncedValue } from '../../search/useDebouncedValue';
 import { QuotationActionsMenu } from '../QuotationActionsMenu';
 import { QuotationPdfDialog } from '../QuotationPdfDialog';
+import { ShareStatusLine } from '../share/ShareStatusLine';
+import { countPendingUnshared, pendingUnsharedText } from '../../services/shareFilter';
 import { StatusBadge } from '../StatusBadge';
-import { useCancelledQuotationDeletion } from '../../hooks/useCancelledQuotationDeletion';
+import { useQuotationDeletion } from '../../hooks/useQuotationDeletion';
 import { useQuotationActions } from '../../hooks/useQuotationActions';
 import { useQuotationPdfDownload } from '../../hooks/useQuotationPdfDownload';
-import type { PublicQuotation, Quotation, QuotationStatus } from '../../models/quotation';
+import type { PublicQuotation, QuotationStatus } from '../../models/quotation';
 import { useQuotations } from '../../store/QuotationContext';
 import { formatMoney } from '../../utils/money';
 import { calculateQuotationTotals, toPublicQuotation } from '../../utils/quotation';
@@ -31,7 +33,7 @@ const STATUS_TABS: ReadonlyArray<{ value: StatusFilter; label: string; dot?: str
 ];
 
 export function QuotesTable() {
-  const { quotations, isLoading, duplicateQuotation } = useQuotations();
+  const { quotations, isLoading } = useQuotations();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
@@ -40,7 +42,7 @@ export function QuotesTable() {
   const [flashId, setFlashId] = useState<string | null>(null);
   const [pdfTarget, setPdfTarget] = useState<PublicQuotation | null>(null);
   const { requestApprove, requestCancel } = useQuotationActions((updated) => setFlashId(updated.id));
-  const { requestDelete } = useCancelledQuotationDeletion();
+  const { requestDelete } = useQuotationDeletion();
   const downloadPdf = useQuotationPdfDownload();
 
   const sortedQuotations = useMemo(
@@ -53,6 +55,8 @@ export function QuotesTable() {
     for (const quotation of sortedQuotations) result[quotation.status] += 1;
     return result;
   }, [sortedQuotations]);
+
+  const pendingUnshared = useMemo(() => countPendingUnshared(quotations), [quotations]);
 
   const searched = useMemo(() => searchQuotations(sortedQuotations, debouncedSearch), [sortedQuotations, debouncedSearch]);
   const filteredQuotations = useMemo(
@@ -68,13 +72,6 @@ export function QuotesTable() {
     if (next.search !== undefined) setSearch(next.search);
     if (next.status !== undefined) setStatus(next.status);
     setPage(1);
-  }
-
-  async function handleDuplicate(quotation: Quotation) {
-    const duplicated = await duplicateQuotation(quotation.id);
-    if (!duplicated) return;
-    setPage(1);
-    setFlashId(duplicated.id);
   }
 
   function handleRowAnimationEnd(event: AnimationEvent<HTMLTableRowElement>) {
@@ -96,6 +93,12 @@ export function QuotesTable() {
           <ChevronRight size={14} aria-hidden="true" />
         </Link>
       </div>
+
+      {pendingUnshared > 0 && (
+        <p className="px-5 pb-3 text-[12px]">
+          <Link to="/historial?estado=pendiente&envio=sin-compartir" data-testid="pendientes-sin-compartir" className="rounded-md font-semibold text-mac-accent-text underline-offset-2 transition-colors hover:text-mac-accent hover:underline">{pendingUnsharedText(pendingUnshared)}</Link>
+        </p>
+      )}
 
       <div className="flex flex-col gap-3 px-5 pb-4 lg:flex-row lg:items-center">
         <label className="inicio-search w-full lg:w-auto lg:flex-1">
@@ -164,7 +167,7 @@ export function QuotesTable() {
                       >
                         <td className="font-semibold text-mac-ink">{quotation.folio}</td>
                         <td className="num text-mac-ink-2">{formatDate(quotation.createdAt, 'medium')}</td>
-                        <td className="max-w-0 truncate font-semibold text-mac-ink" title={quotation.customer.name}>{quotation.customer.name}</td>
+                        <td className="max-w-0 font-semibold text-mac-ink"><span className="block truncate" aria-hidden="true" title={quotation.customer.name}>{quotation.customer.name}</span><ShareStatusLine record={quotation} customerName={quotation.customer.name} /></td>
                         <td className="max-w-0 truncate text-mac-ink-2" title={quotation.vehicle.year ? `${vehicle} ${quotation.vehicle.year}` : vehicle}>{vehicle}</td>
                         <td>
                           <span key={quotation.status} className={isFlashing ? 'badge-pop' : undefined}>
@@ -180,7 +183,6 @@ export function QuotesTable() {
                               onDownloadPdf={downloadPdf}
                               onApprove={requestApprove}
                               onCancel={requestCancel}
-                              onDuplicate={(target) => void handleDuplicate(target)}
                               onDelete={requestDelete}
                             />
                           </div>

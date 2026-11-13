@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import type { DragEvent } from 'react';
-import { AlertTriangle, CalendarDays, Download, ExternalLink, FileText, Plus, Search, Trash2, Upload, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Download, ExternalLink, FileText, Loader2, Mail, MessageCircle, Plus, Search, Trash2, Upload, X } from 'lucide-react';
 import { InvoiceSheet } from '../components/facturas/InvoiceSheet';
 import { OriginalPreview } from '../components/facturas/OriginalPreview';
 import { RangeCalendar } from '../components/internalControl/RangeCalendar';
+import { ShareStatusLine } from '../components/share/ShareStatusLine';
 import { useToast } from '../components/ui/Toast';
 import { searchInvoices } from '../search/globalSearch';
 import { formatDate } from '../utils/dateFormat';
 import { useConfirm } from '../hooks/useConfirm';
 import { useInvoices } from '../hooks/useInvoices';
+import { useInvoiceShare } from '../hooks/useInvoiceShare';
 import type { ImportOutcome } from '../hooks/useInvoices';
 import type { Invoice } from '../models/invoice';
 import { generarFacturaPdf } from '../services/invoicePdf';
@@ -35,7 +37,8 @@ function Estado({ estado }: { estado: Invoice['estado'] }) {
 export function FacturasPage() {
   const toast = useToast();
   const confirm = useConfirm();
-  const { invoices, importFiles, remove } = useInvoices();
+  const { invoices, importFiles, remove, markShared } = useInvoices();
+  const share = useInvoiceShare(markShared);
   const [params, setParams] = useSearchParams();
   const [busqueda, setBusqueda] = useState(() => params.get('q') ?? '');
   const [rango, setRango] = useState<DateRange>(SIN_RANGO);
@@ -229,7 +232,8 @@ export function FacturasPage() {
             <li key={invoice.uuid} style={{ animationDelay: `${i * 50}ms` }} className={flashUuid === invoice.uuid ? 'is-flash' : undefined}>
               <button type="button" data-testid="invoice-row" data-uuid={invoice.uuid} data-selected={invoice.uuid === selectedUuid} onClick={() => select(invoice.uuid)}>
                 <span className="fac-row-top"><span className="fac-row-uuid">Nº {formatearFolio(invoice.folio)}{invoice.selloIncompleto && <span className="fac-dot-warn" title="El sello digital no se extrajo completo; el PDF generado no será válido para imprimir" data-testid="row-sello-dot" />}{invoice.rfcInvalido && <span className="fac-dot-warn" title="El RFC del emisor o del receptor no tiene un formato válido; revísalo en la factura original" data-testid="row-rfc-dot" />}</span><span className="fac-row-date">{formatDate(invoice.fechaEmision, 'medium')}</span></span>
-                <span className="fac-row-name">{invoice.receptor.nombre}</span>
+                <span className="fac-row-name" aria-hidden="true">{invoice.receptor.nombre}</span>
+                <ShareStatusLine record={invoice} customerName={invoice.receptor.nombre} />
                 <span className="fac-row-bottom"><Estado estado={invoice.estado} /><strong>{formatMoney(invoice.total)}</strong></span>
               </button>
             </li>
@@ -242,9 +246,28 @@ export function FacturasPage() {
         {selected ? (
           <>
             <header className="fac-bar">
-              <div className="fac-bar-title"><strong>{nombreArchivoFactura(selected.folio)} · {selected.receptor.nombre}</strong><Estado estado={selected.estado} /></div>
+              <div className="fac-bar-title"><div className="fac-bar-heading"><strong>{nombreArchivoFactura(selected.folio)} · {selected.receptor.nombre}</strong><ShareStatusLine record={selected} /></div><Estado estado={selected.estado} /></div>
               <div className="fac-bar-actions">
                 <button type="button" className="fac-btn-secondary" data-testid="download-pdf" disabled={busy} onClick={() => void descargar()}><Download size={15} aria-hidden="true" />Descargar PDF</button>
+                {(['whatsapp', 'email'] as const).map((medium) => {
+                  const available = share.canUse(selected, medium);
+                  const Icon = medium === 'whatsapp' ? MessageCircle : Mail;
+                  return (
+                    <button
+                      key={medium}
+                      type="button"
+                      className="fac-btn-secondary"
+                      data-testid={`invoice-share-${medium}`}
+                      data-available={available ? 'true' : 'false'}
+                      disabled={share.busy}
+                      title={available ? undefined : medium === 'whatsapp' ? 'Sin teléfono registrado: te lo pediremos.' : 'Sin correo registrado: te lo pediremos.'}
+                      onClick={() => share.shareInvoice(selected, medium)}
+                    >
+                      {share.busy ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Icon size={15} aria-hidden="true" />}
+                      {medium === 'whatsapp' ? 'Enviar por WhatsApp' : 'Enviar por correo'}
+                    </button>
+                  );
+                })}
                 <button type="button" className="fac-btn-secondary" data-testid="view-original" disabled={!selected.archivoOriginal} onClick={() => setOriginalOpen(true)}><ExternalLink size={15} aria-hidden="true" />Ver original</button>
                 <button type="button" className="fac-btn-secondary fac-btn-danger" data-testid="delete-invoice" aria-label="Eliminar factura" onClick={() => void eliminar()}><Trash2 size={15} aria-hidden="true" />Eliminar</button>
               </div>
@@ -267,6 +290,8 @@ export function FacturasPage() {
           </div>
         )}
       </section>
+
+      {share.dialogs}
 
       {originalOpen && selected?.archivoOriginal && (
         <OriginalPreview invoice={selected} title={nombreArchivoFactura(selected.folio)} onDownload={() => void descargarOriginal()} onClose={() => setOriginalOpen(false)} />

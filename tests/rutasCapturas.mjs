@@ -8,7 +8,7 @@ const BASE = process.env.APP_URL ?? 'http://localhost:5173';
 const LABEL = process.env.LABEL ?? 'captura';
 const dir = `tests/artifacts/rutas/${LABEL}`;
 await mkdir(dir, { recursive: true });
-const ROUTES = ['/', '/nueva-cotizacion', '/historial', '/clientes', '/facturas', '/control-interno', '/respaldo', '/datos-del-taller', '/atajos'];
+const ROUTES = ['/', '/nueva-cotizacion', '/historial', '/clientes', '/facturas', '/control-interno', '/respaldo', '/datos-del-taller'];
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const c = await connect(Number(process.env.CDP_PORT ?? 9223));
 const report = {};

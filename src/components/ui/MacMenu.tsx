@@ -8,6 +8,10 @@ export interface MacMenuItem {
   label: string;
   icon?: LucideIcon;
   tone?: 'danger';
+  /** Looks inactive (secondary ink) but stays clickable. */
+  muted?: boolean;
+  /** Tooltip. */
+  hint?: string;
   /** Dibuja una línea separadora antes del ítem. */
   separatorBefore?: boolean;
   onSelect: () => void;
@@ -170,6 +174,8 @@ export function MacMenu({ items, triggerLabel, menuLabel, triggerIcon, triggerCl
                 role="menuitem"
                 tabIndex={-1}
                 data-tone={item.tone}
+                data-muted={item.muted ? 'true' : undefined}
+                title={item.hint}
                 data-testid={`menu-${item.key}`}
                 className="mac-menu-item"
                 onMouseEnter={(event) => event.currentTarget.focus()}

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-db-migrate-from-local"
+description = "Enables the db_migrate_from_local command without any pre-configured scope."
+commands.allow = ["db_migrate_from_local"]
+
+[[permission]]
+identifier = "deny-db-migrate-from-local"
+description = "Denies the db_migrate_from_local command without any pre-configured scope."
+commands.deny = ["db_migrate_from_local"]

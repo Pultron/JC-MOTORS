@@ -6,7 +6,7 @@ import { APP_KEY_PREFIXES, BACKUP_EXPORT_KEYS, BACKUP_PREFIX, STORAGE_KEYS } fro
 export const BACKUP_APP_ID = 'jc-motors';
 export const BACKUP_FORMAT_VERSION = 1;
 export const PRE_IMPORT_PREFIX = `${BACKUP_PREFIX}pre-import:`;
-export const BACKUP_REMINDER_DAYS = 14;
+export const BACKUP_REMINDER_DAYS = 7;
 
 export type ImportMode = 'merge' | 'replace';
 

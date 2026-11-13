@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Invoice } from '../models/invoice';
+import type { ShareMedium } from '../models/quotation';
 import { CfdiParseError } from '../services/cfdiParser';
 import { asegurarContadorMinimo, siguienteFolio } from '../services/folioService';
 import { leerFactura } from '../services/invoiceReader';
-import { LocalStorageInvoiceRepository } from '../repositories/LocalStorageInvoiceRepository';
+import { createInvoiceRepository } from '../repositories/repositoryFactory';
 
 export type ImportOutcome =
   | { file: string; status: 'imported'; invoice: Invoice }
@@ -11,7 +12,7 @@ export type ImportOutcome =
   | { file: string; status: 'error'; message: string };
 
 export function useInvoices() {
-  const repository = useRef(new LocalStorageInvoiceRepository()).current;
+  const repository = useRef(createInvoiceRepository()).current;
   const [invoices, setInvoices] = useState<Invoice[]>([]);
 
   const refresh = useCallback(async () => {
@@ -55,5 +56,11 @@ export function useInvoices() {
     await refresh();
   }, [repository, refresh]);
 
-  return useMemo(() => ({ invoices, importFiles, remove }), [invoices, importFiles, remove]);
+  const markShared = useCallback(async (uuid: string, via: ShareMedium) => {
+    const updated = await repository.markShared(uuid, via);
+    if (updated) await refresh();
+    return updated;
+  }, [repository, refresh]);
+
+  return useMemo(() => ({ invoices, importFiles, remove, markShared }), [invoices, importFiles, remove, markShared]);
 }

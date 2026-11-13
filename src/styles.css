@@ -185,6 +185,17 @@ input[type="number"]::-webkit-outer-spin-button {
 @media (prefers-reduced-motion: reduce) { .mac-discount-flash { animation: none !important; } }
 .mac-row-input { flex: 1; min-width: 0; height: 44px; border: 0; background: transparent; padding: 0; color: var(--color-mac-ink); font-size: 14px; }
 .mac-row-input:focus-visible { outline: none !important; }
+/* "Opcional" a la derecha de la fila; desaparece en cuanto el campo tiene texto. */
+.mac-row-optional { flex: none; margin-left: 12px; color: var(--color-mac-ink-2); font-size: 13px; opacity: .8; pointer-events: none; }
+.mac-row-lead { flex: none; margin-right: 8px; color: var(--color-mac-ink-2); }
+/* Campo de dinero: "$" fijo a la izquierda, fuera del valor. */
+.mac-money { display: flex; align-items: center; height: 40px; border-radius: 8px; background: var(--color-mac-fill); transition: background-color 180ms ease, box-shadow 180ms ease; }
+.mac-money:focus-within { outline: 2px solid var(--color-mac-accent); }
+.mac-money[data-invalid="true"] { box-shadow: inset 0 0 0 2px var(--color-mac-danger); }
+.mac-money > span { flex: none; padding-left: 12px; color: var(--color-mac-ink-2); font-size: 14px; }
+.mac-money > input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; padding: 0 12px 0 4px; color: var(--color-mac-ink); font-size: 14px; }
+.new-quotation-page .mac-money > input, .new-quotation-page .mac-money > input:focus, .new-quotation-page .mac-money > input:focus-visible { outline: none !important; box-shadow: none !important; background: transparent !important; }
+.mac-money > input:-webkit-autofill { -webkit-box-shadow: 0 0 0 100px var(--color-mac-fill) inset; -webkit-text-fill-color: var(--color-mac-ink); }
 textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .mac-fill-input { height: 40px; min-width: 0; border: 0; border-radius: 8px; background: var(--color-mac-fill); padding: 0 12px; color: var(--color-mac-ink); font-size: 14px; transition: background-color 180ms ease, box-shadow 180ms ease; }
 .mac-fill-input:focus-visible { outline: 2px solid var(--color-mac-accent); outline-offset: 0; }
@@ -200,7 +211,13 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .mac-option { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 12px 6px 10px; border-radius: 8px; color: var(--color-mac-ink); line-height: 20px; cursor: default; user-select: none; }
 .mac-option[data-active="true"] { background: var(--color-mac-accent); color: #fff; }
 .mac-option-check { display: flex; width: 16px; flex: none; align-items: center; justify-content: center; }
-.mac-option-detail { display: block; font-size: 12px; line-height: 16px; color: var(--color-mac-ink-2); }
+.mac-option-label { display: block; font-weight: 600; }
+.mac-option-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 1px; }
+.mac-option-detail { font-size: 12px; line-height: 16px; color: var(--color-mac-ink-2); font-variant-numeric: tabular-nums; }
+.mac-option-badge { padding: 0 7px; border-radius: 999px; background: var(--color-mac-tint); color: var(--color-mac-accent-text); font-size: 11px; font-weight: 600; line-height: 18px; }
+.mac-option[data-active="true"] .mac-option-badge { background: rgb(255 255 255 / 24%); color: #fff; }
+.cli-search-btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid rgb(204 77 14 / 28%); border-radius: 999px; background: var(--color-mac-tint); color: var(--color-mac-accent-text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.cli-search-btn:hover, .cli-search-btn[aria-expanded="true"] { background: var(--color-mac-accent); border-color: var(--color-mac-accent); color: #fff; }
 .mac-option[data-active="true"] .mac-option-detail { color: rgb(255 255 255 / 82%); }
 .mac-option-separator { height: 1px; margin: 4px 10px; background: rgb(60 60 67 / 18%); list-style: none; }
 /* Email domain suggestions (EmailInput) and quote templates popover: compact variants of the shared listbox. */
@@ -241,17 +258,6 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .jc-tpl-form .jc-tpl-note { padding-inline: 0; }
 .jc-tpl-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 .jc-tpl-buttons .mac-btn { height: 34px; }
-.jc-kbd { display: inline-flex; min-width: 28px; height: 24px; flex: none; align-items: center; justify-content: center; padding: 0 8px; border-radius: 6px; background: var(--color-mac-fill); color: var(--color-mac-ink-2); font-family: var(--font-mac); font-size: 12px; font-weight: 600; white-space: nowrap; }
-.jc-shortcuts { max-width: 720px; margin: 0 auto; color: var(--color-mac-ink); font-family: var(--font-mac); }
-.jc-shortcuts h1 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.015em; }
-.jc-shortcuts header p { margin: 6px 0 0; color: var(--color-mac-ink-2); font-size: 14px; line-height: 1.45; }
-.jc-shortcuts h2 { margin: 28px 0 8px; padding-inline: 4px; color: var(--color-mac-ink-2); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-.jc-shortcuts ul { margin: 0; padding: 0; overflow: hidden; border-radius: 14px; background: var(--jc-pop-bg); box-shadow: var(--shadow-mac-card); list-style: none; }
-.jc-shortcuts li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; }
-.jc-shortcuts li + li { border-top: 1px solid var(--color-mac-separator); }
-.jc-shortcuts li div { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
-.jc-shortcuts li strong { font-size: 14px; font-weight: 600; color: var(--jc-pop-ink); }
-.jc-shortcuts li span { color: var(--jc-pop-ink-2); font-size: 13px; line-height: 1.4; }
 .mac-option-empty { margin: 0; padding: 8px 12px; font-size: 12px; color: var(--color-mac-ink-2); }
 .mac-option-action { display: block; width: 100%; margin-top: 4px; padding: 8px 12px; border: 0; border-top: 1px solid rgb(60 60 67 / 18%); border-radius: 8px; background: transparent; color: var(--color-mac-accent-text); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
 .mac-option-action:hover { background: var(--color-mac-tint); }
@@ -287,6 +293,7 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .mac-menu-item:focus { outline: none; }
 .mac-menu-item:focus-visible, .mac-menu-item:focus, .mac-menu-item:hover { background: var(--color-mac-accent); color: #fff; }
 .mac-menu-item:focus svg, .mac-menu-item:hover svg { color: #fff; }
+.mac-menu-item[data-muted="true"]:not(:hover):not(:focus), .mac-menu-item[data-muted="true"]:not(:hover):not(:focus) svg { color: var(--color-mac-ink-2); opacity: .7; }
 .mac-menu-item[data-tone="danger"], .mac-menu-item[data-tone="danger"] svg { color: #c0262d; }
 .mac-menu-item[data-tone="danger"]:focus, .mac-menu-item[data-tone="danger"]:hover { background: #c0262d; color: #fff; }
 .mac-menu-item[data-tone="danger"]:focus svg, .mac-menu-item[data-tone="danger"]:hover svg { color: #fff; }
@@ -329,7 +336,7 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .mac-dialog-description { max-width: 320px; margin: 6px auto 0; color: var(--color-mac-ink-2); font-size: 13px; line-height: 1.45; }
 .mac-dialog-actions { display: flex; gap: 10px; margin-top: 22px; }
 .mac-dialog-actions .mac-btn { flex: 1; }
-.mac-dialog-actions--stack { flex-direction: column; }
+.mac-dialog-actions--stack { flex-direction: column-reverse; }
 .mac-dialog-actions--stack .mac-btn { flex: none; width: 100%; height: auto; min-height: 40px; padding-block: 9px; }
 .mac-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation-name: draw; animation-timing-function: cubic-bezier(.4, 0, .2, 1); animation-fill-mode: forwards; }
 .mac-draw-circle { animation-duration: 450ms; animation-delay: 200ms; }
@@ -403,3 +410,40 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
     scroll-behavior: auto !important;
   }
 }
+
+/* Quote templates: wide editor view, search field and concept rows. */
+.jc-tpl-pop--wide { max-width: min(520px, calc(100vw - 16px)); }
+.jc-tpl-search { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 6px; margin: 0 4px 4px; padding: 0 10px; border-radius: 8px; background: var(--color-mac-fill); color: var(--jc-pop-ink-2); }
+.jc-tpl-search input { flex: 1; min-width: 0; height: 32px; border: 0; background: transparent; color: var(--jc-pop-ink); font: inherit; outline: none; }
+.jc-tpl-search:focus-within { outline: 2px solid var(--color-mac-accent); }
+.jc-tpl-label--section { margin: 12px 0 0; }
+.jc-tpl-rows { display: flex; flex-direction: column; gap: 8px; }
+.jc-tpl-concept { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.jc-tpl-concept .jc-tpl-type { flex: 0 0 130px; padding: 0 6px; }
+.jc-tpl-concept .jc-tpl-desc { flex: 1 1 160px; min-width: 0; }
+.jc-tpl-concept .jc-tpl-qty { flex: 0 0 64px; padding: 0 6px; }
+.jc-tpl-concept .jc-tpl-money { flex: 0 0 110px; height: 36px; }
+.jc-tpl-concept .jc-tpl-icon:disabled { opacity: 0.4; cursor: not-allowed; }
+.jc-tpl-money > input { color: var(--jc-pop-ink); outline: none; }
+.jc-tpl-action--inline { width: auto; margin-top: 8px; padding-inline: 0; }
+.jc-tpl-action--inline:hover { background: transparent; text-decoration: underline; }
+
+/* Share status line under the customer name (Historial, Inicio, detail). Success green and muted gray are both >= 4.5:1 on the always-light content surface; dark mode does not restyle this surface. */
+.share-line { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; line-height: 16px; color: var(--color-mac-ink-2); }
+.share-line[data-share="whatsapp"], .share-line[data-share="email"] { color: var(--color-mac-success); }
+.share-line-text { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.share-line-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-line-icon { flex: none; }
+
+.cli-alias-suggest { display: flex; width: 100%; align-items: center; gap: 8px; padding: 8px 16px; border: 0; border-top: 1px solid rgb(60 60 67 / 12%); background: var(--color-mac-tint); color: var(--color-mac-accent-text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.cli-alias-suggest:hover { filter: brightness(0.97); }
+
+.mac-option-search { display: flex; align-items: center; gap: 8px; margin: 2px 2px 6px; padding: 0 10px; height: 34px; border-radius: 10px; background: rgb(118 118 128 / 12%); color: var(--color-mac-ink-2); }
+.mac-option-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--color-mac-ink); font: inherit; font-size: 14px; }
+.mac-option-search input, .new-quotation-page .mac-option-search input:focus-visible { outline: none !important; box-shadow: none !important; }
+.mac-option-search input::-webkit-search-cancel-button { display: none; }
+.mac-option-search:focus-within { box-shadow: 0 0 0 2px var(--color-mac-accent); }
+
+.cli-save-customer { display: flex; width: 100%; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border: 0; border-top: 1px solid rgb(60 60 67 / 12%); background: var(--color-mac-tint); color: var(--color-mac-accent-text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.cli-save-customer:hover { background: var(--color-mac-accent); color: #fff; }
+.cli-saved-customer { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0; padding: 9px 16px; border-top: 1px solid rgb(60 60 67 / 12%); color: #0c6a2f; background: #eaf7ee; font-size: 13px; font-weight: 600; }

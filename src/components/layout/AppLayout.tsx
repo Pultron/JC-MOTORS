@@ -1,7 +1,6 @@
 import { Outlet, useMatches } from 'react-router';
 import type { RouteHandle } from '../../routes/routeHandle';
 import { CommandPaletteProvider } from '../../search/CommandPalette';
-import { ShortcutsProvider } from '../../hooks/useShortcuts';
 import { ToastViewport } from '../ui/Toast';
 import { Sidebar } from './Sidebar';
 
@@ -9,7 +8,6 @@ export function AppLayout() {
   // Each route declares `handle: { fullBleed: true }` in App.tsx; Inicio, Nueva cotización and friends manage their own spacing.
   const isFullBleed = useMatches().some((match) => (match.handle as RouteHandle | undefined)?.fullBleed === true);
   return (
-    <ShortcutsProvider>
       <CommandPaletteProvider>
       <div className="min-h-screen bg-slate-50 lg:flex">
         <Sidebar />
@@ -20,6 +18,5 @@ export function AppLayout() {
         </div>
       </div>
       </CommandPaletteProvider>
-    </ShortcutsProvider>
   );
 }

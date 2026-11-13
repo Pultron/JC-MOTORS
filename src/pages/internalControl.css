@@ -13,9 +13,7 @@
 
 /* Encabezado */
 .profit-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin: 0 2px 22px; flex-wrap: wrap; }
-.profit-eyebrow { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--orange-hover); }
 .profit-title h1 { font-size: 26px; font-weight: 700; letter-spacing: -.02em; line-height: 1.2; margin-top: 2px; }
-.profit-subtitle { font-size: 13px; color: var(--ink-2); margin-top: 3px; }
 .profit-period { display: flex; align-items: center; gap: 12px; flex-shrink: 0; flex-wrap: wrap; }
 .profit-segments { display: flex; padding: 2px; gap: 2px; border-radius: 9px; background: var(--fill); }
 .profit-segments button { padding: 6px 16px; min-height: 28px; font-size: 13px; font-weight: 500; border-radius: 7px; color: var(--ink); }
@@ -90,10 +88,11 @@
 .profit-table strong, .profit-table .profit-folio { color: var(--ink); font-weight: 600; }
 .profit-vehicle { display: block; color: var(--ink-2); font-size: 12px; margin-top: 2px; }
 .profit-table tr { cursor: pointer; transition: background-color .18s; }
-.profit-table tbody tr:hover { background: rgba(60, 60, 67, .04); }
-.profit-table tr.is-selected { background: rgba(204, 74, 11, .06); }
+.profit-table tbody tr, .profit-table tbody tr:hover { background: #fff; }
+.profit-table tr.is-selected, .profit-table tbody tr.is-selected:hover { background: #fff; }
+.profit-table tr.is-selected td:first-child { box-shadow: inset 3px 0 0 var(--orange); }
 .profit-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
-.profit-badge-complete { background: #e8f5ec; color: var(--green); }
+.profit-badge-complete { background: #c9eed6; color: #0c6a2f; }
 .profit-badge-incomplete { background: #fff4d6; color: #8a5a00; }
 .profit-badge-pending { background: rgba(118, 118, 128, .14); color: var(--ink-2); }
 :is(.profit-page, .fac-page, .hi-page) .profit-outline { border: 1px solid rgba(204, 74, 11, .6); background: white; color: var(--orange); border-radius: 8px; padding: 0 12px; height: 32px; font-size: 12px; font-weight: 500; white-space: nowrap; }
@@ -186,3 +185,20 @@ body:has(.profit-page) main { max-width: 1800px; padding: 30px 26px 26px; }
   .profit-detail { padding: 16px 12px; }
 }
 @media print { .profit-page { display: none !important; } }
+
+.profit-items .profit-labor-row td { background: #eaf3ff; color: #0b4a8f; font-weight: 600; }
+.profit-items .profit-labor-row td:first-child { padding-left: 8px; border-radius: 8px 0 0 8px; }
+.profit-items .profit-labor-row td:last-child { padding-right: 8px; border-radius: 0 8px 8px 0; color: var(--green); }
+.profit-items .profit-labor-row small { color: #0b4a8f; opacity: .75; font-weight: 500; }
+.profit-labor-lock { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; background: #d6e8ff; font-size: 11px; white-space: nowrap; }
+
+/* Profitability table: fixed column rhythm so numbers, status and action line up. */
+.profit-table { table-layout: auto; }
+.profit-table th, .profit-table td { vertical-align: middle; }
+.profit-table th:nth-child(1), .profit-table td:nth-child(1) { width: 88px; }
+.profit-table th:nth-child(n+3):nth-child(-n+6), .profit-table td:nth-child(n+3):nth-child(-n+6) { width: 108px; padding-left: 14px; padding-right: 14px; }
+.profit-table th:nth-child(6), .profit-table td:nth-child(6) { padding-right: 24px; color: var(--ink-2); }
+.profit-table th:nth-child(7), .profit-table td:nth-child(7) { width: 128px; text-align: center; padding-left: 12px; padding-right: 12px; }
+.profit-table th:nth-child(8), .profit-table td:nth-child(8) { width: 124px; text-align: right; padding-left: 12px; padding-right: 16px; }
+.profit-table td:nth-child(3), .profit-table td:nth-child(4) { color: var(--ink-2); }
+.profit-table td:nth-child(5) { font-weight: 700; }

@@ -5,11 +5,12 @@ import type { GuardedReadOptions } from '../storage/corruptBackup';
 import { isQuotaError, writeRaw } from '../storage/safeStorage';
 import { STORAGE_KEYS } from '../storage/storageKeys';
 import { createId } from '../utils/quotation';
-import { sanitizeSingleLine } from '../validation/fields';
+import { sanitizeMoneyInput, sanitizeSingleLine } from '../validation/fields';
 import { MAX_CONCEPTS } from './quotationLayout';
 
-export const MAX_TEMPLATES = 50;
 export const TEMPLATE_NAME_MAX_LENGTH = 60;
+/** Fired on `window` after the saved concepts change, so the description suggestions can refresh. */
+export const TEMPLATES_CHANGED_EVENT = 'jc:templates-changed';
 
 /** A concept inside a template. `unitPrice` is only a suggestion: the user can edit it after applying. */
 export interface QuoteTemplateItem {
@@ -26,24 +27,23 @@ export interface QuoteTemplate {
   createdAt: string;
 }
 
-export type TemplateFailure = 'name-empty' | 'name-too-long' | 'name-duplicate' | 'no-items' | 'limit' | 'not-found' | 'storage-full' | 'storage-error';
+export type TemplateFailure = 'name-empty' | 'name-too-long' | 'name-duplicate' | 'no-items' | 'not-found' | 'storage-full' | 'storage-error';
 
 export type TemplateResult<T = QuoteTemplate> = { ok: true; value: T } | { ok: false; reason: TemplateFailure };
 
 export const TEMPLATE_FAILURE_MESSAGES: Record<TemplateFailure, string> = {
-  'name-empty': 'Escribe un nombre para la plantilla.',
+  'name-empty': 'Escribe un nombre para el concepto.',
   'name-too-long': `El nombre admite máximo ${TEMPLATE_NAME_MAX_LENGTH} caracteres.`,
-  'name-duplicate': 'Ya tienes una plantilla con ese nombre.',
-  'no-items': 'Agrega al menos un concepto con descripción para guardar la plantilla.',
-  limit: `Llegaste al máximo de ${MAX_TEMPLATES} plantillas. Elimina alguna para guardar otra.`,
-  'not-found': 'Esa plantilla ya no existe.',
-  'storage-full': 'No hay espacio para guardar la plantilla. Libera espacio e inténtalo de nuevo.',
-  'storage-error': 'No se pudo guardar la plantilla. Inténtalo de nuevo.',
+  'name-duplicate': 'Ya tienes un concepto con ese nombre.',
+  'no-items': 'Agrega al menos un concepto con descripción para guardar el concepto.',
+  'not-found': 'Ese concepto ya no existe.',
+  'storage-full': 'No hay espacio para guardar el concepto. Libera espacio e inténtalo de nuevo.',
+  'storage-error': 'No se pudo guardar el concepto. Inténtalo de nuevo.',
 };
 
 const DAMAGED: GuardedReadOptions = {
   backupName: 'templates',
-  damagedMessage: 'Las plantillas estaban dañadas; se guardó una copia de respaldo',
+  damagedMessage: 'Los conceptos guardados estaban dañados; se guardó una copia de respaldo',
 };
 
 const compareKey = (name: string) => name.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLocaleLowerCase('es-MX');
@@ -51,22 +51,26 @@ const compareKey = (name: string) => name.normalize('NFD').replace(/[̀-ͯ]/g, '
 function toItem(value: unknown): QuoteTemplateItem | null {
   if (!value || typeof value !== 'object') return null;
   const { description, type, quantity, unitPrice } = value as Record<string, unknown>;
-  if (typeof description !== 'string' || !description.trim()) return null;
+  if (typeof description !== 'string') return null;
+  const cleanDescription = sanitizeSingleLine(description);
+  if (!cleanDescription) return null;
   return {
-    description,
+    description: cleanDescription,
     type: type === 'labor' ? 'labor' : 'part',
-    quantity: typeof quantity === 'string' && quantity.trim() ? quantity : '1',
-    unitPrice: typeof unitPrice === 'string' ? unitPrice : '',
+    quantity: typeof quantity === 'string' && quantity.trim() ? quantity.trim() : '1',
+    unitPrice: typeof unitPrice === 'string' ? sanitizeMoneyInput(unitPrice).trim() : '',
   };
 }
+
+const cleanItems = (items: readonly QuoteTemplateItem[]) => items.map(toItem).filter((item): item is QuoteTemplateItem => item !== null).slice(0, MAX_CONCEPTS);
 
 function toTemplate(value: unknown): QuoteTemplate | null {
   if (!value || typeof value !== 'object') return null;
   const { id, name, items, createdAt } = value as Record<string, unknown>;
   if (typeof id !== 'string' || !id || typeof name !== 'string' || !name.trim() || !Array.isArray(items)) return null;
-  const cleanItems = items.map(toItem).filter((item): item is QuoteTemplateItem => item !== null).slice(0, MAX_CONCEPTS);
-  if (cleanItems.length === 0) return null;
-  return { id, name, items: cleanItems, createdAt: typeof createdAt === 'string' ? createdAt : '' };
+  const clean = cleanItems(items);
+  if (clean.length === 0) return null;
+  return { id, name, items: clean, createdAt: typeof createdAt === 'string' ? createdAt : '' };
 }
 
 /** Validates a template name. Returns the clean name, or why it cannot be used. `ignoreId` lets a rename keep its own name. */
@@ -77,6 +81,14 @@ export function checkTemplateName(name: string, existing: readonly QuoteTemplate
   const key = compareKey(clean);
   if (existing.some((template) => template.id !== ignoreId && compareKey(template.name) === key)) return { ok: false, reason: 'name-duplicate' };
   return { ok: true, value: clean };
+}
+
+/** Name for a template built in the editor: the first concept's description, plus how many more it holds. */
+export function deriveTemplateName(items: readonly Pick<QuoteTemplateItem, 'description'>[]): string {
+  const filled = items.map((item) => sanitizeSingleLine(item.description)).filter(Boolean);
+  if (filled.length === 0) return '';
+  const suffix = filled.length > 1 ? ` + ${filled.length - 1} más` : '';
+  return `${filled[0].slice(0, TEMPLATE_NAME_MAX_LENGTH - suffix.length).trimEnd()}${suffix}`;
 }
 
 /** The concepts worth saving from the form: rows with a description. Quantity and price are kept as typed. */
@@ -110,6 +122,7 @@ export function appendTemplateItems(existing: readonly QuoteDraftItem[], templat
 function persist(templates: QuoteTemplate[]): TemplateFailure | null {
   try {
     writeRaw(STORAGE_KEYS.templates, JSON.stringify(templates));
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event(TEMPLATES_CHANGED_EVENT));
     return null;
   } catch (error) {
     return isQuotaError(error) ? 'storage-full' : 'storage-error';
@@ -125,10 +138,9 @@ export const quoteTemplateService = {
   },
   create(name: string, items: readonly QuoteTemplateItem[], now = new Date()): TemplateResult {
     const templates = this.list();
-    if (templates.length >= MAX_TEMPLATES) return { ok: false, reason: 'limit' };
     const checked = checkTemplateName(name, templates);
     if (!checked.ok) return checked;
-    const clean = items.map(toItem).filter((item): item is QuoteTemplateItem => item !== null).slice(0, MAX_CONCEPTS);
+    const clean = cleanItems(items);
     if (clean.length === 0) return { ok: false, reason: 'no-items' };
     const template: QuoteTemplate = { id: createId(), name: checked.value, items: clean, createdAt: now.toISOString() };
     const failure = persist([...templates, template]);
@@ -143,6 +155,19 @@ export const quoteTemplateService = {
     const renamed = { ...target, name: checked.value };
     const failure = persist(templates.map((template) => (template.id === id ? renamed : template)));
     return failure ? { ok: false, reason: failure } : { ok: true, value: renamed };
+  },
+  /** Replaces a template's name and concepts (same validation as `create`); keeps its id and creation date. */
+  update(id: string, name: string, items: readonly QuoteTemplateItem[]): TemplateResult {
+    const templates = this.list();
+    const target = templates.find((template) => template.id === id);
+    if (!target) return { ok: false, reason: 'not-found' };
+    const checked = checkTemplateName(name, templates, id);
+    if (!checked.ok) return checked;
+    const clean = cleanItems(items);
+    if (clean.length === 0) return { ok: false, reason: 'no-items' };
+    const updated: QuoteTemplate = { ...target, name: checked.value, items: clean };
+    const failure = persist(templates.map((template) => (template.id === id ? updated : template)));
+    return failure ? { ok: false, reason: failure } : { ok: true, value: updated };
   },
   remove(id: string): TemplateResult<null> {
     const templates = this.list();

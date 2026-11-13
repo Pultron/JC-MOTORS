@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-db-mark-initialized"
+description = "Enables the db_mark_initialized command without any pre-configured scope."
+commands.allow = ["db_mark_initialized"]
+
+[[permission]]
+identifier = "deny-db-mark-initialized"
+description = "Denies the db_mark_initialized command without any pre-configured scope."
+commands.deny = ["db_mark_initialized"]

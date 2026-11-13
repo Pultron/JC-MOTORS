@@ -1,29 +1,25 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { Search, SearchX } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { EmptyState } from '../components/ui/EmptyState';
-import { useShortcut } from '../hooks/useShortcuts';
 import type { Invoice } from '../models/invoice';
-import { LocalStorageInvoiceRepository } from '../repositories/LocalStorageInvoiceRepository';
+import { createInvoiceRepository } from '../repositories/repositoryFactory';
 import { useCustomers } from '../store/CustomerContext';
 import { useQuotations } from '../store/QuotationContext';
 import '../styles/palette.css';
 import { moveActive, searchAll } from './globalSearch';
+import { PaletteContext } from './paletteContext';
 import type { GlobalResult } from './globalSearch';
 import { useDebouncedValue } from './useDebouncedValue';
 
-interface PaletteApi { open: () => void }
-const PaletteContext = createContext<PaletteApi>({ open: () => undefined });
-export const useCommandPalette = () => useContext(PaletteContext);
 
-/** Mounts the Ctrl/⌘+K palette. Nothing is indexed until the first time it opens. */
+/** Mounts the command palette. Nothing is indexed until the first time it opens. */
 export function CommandPaletteProvider({ children }: { children: ReactNode }) {
   const [opener, setOpener] = useState<HTMLElement | null | undefined>(undefined);
   const isOpen = opener !== undefined;
   const open = useCallback(() => setOpener((current) => (current !== undefined ? current : (document.activeElement as HTMLElement | null))), []);
   const close = useCallback(() => setOpener(undefined), []);
-  useShortcut('search', open);
   const api = useMemo(() => ({ open }), [open]);
   return (
     <PaletteContext.Provider value={api}>
@@ -48,7 +44,7 @@ function PaletteDialog({ opener, onClose }: { opener: HTMLElement | null; onClos
 
   useEffect(() => {
     let cancelled = false;
-    void new LocalStorageInvoiceRepository().getAll().then((all) => { if (!cancelled) setInvoices(all); });
+    void createInvoiceRepository().getAll().then((all) => { if (!cancelled) setInvoices(all); });
     inputRef.current?.focus();
     return () => {
       cancelled = true;
@@ -56,6 +52,15 @@ function PaletteDialog({ opener, onClose }: { opener: HTMLElement | null; onClos
       queueMicrotask(() => { if (opener?.isConnected) opener.focus(); });
     };
   }, [opener]);
+
+  // Esc must close even when focus was lost (e.g. after clicking an empty area of the panel).
+  useEffect(() => {
+    const onDocumentKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); }
+    };
+    document.addEventListener('keydown', onDocumentKeyDown);
+    return () => document.removeEventListener('keydown', onDocumentKeyDown);
+  }, [onClose]);
 
   // Newest first, like Historial: the palette is about getting back to recent work.
   const data = useMemo(() => ({
@@ -131,7 +136,7 @@ function PaletteDialog({ opener, onClose }: { opener: HTMLElement | null; onClos
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
-          <kbd className="pal-esc" aria-hidden="true">Esc</kbd>
+          <button type="button" className="pal-esc" data-testid="palette-close" aria-label="Cerrar búsqueda" onClick={onClose}>Esc</button>
         </div>
 
         <span className="pal-live" aria-live="polite">{trimmed && flat.length > 0 ? `${flat.length} resultados` : ''}</span>

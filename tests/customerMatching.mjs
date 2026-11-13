@@ -54,3 +54,25 @@ test('a same-phone customer wins over an earlier same-name one with another phon
   assert.equal(match.kind, 'same');
   assert.equal(match.customer.id, 'c2');
 });
+
+test('same name + same email reuses silently even with another or empty phone', async () => {
+  for (const phone of ['', '6670001111']) {
+    for (const email of ['juan@correo.com', ' JUAN@Correo.com ']) {
+      const result = await resolveCustomerSave(customers, { name: 'juan perez', phone, email }, never);
+      assert.deepEqual(result, { action: 'reuse', customer: juan }, `${phone} / ${email}`);
+    }
+  }
+});
+
+test('same name + other email and other phone still asks; empty phones with different emails are not the same', async () => {
+  assert.equal(findCustomerMatch(customers, 'Juan Pérez', '6670001111', 'otro@correo.com').kind, 'differentPhone');
+  const emailOnly = { ...juan, phone: '' };
+  assert.equal(findCustomerMatch([emailOnly], 'Juan Pérez', '', 'otro@correo.com').kind, 'differentPhone');
+  assert.equal(findCustomerMatch([emailOnly], 'Juan Pérez', '', 'juan@correo.com').kind, 'same');
+  assert.equal(findCustomerMatch(customers, 'Otra Persona', '', 'juan@correo.com').kind, 'none', 'email alone never matches without the name');
+});
+
+test('legacy customer without phone or email: matching never throws', () => {
+  const legacy = { id: 'c9', name: 'Pedro Antiguo', phone: '', aliases: [] };
+  assert.equal(findCustomerMatch([legacy], 'Pedro Antiguo', '6670001111', 'p@correo.com').kind, 'differentPhone');
+});

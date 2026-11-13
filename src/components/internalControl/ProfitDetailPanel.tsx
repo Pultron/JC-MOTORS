@@ -86,7 +86,7 @@ export function ProfitDetailPanel({ quote, record, onSaved, onClose, onDirty, on
     <form onSubmit={e => { e.preventDefault(); void save(); }}>
       <fieldset disabled={saving}>
         <div className="profit-items-scroll"><table className="profit-items"><thead><tr><th scope="col">Concepto</th><th scope="col">Precio al cliente</th><th scope="col">Costo pagado</th><th scope="col">Ganancia</th></tr></thead>
-          <tbody>{preview.totals.items.map(item => <InternalItemCostRow key={item.id} item={item} value={draft.costs[item.id]} onChange={value => setDraft(current => ({ ...current, costs: { ...current.costs, [item.id]: value } }))} />)}</tbody>
+          <tbody>{preview.totals.laborCents > 0 && <LaborRow cents={preview.totals.laborCents} discountCents={preview.totals.laborDiscountCents} />}{preview.totals.items.map(item => <InternalItemCostRow key={item.id} item={item} value={draft.costs[item.id]} onChange={value => setDraft(current => ({ ...current, costs: { ...current.costs, [item.id]: value } }))} />)}</tbody>
         </table></div>
         {preview.totals.items.length === 0 && <p className="profit-help">Esta cotización no incluye refacciones. Puedes registrar servicios externos en Otros costos.</p>}
         <AdditionalExpensesSection expenses={draft.expenses} onChange={expenses => setDraft(current => ({ ...current, expenses }))} onRemove={id => record?.additionalExpenses.some(e => e.id === id) ? void confirmRemoval(id) : removeExpense(id)} />
@@ -100,13 +100,23 @@ export function ProfitDetailPanel({ quote, record, onSaved, onClose, onDirty, on
   </aside>;
 }
 
+/** Read-only row: labor is already part of the sold total and is pure profit, shown so the sum is transparent. */
+function LaborRow({ cents, discountCents }: { cents: number; discountCents: number }) {
+  return <tr className="profit-labor-row" data-testid="profit-labor-row">
+    <td>Mano de obra{discountCents > 0 && <small>Con descuento de {formatMoney(discountCents / 100)}</small>}</td>
+    <td>{formatMoney(cents / 100)}</td>
+    <td><span className="profit-labor-lock"><LockKeyhole size={12} aria-hidden="true" />Incluida · no editable</span></td>
+    <td>{formatMoney(cents / 100)}</td>
+  </tr>;
+}
+
 function MoneyInput({ value, onChange, label }: { value: string; onChange: (value: string) => void; label: string }) {
   const [focused, setFocused] = useState(false);
   let cents: number | null = null;
   let invalid = false;
   try { cents = parseCents(value); } catch { invalid = true; }
   const display = focused || invalid || cents === null ? value : (cents / 100).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return <span className="profit-money"><span aria-hidden="true">$</span><input aria-label={label} aria-invalid={invalid} inputMode="decimal" type="text" placeholder="0.00" value={display} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onChange={e => onChange(e.target.value)} /></span>;
+  return <span className="profit-money"><span aria-hidden="true">$</span><input aria-label={label} aria-invalid={invalid} inputMode="decimal" autoComplete="off" type="text" value={display} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onChange={e => onChange(e.target.value)} /></span>;
 }
 
 export function InternalItemCostRow({ item, value, onChange }: { item: QuoteProfit['items'][number]; value: string; onChange: (value: string) => void }) {
@@ -118,7 +128,7 @@ export function AdditionalExpensesSection({ expenses, onChange, onRemove }: { ex
   return <section className="profit-expenses"><h3>Otros costos</h3>
     {expenses.length > 0 && <div className="profit-expense-head"><span>Descripción</span><span>Importe</span></div>}
     {expenses.map((expense, i) => <div className="profit-expense-row profit-row-in" key={expense.id}>
-      <input aria-label={`Descripción del gasto ${i + 1}`} placeholder="Nombre del gasto" value={expense.description} onChange={e => update(expense.id, { description: e.target.value })} />
+      <input aria-label={`Descripción del gasto ${i + 1}`} value={expense.description} onChange={e => update(expense.id, { description: e.target.value })} />
       <MoneyInput label={`Importe de ${expense.description || `gasto ${i + 1}`}`} value={expense.amount} onChange={amount => update(expense.id, { amount })} />
       <button type="button" aria-label={`Eliminar ${expense.description || `gasto ${i + 1}`}`} onClick={() => onRemove(expense.id)}><Trash2 size={17} /></button>
     </div>)}

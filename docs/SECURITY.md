@@ -63,7 +63,7 @@ Con `tests/cspFlujos.mjs` contra el ejecutable de Tauri, con perfil de WebView2 
 - vista previa del PDF de una cotización de 12 conceptos (2 hojas, logo, fuentes);
 - importar factura XML;
 - importar factura PDF (PDF.js con su *worker*, jsQR) y ver el original (PDF.js sobre canvas);
-- paleta de búsqueda (Ctrl+K);
+- paleta de búsqueda;
 - lectura de un respaldo en Respaldo → importar;
 - tema oscuro del sistema.
 
@@ -83,7 +83,19 @@ Antes del lote 5 la capability `default` solo tenía `core:default` (permisos de
     "allow-save-quotation-pdf",
     "allow-save-invoice-pdf",
     "allow-save-invoice-xml",
-    "allow-save-backup-json"
+    "allow-save-backup-json",
+    "allow-db-open",
+    "allow-db-load-snapshot",
+    "allow-db-apply",
+    "allow-db-mark-initialized",
+    "allow-db-migrate-from-local",
+    "allow-db-usage",
+    "allow-db-auto-backup",
+    "allow-backup-export",
+    "allow-backup-pick",
+    "allow-backup-pick-dropped",
+    "allow-backup-apply",
+    "allow-backup-discard"
   ]
 }
 ```
@@ -94,6 +106,63 @@ Antes del lote 5 la capability `default` solo tenía `core:default` (permisos de
 | `allow-save-invoice-pdf` | `save_invoice_pdf`: igual, para el PDF de una factura y el PDF original importado. | `FacturasPage` |
 | `allow-save-invoice-xml` | `save_invoice_xml`: guarda el XML original de una factura. | `FacturasPage` |
 | `allow-save-backup-json` | `save_backup_json`: guarda el respaldo (exige que empiece con `{`). | `BackupPage` |
+
+### Comandos de SQLite y respaldo (lote 6)
+
+Se agregaron **solo** estos permisos, uno por comando nuevo; la CSP **no cambió** (los comandos viajan por el mismo canal IPC ya permitido en `connect-src`; no hay `sql:*` ni acceso a archivos desde el WebView).
+
+| Permiso | Comando de Rust | Para qué sirve |
+|---|---|---|
+| `allow-db-open` | `db_open` | Abre/crea `jcmotors.db` en la carpeta de datos de la app, migra el esquema y revisa `integrity_check`. |
+| `allow-db-load-snapshot` | `db_load_snapshot` | Carga los datos del negocio en memoria al arrancar. |
+| `allow-db-apply` | `db_apply` | Escribe cambios en una transacción; valida la forma de los datos antes de escribir. |
+| `allow-db-mark-initialized` | `db_mark_initialized` | «Empezar desde cero» en la bienvenida. |
+| `allow-db-migrate-from-local` | `db_migrate_from_local` | Migración única desde localStorage, con respaldo previo, verificación y rollback. |
+| `allow-db-usage` | `db_usage` | Tamaño de la base, de los archivos de facturas y de las copias automáticas. |
+| `allow-db-auto-backup` | `db_auto_backup` | Copia diaria consistente en `respaldos-auto/` (conserva 7). |
+| `allow-backup-export` | `backup_export` | Crea el `.jcm` y abre «Guardar como» desde Rust. |
+| `allow-backup-pick` | `backup_pick` | Abre el diálogo, valida (app, hashes, versión) y deja el respaldo en una carpeta temporal interna. |
+| `allow-backup-pick-dropped` | `backup_pick_dropped` | Bienvenida: prepara (misma validación que `backup_pick`) el archivo que el usuario soltó sobre la ventana. **No recibe argumentos**: Rust guarda la ruta al recibir `WindowEvent::DragDrop` (solo un archivo `.jcm`/`.json`) y avisa a la página con un script constante (`jc:file-dropped`, sin datos), igual que `close_guard`. Por eso no hacen falta permisos `core:event` ni `core:webview`. |
+| `allow-backup-apply` | `backup_apply` | Aplica el respaldo preparado por `backup_pick` de forma atómica. |
+| `allow-backup-discard` | `backup_discard` | Descarta lo preparado. |
+| `allow-wipe-all-data` | `wipe_all_data` | «Borrar todos los datos» (Respaldo → Zona de peligro). Primero guarda y verifica una copia `.jcm` en `respaldos-auto/antes-de-borrar-<fecha>.jcm`; si falla, no borra nada. Luego vacía las tablas de negocio en una sola transacción (con rollback) y, solo después del commit, el contenido de `facturas/` y `enviados/`. Recibe solo un booleano (`include_workshop`); JavaScript no entrega rutas. |
+
+Notas de seguridad:
+
+- JavaScript **nunca entrega rutas**: los diálogos de archivo los abre Rust, y la restauración solo aplica lo que Rust mismo preparó con `backup_pick` o `backup_pick_dropped` (esta última usa la ruta que Rust guardó al recibir el evento de arrastrar y soltar; JavaScript nunca la entrega).
+- Los PDF y XML originales de facturas son archivos en `facturas/` dentro de la carpeta de datos; en la base solo quedan la ruta relativa y el SHA-256.
+- **Ganchos de prueba:** la variable de entorno `JCM_DATA_DIR` cambia la carpeta de datos (para pruebas aisladas), y `JCM_TEST_FAIL_MIGRATION` / `JCM_TEST_FAIL_RESTORE` simulan fallos. Los ganchos de fallo están **inertes** a menos que `JCM_DATA_DIR` también esté definida; un usuario normal nunca la define.
+
+### Comandos de compartir por WhatsApp / correo
+
+Se agregaron **solo** estos seis permisos (uno por comando). La CSP **no cambió**: no hay `fetch` nuevo ni acceso a Internet desde la página; todo viaja por el mismo canal IPC.
+
+| Permiso | Comando de Rust | Qué valida Rust |
+|---|---|---|
+| `allow-save-shared-pdf` | `save_shared_pdf(filenameBase, bytes)` | Bytes con `%PDF-` y máximo 25 MB. Nombre limpiado para Windows (quita `<>:"/|?*` y controles, puntos/espacios finales, nombres reservados `CON`, `NUL`, `COM1`…, máximo 120 caracteres; conserva acentos) y extensión `.pdf` forzada. Escribe de forma atómica **solo** en `<datos>/enviados/`; devuelve la ruta. |
+| `allow-save-shared-file` | `save_shared_file(filenameBase, ext, bytes)` | `ext` solo `pdf` o `xml` (lista blanca en Rust). PDF debe empezar con `%PDF-`; XML debe empezar con `<` (tras BOM/espacios). Máximo 25 MB, mismo saneamiento de nombre que `save_shared_pdf`, extensión forzada a la validada. Escribe de forma atómica **solo** en `<datos>/enviados/`; devuelve la ruta. |
+| `allow-copy-file-to-clipboard` | `copy_file_to_clipboard(path)` | La ruta debe resolver (`canonicalize`) a un `.pdf` o `.xml` regular, **hijo directo** de `enviados/`: rechaza `..`, rutas fuera de la carpeta, subcarpetas y enlaces simbólicos. Pone el archivo en el portapapeles como CF_HDROP (`DROPFILES`, ruta ancha, doble NUL) para pegarlo en WhatsApp. |
+| `allow-reveal-in-folder` | `reveal_in_folder(path)` | Misma validación de ruta. Lanza `explorer.exe` con `/select,"<ruta>"` directamente (sin `cmd` ni shell). |
+| `allow-open-whatsapp` | `open_whatsapp(phone, text)` | Teléfono de exactamente 10 dígitos (tolera espacios, guiones y paréntesis). URL `https://wa.me/52<10 dígitos>?text=<texto codificado>`. Texto máx. 4000 caracteres. |
+| `allow-open-mailto` | `open_mailto(email, subject, body)` | Correo ASCII validado (sin espacios, comas, saltos de línea ni `<>`). Asunto máx. 200, cuerpo máx. 4000 caracteres. URL `mailto:`. |
+| `allow-open-gmail` | `open_gmail(email, subject, body)` | Igual. URL `https://mail.google.com/mail/?view=cm&fs=1&to=…&su=…&body=…`. |
+
+**Por qué comandos propios y no `tauri-plugin-opener`.** El plugin expone `open_url`/`open_path` al WebView y la seguridad dependería de un *scope* de patrones; un error en un patrón abriría URL o rutas arbitrarias. Con comandos propios el WebView no puede entregar una URL ni una ruta libre: solo datos (teléfono, correo, texto), y Rust arma la URL con partes validadas, codifica el texto en porcentaje (UTF-8; saltos de línea, `$`, `#`, `&`, acentos) y verifica una última vez que el resultado empiece con `https://wa.me/52`, `mailto:` o `https://mail.google.com/mail/?view=cm`, sea ASCII sin espacios y mida ≤ 8000 caracteres. Se abre con `ShellExecuteW` (crate `windows-sys`, que ya formaba parte del árbol de dependencias de Tauri; solo Windows) con el manejador predeterminado del sistema: **sin `cmd /c start`** ni shell, así que ningún carácter de la URL se interpreta como comando. No se usa la API de WhatsApp Business, ni SMTP, ni bibliotecas no oficiales.
+
+**Limpieza.** Al iniciar la app, Rust borra los `*.pdf` y `*.xml` de `enviados/` con más de 30 días (por fecha de modificación): sin recursión, sin tocar enlaces ni otros archivos, ignorando errores por archivo. No es un comando expuesto.
+
+**No hay** `opener:*`, `shell:*`, `fs:*`, `dialog:*` ni `core:*` en la capability. Lo verifica `tests/capabilitiesStatic.mjs` (parte de `npm test`) y, en la app compilada, `tests/tauriCapabilities.mjs` (los 6 comandos llegan a Rust; `plugin:opener|*` y `plugin:shell|*` quedan denegados).
+
+### Comandos de protección al cerrar la ventana
+
+Para avisar de cambios sin guardar al cerrar la app se agregaron **solo** dos permisos propios. No se concedió `core:window:*` ni `core:event:*` (`plugin:window|close` y `plugin:event|listen` siguen denegados). La CSP **no cambió**.
+
+| Permiso | Comando de Rust | Qué puede hacer |
+|---|---|---|
+| `allow-set-close-guard` | `set_close_guard(active)` | Solo fija un booleano en el estado de Rust (y borra el cierre pendiente). No recibe nada más. |
+| `allow-close-app-window` | `close_app_window()` | Sin argumentos. Desactiva la protección y destruye la ventana `main` de la propia app; no puede cerrar otras ventanas ni ejecutar nada más. |
+
+Flujo: con cambios sin guardar la página llama `set_close_guard(true)`. Rust intercepta `CloseRequested` de la ventana `main` (`prevent_close`) y avisa a la página evaluando un script **constante** (`window.dispatchEvent(new CustomEvent('jc:close-requested'))`, sin datos) desde Rust, por lo que no hace falta ningún permiso de eventos y la ejecución desde Rust no está sujeta a la CSP de la página. La página muestra Guardar / Descartar / Seguir editando. Failsafe: si ya hay un cierre pendiente sin respuesta, el siguiente intento de cierre se deja pasar, así que la app nunca queda imposible de cerrar. La decisión es la función pura `close_guard::decide_close` (con pruebas unitarias).
 
 Principios:
 
@@ -106,8 +175,8 @@ Principios:
 
 `tests/tauriCapabilities.mjs` invoca desde la página:
 
-- los 4 comandos propios → llegan al código de Rust (rechazan los datos de prueba a propósito antes de abrir el diálogo);
-- `plugin:dialog|open`, `plugin:dialog|save`, `plugin:fs|read_text_file`, `plugin:window|close`, `plugin:app|version`, `plugin:event|listen`, `plugin:path|resolve_directory` y un comando inexistente → **«not allowed by ACL»**.
+- los comandos propios (guardado y compartir) → llegan al código de Rust (rechazan los datos de prueba a propósito antes de abrir el diálogo, el portapapeles o cualquier programa);
+- `plugin:dialog|open`, `plugin:dialog|save`, `plugin:fs|read_text_file`, `plugin:window|close`, `plugin:app|version`, `plugin:event|listen`, `plugin:path|resolve_directory`, `plugin:opener|open_url`, `plugin:opener|open_path`, `plugin:shell|open` y un comando inexistente → **«not allowed by ACL»**.
 
 ## 3. Mensajes de error (#042)
 
@@ -121,10 +190,10 @@ Las pantallas y avisos no muestran textos técnicos. `src/utils/userMessage.ts` 
 
 ## 5. Cómo verificar después de cambiar algo
 
-1. `npm run build` y `npm test`.
+1. `npm run build`, `npm test` (incluye `tests/capabilitiesStatic.mjs`) y `cd src-tauri && cargo test`.
 2. Compilar: `cd src-tauri && npx tauri build --no-bundle`.
 3. Abrir el `.exe` con un **perfil de WebView2 aislado** (así nunca se tocan los datos reales del taller):
    `WEBVIEW2_USER_DATA_FOLDER=<carpeta temporal>` y `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9224`.
 4. `APP_URL=http://tauri.localhost CDP_PORT=9224 node --experimental-strip-types --loader ./tests/ts-loader.mjs tests/cspFlujos.mjs` → debe decir «SIN violaciones de CSP».
 5. `CDP_PORT=9224 node tests/tauriCapabilities.mjs`.
-6. Revisar a mano lo que depende del sistema operativo (guardar como, imprimir, instalador).
+6. Revisar a mano lo que depende del sistema operativo (guardar como, imprimir, instalador) y el compartir: copiar el PDF y pegarlo en WhatsApp, «Mostrar en carpeta» (Explorador con el archivo seleccionado) y abrir WhatsApp, el correo predeterminado y Gmail con acentos y saltos de línea.

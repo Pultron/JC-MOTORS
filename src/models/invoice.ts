@@ -1,3 +1,5 @@
+import type { ShareMedium } from './quotation';
+
 /**
  * Factura (CFDI 4.0) tal como viene del XML. Los importes y tasas se guardan como TEXTO:
  * son los valores del SAT y no deben recalcularse, redondearse ni truncarse.
@@ -96,6 +98,10 @@ export interface Invoice {
   confirmadosQr: string[];
   revisadoPorUsuario: boolean;
   importadoEn: string;
+
+  /** Last time it was shared with the customer (ISO) and through which medium. Absent when never shared. */
+  sharedAt?: string;
+  sharedVia?: ShareMedium;
 }
 
 /** Factura leída, todavía sin folio interno (se asigna al guardar). */

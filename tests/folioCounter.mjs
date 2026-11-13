@@ -22,7 +22,7 @@ test('#014 borrar la última cotización cancelada no repite su folio', async ()
   for (let n = 1; n <= 5; n += 1) created.push(await repo.create(input(`C${n}`)));
   assert.deepEqual(created.map((q) => q.folio), ['JC-0001', 'JC-0002', 'JC-0003', 'JC-0004', 'JC-0005']);
   await repo.cancel(created[4].id);
-  assert.ok(await repo.deleteCancelled(created[4].id));
+  assert.ok(await repo.deletePermanently(created[4].id));
   assert.equal(counter(), 5, 'borrar no toca el contador');
   assert.equal((await repo.create(input('C6'))).folio, 'JC-0006');
   assert.equal(counter(), 6);

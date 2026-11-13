@@ -1,12 +1,34 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main window: only the app's own \"Save as\" commands. No core, fs, shell or dialog permissions are exposed to the webview.",
+  "description": "Main window: only the app's own commands (save-as, local database, backup and sharing). No core, fs, shell or dialog permissions are exposed to the webview.",
   "windows": ["main"],
   "permissions": [
     "allow-save-quotation-pdf",
     "allow-save-invoice-pdf",
     "allow-save-invoice-xml",
-    "allow-save-backup-json"
+    "allow-save-backup-json",
+    "allow-db-open",
+    "allow-db-load-snapshot",
+    "allow-db-apply",
+    "allow-db-mark-initialized",
+    "allow-db-migrate-from-local",
+    "allow-db-usage",
+    "allow-db-auto-backup",
+    "allow-backup-export",
+    "allow-backup-pick",
+    "allow-backup-pick-dropped",
+    "allow-backup-apply",
+    "allow-backup-discard",
+    "allow-wipe-all-data",
+    "allow-save-shared-pdf",
+    "allow-save-shared-file",
+    "allow-copy-file-to-clipboard",
+    "allow-reveal-in-folder",
+    "allow-open-whatsapp",
+    "allow-open-mailto",
+    "allow-open-gmail",
+    "allow-set-close-guard",
+    "allow-close-app-window"
   ]
 }

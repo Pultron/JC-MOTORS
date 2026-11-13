@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Check, ChevronsUpDown, SlidersHorizontal } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 export interface StatusOption {
   value: string;
@@ -14,10 +15,16 @@ interface StatusComboProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onChange: (value: string) => void;
+  /** Defaults to the status filter; the share filter reuses this combo with its own ids, labels and icon. */
+  testId?: string;
+  ariaLabel?: string;
+  menuLabel?: string;
+  className?: string;
+  icon?: ReactNode;
 }
 
 /** Reemplazo del <select> nativo: pop-up button de macOS con menú translúcido y conteos. */
-export function StatusCombo({ value, options, open, onOpenChange, onChange }: StatusComboProps) {
+export function StatusCombo({ value, options, open, onOpenChange, onChange, testId = 'hi-status', ariaLabel = 'Filtrar por estado', menuLabel = 'Estado', className = 'hi-ctl--status', icon }: StatusComboProps) {
   const listId = useId();
   const selectedIndex = Math.max(0, options.findIndex((option) => option.value === value));
   const [highlight, setHighlight] = useState(selectedIndex);
@@ -55,10 +62,10 @@ export function StatusCombo({ value, options, open, onOpenChange, onChange }: St
     <div className="hi-pop">
       <button
         type="button"
-        className="hi-ctl hi-ctl--status"
-        data-testid="hi-status"
+        className={`hi-ctl ${className}`}
+        data-testid={testId}
         role="combobox"
-        aria-label="Filtrar por estado"
+        aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
@@ -66,12 +73,12 @@ export function StatusCombo({ value, options, open, onOpenChange, onChange }: St
         onClick={() => (open ? onOpenChange(false) : show())}
         onKeyDown={handleKeyDown}
       >
-        <SlidersHorizontal size={15} aria-hidden="true" className="hi-ctl-lead" />
+        {icon ?? <SlidersHorizontal size={15} aria-hidden="true" className="hi-ctl-lead" />}
         <span className="hi-ctl-text">{current.label}</span>
         <ChevronsUpDown size={12} aria-hidden="true" className="hi-ctl-chev" />
       </button>
       {open && (
-        <div className="hi-menu hi-menu--status" id={listId} role="listbox" aria-label="Estado" data-testid="hi-status-menu">
+        <div className="hi-menu hi-menu--status" id={listId} role="listbox" aria-label={menuLabel} data-testid={`${testId}-menu`}>
           {options.map((option, index) => (
             <div
               key={option.value}
@@ -79,7 +86,7 @@ export function StatusCombo({ value, options, open, onOpenChange, onChange }: St
               role="option"
               aria-selected={option.value === value}
               data-value={option.value}
-              data-testid="hi-status-option"
+              data-testid={`${testId}-option`}
               data-highlighted={index === highlight}
               className="hi-option"
               onMouseEnter={() => setHighlight(index)}

@@ -169,11 +169,11 @@ export const CARD_LABEL_W = 104;
 export interface CardRowData { label: string; value: string }
 
 export function customerRows(quotation: PublicQuotation): CardRowData[] {
-  return [
-    { label: 'Nombre', value: quotation.customer.name },
-    { label: 'Teléfono', value: quotation.customer.phone ? formatPhone(quotation.customer.phone) : '—' },
-    { label: 'Correo', value: quotation.customer.email || '—' },
-  ];
+  // Only the contact rows the customer has; legacy customers with neither still render just their name.
+  const rows: CardRowData[] = [{ label: 'Nombre', value: quotation.customer.name }];
+  if (quotation.customer.phone) rows.push({ label: 'Teléfono', value: formatPhone(quotation.customer.phone) });
+  if (quotation.customer.email) rows.push({ label: 'Correo', value: quotation.customer.email });
+  return rows;
 }
 
 export function vehicleRows(quotation: PublicQuotation): CardRowData[] {

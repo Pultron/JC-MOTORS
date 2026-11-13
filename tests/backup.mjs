@@ -168,7 +168,7 @@ test('M02 la copia previa a importar guarda todo el estado y solo conserva la ú
   assert.ok(data.has('jc-motors:backup:pre-import:2000'), 'la copia anterior no se pierde si la nueva no cupo');
 });
 
-test('M02 nombre de archivo, resumen en español y aviso de 14 días', () => {
+test('M02 nombre de archivo, resumen en español y aviso de 7 días', () => {
   assert.equal(backupFileName(new Date(2026, 10, 6)), 'Respaldo JC Motors - 2026-11-06');
   assert.equal(formatSummary({ quotations: 32, invoices: 5, customers: 18, internalCosts: 0, internalControls: 0 }), '32 cotizaciones, 5 facturas, 18 clientes');
   assert.equal(formatSummary({ quotations: 1, invoices: 1, customers: 1, internalCosts: 2, internalControls: 0 }), '1 cotización, 1 factura, 1 cliente, 2 registros de costos');
@@ -176,10 +176,14 @@ test('M02 nombre de archivo, resumen en español y aviso de 14 días', () => {
   seed();
   assert.equal(shouldRemindBackup(), true, 'hay datos y nunca hubo respaldo');
   const now = Date.parse('2026-11-30T12:00:00Z');
-  markBackupExported('2026-11-20T12:00:00Z');
-  assert.equal(daysSinceLastBackup(now), 10);
+  markBackupExported('2026-11-25T12:00:00Z');
+  assert.equal(daysSinceLastBackup(now), 5);
   assert.equal(shouldRemindBackup(now), false);
-  markBackupExported('2026-11-10T12:00:00Z');
+  markBackupExported('2026-11-23T12:00:00Z');
+  assert.equal(daysSinceLastBackup(now), 7);
+  assert.equal(shouldRemindBackup(now), false, 'exactamente 7 días todavía no avisa');
+  markBackupExported('2026-11-21T12:00:00Z');
+  assert.equal(daysSinceLastBackup(now), 9);
   assert.equal(shouldRemindBackup(now), true);
   assert.equal(summarizeBackup(buildBackup()).quotations, 3);
 });

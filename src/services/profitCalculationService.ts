@@ -13,7 +13,9 @@ export function calculateProfit(quote: Quotation, record?: InternalCostRecord) {
   const discount = quote.laborDiscountType === 'percentage'
     ? Math.round(labor * Math.min(100, quote.laborDiscountValue) / 100)
     : toCents(quote.laborDiscountValue);
-  const soldTotalCents = parts + labor - Math.min(labor, Math.max(0, discount));
+  const laborDiscountCents = Math.min(labor, Math.max(0, discount));
+  const laborCents = labor - laborDiscountCents;
+  const soldTotalCents = parts + laborCents;
   const costs = new Map(record?.itemCosts.map(cost => [cost.quoteItemId, cost.actualUnitCostCents]));
   const items = quote.items.filter(item => item.type === 'part').map(item => {
     const actualUnitCostCents = costs.get(item.id) ?? null;
@@ -29,7 +31,7 @@ export function calculateProfit(quote: Quotation, record?: InternalCostRecord) {
   const captured = items.filter(item => item.actualUnitCostCents !== null).length;
   const started = captured > 0 || Boolean(record?.additionalExpenses.length);
   const status: InternalCaptureStatus = captured === items.length ? 'complete' : started ? 'incomplete' : 'pending';
-  return { items, soldTotalCents, spentTotalCents, profitCents, status,
+  return { items, laborCents, laborDiscountCents, soldTotalCents, spentTotalCents, profitCents, status,
     marginPercentage: soldTotalCents === 0 ? 0 : profitCents / soldTotalCents * 100 };
 }
 

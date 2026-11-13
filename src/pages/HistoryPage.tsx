@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Copy, Download, Eye, FileText, Plus, Search, SearchX } from 'lucide-react';
+import { FileText, Plus, Search, SearchX, Send } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Pagination } from '../components/Pagination';
 import { EmptyState, emptyKind } from '../components/ui/EmptyState';
@@ -7,12 +7,15 @@ import { searchQuotations } from '../search/quotationSearch';
 import { useDebouncedValue } from '../search/useDebouncedValue';
 import { DateRangeFilter } from '../components/historial/DateRangeFilter';
 import { StatusCombo } from '../components/historial/StatusCombo';
+import { filterByShare, SHARE_FILTERS, SHARE_FILTER_LABEL, shareFilterEmptyTitle, shareFilterFromParam } from '../services/shareFilter';
+import type { ShareFilter } from '../services/shareFilter';
 import { QuotationActionsMenu } from '../components/QuotationActionsMenu';
 import { QuotationPdfDialog } from '../components/QuotationPdfDialog';
+import { ShareStatusLine } from '../components/share/ShareStatusLine';
 import { useQuotationActions } from '../hooks/useQuotationActions';
-import { useCancelledQuotationDeletion } from '../hooks/useCancelledQuotationDeletion';
+import { useQuotationDeletion } from '../hooks/useQuotationDeletion';
 import { useQuotationPdfDownload } from '../hooks/useQuotationPdfDownload';
-import type { PublicQuotation, Quotation, QuotationStatus } from '../models/quotation';
+import type { PublicQuotation, QuotationStatus } from '../models/quotation';
 import { useQuotations } from '../store/QuotationContext';
 import { localDate } from '../utils/dateRangeUtils';
 import type { DateRange } from '../utils/dateRangeUtils';
@@ -22,12 +25,10 @@ import { formatDate } from '../utils/dateFormat';
 import '../styles/historial.css';
 
 type StatusFilter = 'Todas' | QuotationStatus;
-type OpenMenu = 'status' | 'range' | null;
+type OpenMenu = 'status' | 'envio' | 'range' | null;
 
 const NO_RANGE: DateRange = { start: '', end: '' };
 const STATUSES: StatusFilter[] = ['Todas', 'Aprobada', 'Pendiente', 'Cancelada', 'Vencida'];
-const FLASH_MS = 2000;
-const TOAST_MS = 3300;
 
 const PAGE_SIZE = 20;
 const statusFromParam = (value: string | null): StatusFilter => STATUSES.find((entry) => entry.toLowerCase() === value?.toLowerCase()) ?? 'Todas';
@@ -36,14 +37,15 @@ const folioNumber = (folio: string) => Number(folio.replace(/\D/g, '')) || 0;
 
 export function HistoryPage() {
   const navigate = useNavigate();
-  const { quotations, duplicateQuotation, isLoading } = useQuotations();
+  const { quotations, isLoading } = useQuotations();
   const { requestApprove, requestCancel } = useQuotationActions();
-  const { requestDelete } = useCancelledQuotationDeletion();
+  const { requestDelete } = useQuotationDeletion();
   const downloadPdf = useQuotationPdfDownload();
   // Search, status and page live in the URL so "back" from a quotation restores the same view.
   const [params, setParams] = useSearchParams();
   const committedSearch = params.get('q') ?? '';
   const status = statusFromParam(params.get('estado'));
+  const share = shareFilterFromParam(params.get('envio'));
   const requestedPage = pageFromParam(params.get('p'));
   const [search, setSearch] = useState(committedSearch);
   const debouncedSearch = useDebouncedValue(search);
@@ -53,16 +55,6 @@ export function HistoryPage() {
   const [pdfTarget, setPdfTarget] = useState<PublicQuotation | null>(null);
   // `tick` alterna entre dos keyframes idénticos para reiniciar la cascada de filas en cada cambio.
   const [tick, setTick] = useState(0);
-  const [flashId, setFlashId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ key: number; folio: string } | null>(null);
-  const toastKey = useRef(0);
-  const flashTimer = useRef<number>();
-  const toastTimer = useRef<number>();
-
-  useEffect(() => () => {
-    window.clearTimeout(flashTimer.current);
-    window.clearTimeout(toastTimer.current);
-  }, []);
 
   const sorted = useMemo(() => [...quotations].sort((a, b) => {
     const byDate = Date.parse(b.createdAt) - Date.parse(a.createdAt);
@@ -76,21 +68,24 @@ export function HistoryPage() {
     return day >= range.start && day <= range.end;
   })), [searched, range, hasRange]);
 
-  const filtered = useMemo(
+  const byStatus = useMemo(
     () => (status === 'Todas' ? searchAndRange : searchAndRange.filter((quotation) => quotation.status === status)),
     [searchAndRange, status],
   );
+  const filtered = useMemo(() => filterByShare(byStatus, share), [byStatus, share]);
+  const byShare = useMemo(() => filterByShare(searchAndRange, share), [searchAndRange, share]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const page = Math.min(requestedPage, pageCount);
   const pageStart = (page - 1) * PAGE_SIZE;
   const visible = useMemo(() => filtered.slice(pageStart, pageStart + PAGE_SIZE), [filtered, pageStart]);
 
-  function updateParams(changes: { q?: string; estado?: StatusFilter; p?: number }) {
+  function updateParams(changes: { q?: string; estado?: StatusFilter; envio?: ShareFilter; p?: number }) {
     setParams((current) => {
       const next = new URLSearchParams(current);
       if (changes.q !== undefined) { if (changes.q.trim()) next.set('q', changes.q); else next.delete('q'); }
       if (changes.estado !== undefined) { if (changes.estado !== 'Todas') next.set('estado', changes.estado.toLowerCase()); else next.delete('estado'); }
+      if (changes.envio !== undefined) { if (changes.envio !== 'todas') next.set('envio', changes.envio); else next.delete('envio'); }
       if (changes.p !== undefined && changes.p > 1) next.set('p', String(changes.p));
       else next.delete('p');
       return next;
@@ -106,15 +101,22 @@ export function HistoryPage() {
   const statusOptions = useMemo(() => STATUSES.map((value) => ({
     value,
     label: value,
-    count: value === 'Todas' ? searchAndRange.length : searchAndRange.filter((quotation) => quotation.status === value).length,
-  })), [searchAndRange]);
+    count: value === 'Todas' ? byShare.length : byShare.filter((quotation) => quotation.status === value).length,
+  })), [byShare]);
 
-  const hasFilters = search.trim() !== '' || committedSearch !== '' || status !== 'Todas' || hasRange;
+  const shareOptions = useMemo(() => SHARE_FILTERS.map((value) => ({
+    value,
+    label: SHARE_FILTER_LABEL[value],
+    count: filterByShare(status === 'Todas' ? searchAndRange : searchAndRange.filter((quotation) => quotation.status === status), value).length,
+  })), [searchAndRange, status]);
+
+  const hasFilters = search.trim() !== '' || committedSearch !== '' || status !== 'Todas' || share !== 'todas' || hasRange;
   const bump = () => setTick((value) => value + 1);
 
   function changeSearch(value: string) { setSearch(value); }
   // Any filter change goes through updateParams without `p`, which restarts at page 1.
   function changeStatus(value: string) { updateParams({ estado: value as StatusFilter }); bump(); }
+  function changeShare(value: string) { updateParams({ envio: value as ShareFilter }); bump(); }
   function changeRange(value: DateRange) { setRange(value); updateParams({}); bump(); }
   function changePage(next: number) {
     updateParams({ p: next });
@@ -131,23 +133,10 @@ export function HistoryPage() {
     bump();
   }
 
-  async function handleDuplicate(quotation: Quotation) {
-    const created = await duplicateQuotation(quotation.id, { silent: true });
-    if (!created) return;
-    clearFilters();
-    setFlashId(created.id);
-    window.clearTimeout(flashTimer.current);
-    flashTimer.current = window.setTimeout(() => setFlashId(null), FLASH_MS);
-
-    const key = ++toastKey.current;
-    setToast({ key, folio: created.folio });
-    window.clearTimeout(toastTimer.current);
-    // Un toast anterior no debe cerrar al nuevo: solo se limpia si sigue siendo el vigente.
-    toastTimer.current = window.setTimeout(() => setToast((current) => (current?.key === key ? null : current)), TOAST_MS);
-  }
-
   const countLabel = `${filtered.length} ${filtered.length === 1 ? 'resultado' : 'resultados'}`;
-  const kind = emptyKind(quotations.length, searched.length, filtered.length, committedSearch.trim() !== '', status !== 'Todas');
+  // A share filter counts as an active filter for emptyKind; when it is the reason for the empty result it gets its own message.
+  const baseKind = emptyKind(quotations.length, searched.length, filtered.length, committedSearch.trim() !== '', status !== 'Todas' || share !== 'todas');
+  const kind = baseKind === 'status' && share !== 'todas' ? 'envio' : baseKind;
 
   return (
     <div className="hi-page" data-testid="historial-page">
@@ -155,9 +144,7 @@ export function HistoryPage() {
 
       <header className="hi-header">
         <div>
-          <p className="hi-eyebrow">Cotizaciones</p>
           <h1>Historial</h1>
-          <p className="hi-sub">Busca, revisa y duplica cotizaciones anteriores.</p>
         </div>
         <button type="button" className="hi-btn hi-btn--primary" data-testid="hi-new" onClick={() => navigate('/nueva-cotizacion')}>
           <Plus size={16} strokeWidth={2.4} aria-hidden="true" />Nueva cotización
@@ -180,6 +167,18 @@ export function HistoryPage() {
               />
             </label>
             <StatusCombo value={status} options={statusOptions} open={openMenu === 'status'} onOpenChange={(open) => setOpenMenu(open ? 'status' : null)} onChange={changeStatus} />
+            <StatusCombo
+              value={share}
+              options={shareOptions}
+              open={openMenu === 'envio'}
+              onOpenChange={(open) => setOpenMenu(open ? 'envio' : null)}
+              onChange={changeShare}
+              testId="hi-envio"
+              ariaLabel="Filtrar por envío"
+              menuLabel="Envío"
+              className="hi-ctl--share"
+              icon={<Send size={15} aria-hidden="true" className="hi-ctl-lead" />}
+            />
             <DateRangeFilter value={range} open={openMenu === 'range'} onOpenChange={(open) => setOpenMenu(open ? 'range' : null)} onChange={changeRange} />
           </div>
 
@@ -208,27 +207,24 @@ export function HistoryPage() {
                     return (
                       <tr
                         key={quotation.id}
-                        className={`hi-row${quotation.id === flashId ? ' hi-flash' : ''}`}
+                        className="hi-row"
                         data-testid="hi-row"
                         data-folio={quotation.folio}
                         style={{ animationName: tick % 2 === 0 ? 'hiRowInA' : 'hiRowInB', animationDelay: `${Math.min(index, 10) * 35}ms` }}
                       >
                         <td className="hi-folio">{quotation.folio}</td>
                         <td className="hi-date">{formatDate(quotation.createdAt, 'medium')}</td>
-                        <td className="hi-client">{quotation.customer.name}</td>
+                        <td className="hi-client"><span className="hi-client-name" aria-hidden="true" title={quotation.customer.name}>{quotation.customer.name}</span><ShareStatusLine record={quotation} customerName={quotation.customer.name} /></td>
                         <td className="hi-vehicle">{quotation.vehicle.make} {quotation.vehicle.model}</td>
                         <td><span className="hi-badge" data-status={quotation.status} data-testid="hi-badge"><i aria-hidden="true" />{quotation.status}</span></td>
                         <td className="hi-right hi-total">{formatMoney(total)}</td>
                         <td>
                           <div className="hi-actions">
-                            <button type="button" className="hi-icon" data-testid={`hi-view-${quotation.folio}`} title={`Ver detalle ${quotation.folio}`} aria-label={`Ver detalle ${quotation.folio}`} onClick={() => navigate(`/cotizaciones/${quotation.id}`)}><Eye size={18} aria-hidden="true" /></button>
-                            <button type="button" className="hi-icon" data-testid={`hi-dup-${quotation.folio}`} title={`Duplicar ${quotation.folio}`} aria-label={`Duplicar ${quotation.folio}`} onClick={() => void handleDuplicate(quotation)}><Copy size={18} aria-hidden="true" /></button>
-                            <button type="button" className="hi-icon" data-testid={`hi-pdf-${quotation.folio}`} title={`Descargar PDF ${quotation.folio}`} aria-label={`Descargar PDF ${quotation.folio}`} onClick={() => downloadPdf(quotation)}><Download size={18} aria-hidden="true" /></button>
                             <QuotationActionsMenu
                               quotation={quotation}
-                              omit={['view', 'download', 'duplicate']}
                               triggerClassName="hi-icon"
                               onOpenPdf={(target) => setPdfTarget(toPublicQuotation(target))}
+                              onDownloadPdf={downloadPdf}
                               onApprove={requestApprove}
                               onCancel={requestCancel}
                               onDelete={requestDelete}
@@ -261,17 +257,11 @@ export function HistoryPage() {
           {!isLoading && filtered.length === 0 && kind === 'status' && (
             <EmptyState testId="hi-empty" icon={<SearchX size={22} />} title={`No hay cotizaciones con estado ${status}`} action={{ label: 'Quitar filtro', testId: 'hi-empty-clear', onClick: () => changeStatus('Todas') }} />
           )}
+          {!isLoading && filtered.length === 0 && kind === 'envio' && (
+            <EmptyState testId="hi-empty" icon={<SearchX size={22} />} title={shareFilterEmptyTitle(share)} action={{ label: 'Quitar filtro', testId: 'hi-empty-clear', onClick: () => changeShare('todas') }} />
+          )}
         </section>
       </div>
-
-      {toast && (
-        <div key={toast.key} className="hi-toast" role="status" data-testid="hi-toast">
-          <span className="hi-toast-check" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5.5 12.5l4.2 4.2L18.5 7.8" pathLength="1" className="hi-draw" /></svg>
-          </span>
-          Cotización duplicada como {toast.folio}
-        </div>
-      )}
 
       {pdfTarget && <QuotationPdfDialog quotation={pdfTarget} onClose={() => setPdfTarget(null)} />}
     </div>

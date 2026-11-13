@@ -23,8 +23,6 @@ interface Props {
   onSaveDraft?: () => void;
   onClear?: () => void;
   submitLabel?: string;
-  /** Tooltip of the save button (includes the keyboard shortcut). */
-  submitHint?: string;
 }
 
 const rowClass = 'flex min-h-11 items-center justify-between gap-3 border-t border-mac-separator px-4 text-sm';
@@ -37,7 +35,7 @@ const PROMOTION_OPTIONS = [
   { value: '15', label: '15% de descuento' },
 ];
 
-export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChange, onLaborBlur, discountFlash, onSaveDraft, onClear, submitLabel = 'Guardar cotización', submitHint }: Props) {
+export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChange, onLaborBlur, discountFlash, onSaveDraft, onClear, submitLabel = 'Guardar cotización' }: Props) {
   const sheets = useQuotationSheetCount(form);
   const discountValue = Number(form.laborDiscountValue) || 0;
   const promotionValue = form.laborDiscountType === 'percentage' && PROMOTION_OPTIONS.some((option) => Number(option.value) === discountValue)
@@ -56,9 +54,9 @@ export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChang
         <div className={rowClass}><span className="text-mac-ink-2">Refacciones</span><strong data-testid="resumen-refacciones" className="font-semibold">{formatMoney(totals.subtotalRefacciones)}</strong></div>
         <div className={rowClass}>
           <label htmlFor="quote-labor" className="text-mac-ink-2">Mano de obra</label>
-          <div className="flex h-9 w-40 items-center rounded-lg bg-mac-fill transition-[box-shadow] duration-[180ms] focus-within:outline focus-within:outline-2 focus-within:outline-mac-accent">
-            <span aria-hidden="true" className="pl-3 text-mac-ink-2">$</span>
-            <input id="quote-labor" data-testid="resumen-mano-obra" inputMode="decimal" aria-invalid={Boolean(errors.laborAmount)} aria-describedby={errors.laborAmount ? 'quote-labor-error' : undefined} onBlur={onLaborBlur} className="h-full min-w-0 flex-1 border-0 bg-transparent px-3 text-right text-sm outline-none focus-visible:!outline-none" value={form.laborAmount} placeholder="0.00" onChange={(event) => onLaborChange(sanitizeMoneyInput(event.target.value))} />
+          <div className="mac-money !h-9 w-40">
+            <span aria-hidden="true">$</span>
+            <input id="quote-labor" data-testid="resumen-mano-obra" inputMode="decimal" autoComplete="off" aria-invalid={Boolean(errors.laborAmount)} aria-describedby={errors.laborAmount ? 'quote-labor-error' : undefined} onBlur={onLaborBlur} className="px-3 text-right text-sm" value={form.laborAmount} onChange={(event) => onLaborChange(sanitizeMoneyInput(event.target.value))} />
           </div>
         </div>
         <FieldError id="quote-labor-error" message={errors.laborAmount} className="px-4 pb-2 text-right" />
@@ -93,7 +91,7 @@ export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChang
       </div>
       <div className="grid gap-2 px-4 pb-4">
         {onSaveDraft && <button type="button" data-testid="guardar-borrador" disabled={busy} className="mac-press flex h-11 items-center justify-center gap-2 rounded-[10px] bg-white text-sm font-semibold shadow-[0_0_0_1px_rgb(0_0_0/0.12)] hover:bg-mac-header-cols disabled:opacity-50" onClick={onSaveDraft}><Save size={16} aria-hidden="true" />Guardar borrador</button>}
-        <button type="submit" data-testid="guardar-cotizacion" title={submitHint} disabled={busy} className="mac-press flex h-11 items-center justify-center gap-2 rounded-[10px] bg-mac-accent text-sm font-semibold text-white shadow-[0_1px_2px_rgb(120_40_0/0.35),inset_0_1px_0_rgb(255_255_255/0.18)] hover:bg-mac-accent-hover disabled:opacity-50"><Save size={16} aria-hidden="true" />{busy ? 'Guardando…' : submitLabel}</button>
+        <button type="submit" data-testid="guardar-cotizacion" disabled={busy} className="mac-press flex h-11 items-center justify-center gap-2 rounded-[10px] bg-mac-accent text-sm font-semibold text-white shadow-[0_1px_2px_rgb(120_40_0/0.35),inset_0_1px_0_rgb(255_255_255/0.18)] hover:bg-mac-accent-hover disabled:opacity-50"><Save size={16} aria-hidden="true" />{busy ? 'Guardando…' : submitLabel}</button>
       </div>
     </Card>
     {onClear && <button type="button" data-testid="limpiar-formulario" disabled={busy} className="mac-press mx-auto mt-3 flex h-11 items-center gap-2 rounded-lg px-3 text-sm text-mac-ink-2 hover:text-mac-danger disabled:opacity-50" onClick={onClear}><Trash2 size={16} aria-hidden="true" />Limpiar formulario</button>}

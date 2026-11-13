@@ -69,7 +69,7 @@ try {
   await typeText('chuy,');
   assert.deepEqual(await chips(), ['Chuy', 'Chucho'], '"chuy" no duplica "Chuy"');
   assert.equal(await c.evaluate('document.querySelector("[data-testid=cli-alias-input]").value'), '');
-  assert.equal(await c.evaluate('document.querySelector("[data-testid=cli-alias-input]").placeholder'), '', 'sin placeholder con chips');
+  assert.equal(await c.evaluate('document.getElementById("cli-alias-optional") === null'), true, '"Opcional" se oculta con chips');
 
   // 4. Backspace con el campo vacío quita el último chip
   await press('Backspace', 'Backspace', 8);

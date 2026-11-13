@@ -18,8 +18,16 @@ test('#048 se sincroniza con el evento storage (segunda ventana) y al volver a l
 });
 
 test('#048 cada mutación del contexto vuelve a leer la lista tras escribir', () => {
-  for (const operation of ['create', 'update', 'duplicate', 'approve', 'cancel', 'deleteCancelled']) {
+  for (const operation of ['create', 'update', 'approve', 'cancel', 'deletePermanently']) {
     const body = source.slice(source.indexOf(`quotationService.${operation}(`));
     assert.match(body.slice(0, 400), /setQuotations\(await quotationService\.list\(\)\)/, operation);
   }
+});
+
+test('permanent deletion is allowed only for cancelled and expired quotations', async () => {
+  const { isDeletableStatus } = await import('../src/models/quotation.ts');
+  assert.equal(isDeletableStatus('Cancelada'), true);
+  assert.equal(isDeletableStatus('Vencida'), true);
+  assert.equal(isDeletableStatus('Pendiente'), false);
+  assert.equal(isDeletableStatus('Aprobada'), false);
 });

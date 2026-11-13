@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Loader2, Printer, Share2, X } from 'lucide-react';
 import { Button } from './Button';
+import { ShareButton } from './share/ShareDialogs';
 import { useToast } from './ui/Toast';
 import type { PublicQuotation } from '../models/quotation';
 import type { PdfAssets } from '../utils/pdfAssets';
+import { useQuotations } from '../store/QuotationContext';
+import { useShareQuotation } from '../store/ShareContext';
 import { warnIfLogoMissing } from '../utils/pdfAssetsCore';
 import { savePdfFile } from '../utils/savePdfFile';
 import { userMessage } from '../utils/userMessage';
@@ -22,6 +25,10 @@ interface Preview {
 
 export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogProps) {
   const toast = useToast();
+  const { quotations } = useQuotations();
+  const { shareQuotation, canUse, busy: shareBusy } = useShareQuotation();
+  // The preview only carries the public data; sharing needs the stored quotation (customer id, share record).
+  const stored = quotation ? quotations.find((entry) => entry.folio === quotation.folio) : undefined;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [pdfModule, setPdfModule] = useState<PdfModule | null>(null);
   const [assets, setAssets] = useState<PdfAssets | null>(null);
@@ -135,6 +142,9 @@ export function QuotationPdfDialog({ quotation, onClose }: QuotationPdfDialogPro
 
 
       <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-5 py-4">
+        {stored && stored.status !== 'Cancelada' && (['whatsapp', 'email'] as const).map((medium) => (
+          <ShareButton key={medium} medium={medium} active={canUse(stored, medium)} busy={shareBusy} onClick={() => shareQuotation(stored, medium)} />
+        ))}
         <Button
           variant="secondary"
           disabled={!canShare}

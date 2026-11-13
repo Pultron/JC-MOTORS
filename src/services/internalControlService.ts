@@ -1,4 +1,4 @@
-import { LocalStorageInternalControlRepository } from '../repositories/LocalStorageInternalControlRepository';
+import { createInternalControlRepository } from '../repositories/repositoryFactory';
 import type { InternalControlRepository } from '../repositories/InternalControlRepository';
 
-export const internalControlService: InternalControlRepository = new LocalStorageInternalControlRepository();
+export const internalControlService: InternalControlRepository = createInternalControlRepository();

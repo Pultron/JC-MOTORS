@@ -84,7 +84,7 @@ export function InternalControlPage() {
 
   const clearSelection = () => { setSelectedId(undefined); setDirty(false); };
   return <div className="profit-page">
-    <div className="profit-heading"><div className="profit-title"><p className="profit-eyebrow">Rentabilidad</p><h1>Control de ganancias</h1><p className="profit-subtitle">Registra los costos reales y conoce la utilidad de cada cotización.</p></div>
+    <div className="profit-heading"><div className="profit-title"><h1>Control de ganancias</h1></div>
       <PeriodFilter period={period} range={range} onChange={(next, custom) => guard(() => { setPeriod(next); setRange(next === 'custom' ? custom! : periodRange(next)); clearSelection(); })} />
     </div>
     {loading || isLoading ? <div className="profit-card profit-loading" role="status"><LoaderCircle size={23} className="animate-spin" />Cargando cotizaciones y gastos…</div>

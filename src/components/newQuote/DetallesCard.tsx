@@ -3,7 +3,7 @@ import { FileText } from 'lucide-react';
 import type { QuoteFormData } from '../../models/quoteDraft';
 import { Card } from './primitives/Card';
 import { CardHeader } from './primitives/CardHeader';
-import { FormRow } from './primitives/FormRow';
+import { FormRow, describedByFor } from './primitives/FormRow';
 import { Segmented } from './primitives/Segmented';
 
 interface Props {
@@ -23,8 +23,8 @@ export function DetallesCard({ form, errors, onChange }: Props) {
   const legacyId = useId();
   return <Card delayMs={140}>
     <CardHeader icon={<FileText size={18} />} title="Detalles adicionales" subtitle="Información pública que verá el cliente." />
-    <FormRow label="Notas" htmlFor={notesId} tall>
-      <textarea id={notesId} data-testid="detalles-notas" rows={3} className="mac-row-input h-auto resize-y py-3" value={form.customerNotes} onChange={(event) => onChange('customerNotes', event.target.value)} placeholder="Ej. Observaciones, recomendaciones, etc." />
+    <FormRow label="Notas" htmlFor={notesId} optional filled={form.customerNotes !== ''} tall>
+      <textarea id={notesId} data-testid="detalles-notas" aria-describedby={describedByFor(notesId, undefined, true)} rows={3} className="mac-row-input h-auto resize-y py-3" value={form.customerNotes} onChange={(event) => onChange('customerNotes', event.target.value)} placeholder="Observaciones para el cliente" />
     </FormRow>
     {form.publicNotes && <FormRow label="Públicas" htmlFor={legacyId} tall>
       <textarea id={legacyId} rows={2} className="mac-row-input h-auto resize-y py-3" value={form.publicNotes} onChange={(event) => onChange('publicNotes', event.target.value)} />

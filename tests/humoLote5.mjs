@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { connect } from './cdpClient.mjs';
 
-// Humo final del lote 5 en la app COMPILADA (perfil aislado): crear una cotización de 12 conceptos con Ctrl+S,
+// Humo final del lote 5 en la app COMPILADA (perfil aislado): crear una cotización de 12 conceptos guardando con el botón,
 // verla en el historial, cliente nuevo con correo y recorrido con Tab. Reporta errores de consola y violaciones de CSP.
 const BASE = process.env.APP_URL ?? 'http://tauri.localhost';
 const dir = 'tests/artifacts/humo';
@@ -49,13 +49,13 @@ try {
   console.log('conceptos:', await c.evaluate('document.querySelectorAll("[data-testid^=refaccion-fila-]").length'), '| hojas:', await c.evaluate('document.querySelector("[data-testid=resumen-hojas]")?.innerText'));
   await c.screenshot(`${dir}/01-cotizacion-12-conceptos.png`);
 
-  // Ctrl+S guarda la cotización
-  await key('s', 'KeyS', 83, 2);
+  // El botón guarda la cotización
+  await c.click('[data-testid=guardar-cotizacion]');
   await sleep(1800);
   await c.screenshot(`${dir}/02-guardada.png`);
   const saved = await c.evaluate(`JSON.parse(localStorage.getItem('jc-motors:quotations:v1') ?? '[]').map((x) => ({ folio: x.folio, items: x.items.length, customer: x.customer.name }))`);
   console.log('guardadas:', JSON.stringify(saved));
-  assert.equal(saved.length, 1, 'Ctrl+S debe guardar la cotización');
+  assert.equal(saved.length, 1, 'Guardar debe guardar la cotización');
   assert.equal(saved[0].items, 12);
 
   // Historial con la cotización, búsqueda por teléfono con formato
@@ -75,7 +75,7 @@ try {
   await c.screenshot(`${dir}/03-clientes.png`);
 
   // Tab por las pantallas: debe haber un elemento enfocado distinto en cada pulsación
-  for (const route of ['/', '/nueva-cotizacion', '/historial', '/clientes', '/facturas', '/respaldo', '/atajos']) {
+  for (const route of ['/', '/nueva-cotizacion', '/historial', '/clientes', '/facturas', '/respaldo']) {
     await go(route);
     const seen = new Set();
     for (let i = 0; i < 6; i++) {

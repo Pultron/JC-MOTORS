@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { CreateQuotationInput, Quotation } from '../models/quotation';
+import type { CreateQuotationInput, Quotation, ShareMedium } from '../models/quotation';
 import { quotationService } from '../services/quotationService';
 import { internalControlService } from '../services/internalControlService';
 import { useToast } from '../components/ui/Toast';
@@ -12,11 +12,13 @@ interface QuotationContextValue {
   getQuotation: (id: string) => Promise<Quotation | undefined>;
   createQuotation: (input: CreateQuotationInput) => Promise<Quotation>;
   updateQuotation: (id: string, input: CreateQuotationInput) => Promise<Quotation | undefined>;
-  /** `silent` omite el aviso del store cuando la pantalla muestra el suyo. */
-  duplicateQuotation: (id: string, options?: { silent?: boolean }) => Promise<Quotation | undefined>;
   approveQuotation: (id: string) => Promise<Quotation | undefined>;
   cancelQuotation: (id: string) => Promise<Quotation | undefined>;
-  deleteCancelledQuotation: (id: string) => Promise<boolean>;
+  deleteQuotationPermanently: (id: string) => Promise<boolean>;
+  /** Records the share silently (no toast: the share sheet is the feedback). */
+  markQuotationShared: (id: string, via: ShareMedium) => Promise<Quotation | undefined>;
+  /** Completes the customer's phone/email on the quotation itself; returns the updated quotation. */
+  updateQuotationContact: (id: string, contact: { phone?: string; email?: string }) => Promise<Quotation | undefined>;
 }
 
 const QuotationContext = createContext<QuotationContextValue | null>(null);
@@ -73,15 +75,6 @@ export function QuotationProvider({ children }: { children: ReactNode }) {
     return quotation;
   }, [toast]);
 
-  const duplicateQuotation = useCallback(async (id: string, options?: { silent?: boolean }) => {
-    const quotation = await quotationService.duplicate(id);
-    if (quotation) {
-      setQuotations(await quotationService.list());
-      if (!options?.silent) toast.success({ title: 'Cotización creada', description: `Se creó la cotización ${quotation.folio}.` });
-    }
-    return quotation;
-  }, [toast]);
-
   const approveQuotation = useCallback(async (id: string) => {
     const quotation = await quotationService.approve(id);
     if (!quotation) return undefined;
@@ -99,13 +92,25 @@ export function QuotationProvider({ children }: { children: ReactNode }) {
     return quotation;
   }, [toast]);
 
-  const deleteCancelledQuotation = useCallback(async (id: string) => {
-    const quotation = await quotationService.deleteCancelled(id);
+  const deleteQuotationPermanently = useCallback(async (id: string) => {
+    const quotation = await quotationService.deletePermanently(id);
     if (!quotation) return false;
     setQuotations(await quotationService.list());
     toast.success({ title: 'Cotización eliminada', description: `La cotización ${quotation.folio} se eliminó permanentemente.` });
     return true;
   }, [toast]);
+
+  const markQuotationShared = useCallback(async (id: string, via: ShareMedium) => {
+    const quotation = await quotationService.markShared(id, via);
+    if (quotation) setQuotations(await quotationService.list());
+    return quotation;
+  }, []);
+
+  const updateQuotationContact = useCallback(async (id: string, contact: { phone?: string; email?: string }) => {
+    const quotation = await quotationService.updateCustomerContact(id, contact);
+    if (quotation) setQuotations(await quotationService.list());
+    return quotation;
+  }, []);
 
   const value = useMemo<QuotationContextValue>(
     () => ({
@@ -114,12 +119,13 @@ export function QuotationProvider({ children }: { children: ReactNode }) {
       getQuotation,
       createQuotation,
       updateQuotation,
-      duplicateQuotation,
       approveQuotation,
       cancelQuotation,
-      deleteCancelledQuotation,
+      deleteQuotationPermanently,
+      markQuotationShared,
+      updateQuotationContact,
     }),
-    [quotations, isLoading, getQuotation, createQuotation, updateQuotation, duplicateQuotation, approveQuotation, cancelQuotation, deleteCancelledQuotation],
+    [quotations, isLoading, getQuotation, createQuotation, updateQuotation, approveQuotation, cancelQuotation, deleteQuotationPermanently, markQuotationShared, updateQuotationContact],
   );
 
   return <QuotationContext.Provider value={value}>{children}</QuotationContext.Provider>;
