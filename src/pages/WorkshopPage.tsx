@@ -2,7 +2,8 @@ import { useId, useState } from 'react';
 import { Store } from 'lucide-react';
 import { Card } from '../components/newQuote/primitives/Card';
 import { CardHeader } from '../components/newQuote/primitives/CardHeader';
-import { FormRow } from '../components/newQuote/primitives/FormRow';
+import { FormRow, describedByFor } from '../components/newQuote/primitives/FormRow';
+import { PhoneInput } from '../components/ui/PhoneInput';
 import { useToast } from '../components/ui/Toast';
 import {
   loadBusinessInfo, resetBusinessInfo, saveBusinessInfo, validateBusinessInfo,
@@ -85,16 +86,16 @@ export function WorkshopPage() {
       <Card as="section">
         <CardHeader icon={<Store size={18} />} title="Datos del taller" subtitle="Aparecen en el encabezado y el pie de la cotización en PDF." />
         <FormRow label="Nombre" htmlFor={ids.nombre} required error={errors.nombre}>
-          <input id={ids.nombre} data-testid="taller-nombre" className="mac-row-input" aria-invalid={Boolean(errors.nombre)} value={form.nombre} maxLength={40} onChange={(event) => update('nombre', event.target.value)} />
+          <input id={ids.nombre} data-testid="taller-nombre" className="mac-row-input" aria-required="true" aria-invalid={Boolean(errors.nombre)} value={form.nombre} maxLength={40} onChange={(event) => update('nombre', event.target.value)} />
         </FormRow>
         <FormRow label="Teléfono" htmlFor={ids.telefono} required error={errors.telefono}>
-          <input id={ids.telefono} data-testid="taller-telefono" type="tel" inputMode="tel" className="mac-row-input" aria-invalid={Boolean(errors.telefono)} value={form.telefono} maxLength={20} placeholder="(667) 123-4567" onChange={(event) => update('telefono', event.target.value.replace(/[^\d\s()+-]/g, ''))} />
+          <PhoneInput id={ids.telefono} data-testid="taller-telefono" className="mac-row-input" aria-required="true" aria-invalid={Boolean(errors.telefono)} value={form.telefono} onValueChange={(value) => update('telefono', value)} />
         </FormRow>
         <FormRow label="Dirección" htmlFor={ids.direccion} required error={errors.direccion} tall>
-          <textarea id={ids.direccion} data-testid="taller-direccion" rows={2} className="mac-row-input h-auto resize-none py-3" aria-invalid={Boolean(errors.direccion)} value={form.direccion} onChange={(event) => update('direccion', event.target.value)} placeholder={'Calle y número\nColonia, ciudad'} />
+          <textarea id={ids.direccion} data-testid="taller-direccion" aria-required="true" rows={2} className="mac-row-input h-auto resize-none py-3" aria-invalid={Boolean(errors.direccion)} value={form.direccion} onChange={(event) => update('direccion', event.target.value)} />
         </FormRow>
-        <FormRow label="Correo" htmlFor={ids.correo} error={errors.correo}>
-          <input id={ids.correo} data-testid="taller-correo" type="email" className="mac-row-input" aria-invalid={Boolean(errors.correo)} value={form.correo} onChange={(event) => update('correo', event.target.value)} placeholder="Opcional" />
+        <FormRow label="Correo" htmlFor={ids.correo} optional filled={form.correo !== ''} error={errors.correo}>
+          <input id={ids.correo} data-testid="taller-correo" type="email" className="mac-row-input" aria-invalid={Boolean(errors.correo)} aria-describedby={describedByFor(ids.correo, errors.correo, true)} value={form.correo} onChange={(event) => update('correo', event.target.value)} />
         </FormRow>
         <p className="respaldo-hint">La dirección admite hasta 2 líneas. El teléfono debe tener 10 dígitos.</p>
         <div className="flex justify-end gap-3 px-4 py-3">
