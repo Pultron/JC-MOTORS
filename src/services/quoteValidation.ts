@@ -16,7 +16,7 @@ export function validateQuoteForm(form: QuoteFormData, totals: QuotationTotals):
   if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = 'Escribe un correo válido.';
   if (!form.make.trim()) errors.make = 'Selecciona o escribe una marca.';
   if (!form.model.trim()) errors.model = 'Selecciona o escribe un modelo.';
-  const plates = validatePlates(form.plates);
+  const plates = form.plates.trim() ? validatePlates(form.plates) : { ok: false, mensaje: 'Escribe las placas.' };
   if (!plates.ok) errors.plates = plates.mensaje ?? 'Escribe unas placas válidas.';
   if (form.year) {
     const year = validateYear(Number(form.year));

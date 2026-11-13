@@ -106,7 +106,7 @@ function MoneyInput({ value, onChange, label }: { value: string; onChange: (valu
   let invalid = false;
   try { cents = parseCents(value); } catch { invalid = true; }
   const display = focused || invalid || cents === null ? value : (cents / 100).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return <span className="profit-money"><span aria-hidden="true">$</span><input aria-label={label} aria-invalid={invalid} inputMode="decimal" type="text" value={display} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onChange={e => onChange(e.target.value)} /></span>;
+  return <span className="profit-money"><span aria-hidden="true">$</span><input aria-label={label} aria-invalid={invalid} inputMode="decimal" autoComplete="off" type="text" value={display} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onChange={e => onChange(e.target.value)} /></span>;
 }
 
 export function InternalItemCostRow({ item, value, onChange }: { item: QuoteProfit['items'][number]; value: string; onChange: (value: string) => void }) {

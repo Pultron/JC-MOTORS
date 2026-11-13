@@ -194,7 +194,8 @@ input[type="number"]::-webkit-outer-spin-button {
 .mac-money[data-invalid="true"] { box-shadow: inset 0 0 0 2px var(--color-mac-danger); }
 .mac-money > span { flex: none; padding-left: 12px; color: var(--color-mac-ink-2); font-size: 14px; }
 .mac-money > input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; padding: 0 12px 0 4px; color: var(--color-mac-ink); font-size: 14px; }
-.mac-money > input:focus-visible { outline: none !important; }
+.new-quotation-page .mac-money > input, .new-quotation-page .mac-money > input:focus, .new-quotation-page .mac-money > input:focus-visible { outline: none !important; box-shadow: none !important; background: transparent !important; }
+.mac-money > input:-webkit-autofill { -webkit-box-shadow: 0 0 0 100px var(--color-mac-fill) inset; -webkit-text-fill-color: var(--color-mac-ink); }
 textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .mac-fill-input { height: 40px; min-width: 0; border: 0; border-radius: 8px; background: var(--color-mac-fill); padding: 0 12px; color: var(--color-mac-ink); font-size: 14px; transition: background-color 180ms ease, box-shadow 180ms ease; }
 .mac-fill-input:focus-visible { outline: 2px solid var(--color-mac-accent); outline-offset: 0; }

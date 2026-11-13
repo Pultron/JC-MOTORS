@@ -2,8 +2,7 @@ import { useId, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { FloatingPanel } from '../ui/FloatingPanel';
 import { OptionList, optionId } from '../ui/OptionList';
-import { errorIdFor } from '../ui/FieldError';
-import { FormRow } from './primitives/FormRow';
+import { FormRow, describedByFor } from './primitives/FormRow';
 
 export interface ComboOption {
   value: string;
@@ -20,6 +19,9 @@ interface Props {
   placeholder?: string;
   /** Lupa a la izquierda del campo en lugar de un texto de ayuda. */
   searchIcon?: boolean;
+  optional?: boolean;
+  inputMode?: 'numeric' | 'text';
+  maxLength?: number;
   error?: string;
   required?: boolean;
   actionLabel?: string;
@@ -33,7 +35,7 @@ interface Props {
 const normalize = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('es-MX');
 
 /** Combobox con búsqueda, presentado como fila agrupada estilo macOS. */
-export function SearchCombobox({ label, value, options, onChange, onSelect, placeholder, searchIcon, error, required, actionLabel, onAction, disabled, testId, onCommit }: Props) {
+export function SearchCombobox({ label, value, options, onChange, onSelect, placeholder, searchIcon, optional, inputMode, maxLength, error, required, actionLabel, onAction, disabled, testId, onCommit }: Props) {
   const inputId = useId();
   const listId = `${inputId}-options`;
   const [open, setOpen] = useState(false);
@@ -55,9 +57,9 @@ export function SearchCombobox({ label, value, options, onChange, onSelect, plac
   }
 
   return <div ref={root}>
-    <FormRow label={label} htmlFor={inputId} required={required} error={error}>
+    <FormRow label={label} htmlFor={inputId} required={required} optional={optional} filled={value !== ''} error={error}>
       {searchIcon && <Search size={15} aria-hidden="true" className="mac-row-lead" />}
-      <input ref={input} id={inputId} data-testid={testId} role="combobox" aria-expanded={open} aria-controls={open ? listId : undefined} aria-activedescendant={open && visible[active] ? optionId(listId, active) : undefined} aria-autocomplete="list" aria-invalid={Boolean(error)} aria-describedby={errorIdFor(inputId, error)} aria-required={required} disabled={disabled} className="mac-row-input" value={value} placeholder={placeholder} autoComplete="off"
+      <input ref={input} id={inputId} data-testid={testId} role="combobox" aria-expanded={open} aria-controls={open ? listId : undefined} aria-activedescendant={open && visible[active] ? optionId(listId, active) : undefined} aria-autocomplete="list" aria-invalid={Boolean(error)} aria-describedby={describedByFor(inputId, error, optional)} aria-required={required} disabled={disabled} className="mac-row-input" inputMode={inputMode} maxLength={maxLength} value={value} placeholder={placeholder} autoComplete="off"
         onFocus={() => setOpen(true)} onBlur={(event) => { if (!root.current?.contains(event.relatedTarget)) { setOpen(false); onCommit?.(); } }}
         onChange={(event) => { onChange(event.target.value); setOpen(true); setActive(0); }}
         onKeyDown={(event) => {

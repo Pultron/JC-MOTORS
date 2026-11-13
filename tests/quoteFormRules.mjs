@@ -6,7 +6,7 @@ import { MAX_YEAR, MIN_YEAR } from '../src/validation/fields.ts';
 
 const totals = { subtotalRefacciones: 100, subtotalManoObra: 0, laborDiscount: 0, subtotalNeto: 100, ivaAmount: 16, total: 116 };
 const baseForm = (overrides = {}) => ({
-  customerId: '', customerName: 'Ana', phone: '', email: '', make: 'Nissan', model: 'Versa', year: '', plates: '',
+  customerId: '', customerName: 'Ana', phone: '', email: '', make: 'Nissan', model: 'Versa', year: '', plates: 'ABC-123-A',
   items: [{ id: 'a', type: 'part', description: 'Filtro', quantity: '1', unitPrice: '100' }],
   laborAmount: '', laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true, validityDays: '15', publicNotes: '', customerNotes: '',
   ...overrides,
@@ -89,9 +89,10 @@ test('#011 single-line fields lose tabs, newlines and repeated spaces; notes kee
   assert.equal(form.customerNotes, 'Línea 1\nLínea 2');
 });
 
-test('#012 plates: optional, min 3 chars, saved uppercase, letters/digits/hyphen/space only', async () => {
+test('#012 plates: required, min 3 chars, saved uppercase, letters/digits/hyphen/space only', async () => {
   const { sanitizePlatesInput } = await import('../src/validation/fields.ts');
-  assert.equal(validateQuoteForm(baseForm({ plates: '' }), totals).plates, undefined);
+  assert.equal(validateQuoteForm(baseForm({ plates: '' }), totals).plates, 'Escribe las placas.');
+  assert.equal(validateQuoteForm(baseForm({ plates: '   ' }), totals).plates, 'Escribe las placas.');
   assert.ok(validateQuoteForm(baseForm({ plates: 'ab' }), totals).plates);
   assert.equal(validateQuoteForm(baseForm({ plates: 'abc-123-a' }), totals).plates, undefined);
   assert.ok(validateQuoteForm(baseForm({ plates: 'ABC#123' }), totals).plates);
