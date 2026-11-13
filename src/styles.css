@@ -434,3 +434,6 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .share-line-text { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .share-line-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .share-line-icon { flex: none; }
+
+.cli-alias-suggest { display: flex; width: 100%; align-items: center; gap: 8px; padding: 8px 16px; border: 0; border-top: 1px solid rgb(60 60 67 / 12%); background: var(--color-mac-tint); color: var(--color-mac-accent-text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.cli-alias-suggest:hover { filter: brightness(0.97); }
