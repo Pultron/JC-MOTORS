@@ -18,7 +18,7 @@ test('#048 se sincroniza con el evento storage (segunda ventana) y al volver a l
 });
 
 test('#048 cada mutación del contexto vuelve a leer la lista tras escribir', () => {
-  for (const operation of ['create', 'update', 'duplicate', 'approve', 'cancel', 'deleteCancelled']) {
+  for (const operation of ['create', 'update', 'approve', 'cancel', 'deleteCancelled']) {
     const body = source.slice(source.indexOf(`quotationService.${operation}(`));
     assert.match(body.slice(0, 400), /setQuotations\(await quotationService\.list\(\)\)/, operation);
   }

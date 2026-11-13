@@ -6,7 +6,6 @@ import { confirmed } from './sqliteConfirm';
 export class SqliteQuotationRepository extends LocalStorageQuotationRepository {
   override create(input: CreateQuotationInput): Promise<Quotation> { return confirmed(super.create(input)); }
   override update(id: string, input: CreateQuotationInput): Promise<Quotation | undefined> { return confirmed(super.update(id, input)); }
-  override duplicate(id: string): Promise<Quotation | undefined> { return confirmed(super.duplicate(id)); }
   override approve(id: string): Promise<Quotation | undefined> { return confirmed(super.approve(id)); }
   override cancel(id: string): Promise<Quotation | undefined> { return confirmed(super.cancel(id)); }
   override deleteCancelled(id: string): Promise<Quotation | undefined> { return confirmed(super.deleteCancelled(id)); }

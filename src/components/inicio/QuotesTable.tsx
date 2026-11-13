@@ -13,7 +13,7 @@ import { StatusBadge } from '../StatusBadge';
 import { useCancelledQuotationDeletion } from '../../hooks/useCancelledQuotationDeletion';
 import { useQuotationActions } from '../../hooks/useQuotationActions';
 import { useQuotationPdfDownload } from '../../hooks/useQuotationPdfDownload';
-import type { PublicQuotation, Quotation, QuotationStatus } from '../../models/quotation';
+import type { PublicQuotation, QuotationStatus } from '../../models/quotation';
 import { useQuotations } from '../../store/QuotationContext';
 import { formatMoney } from '../../utils/money';
 import { calculateQuotationTotals, toPublicQuotation } from '../../utils/quotation';
@@ -32,7 +32,7 @@ const STATUS_TABS: ReadonlyArray<{ value: StatusFilter; label: string; dot?: str
 ];
 
 export function QuotesTable() {
-  const { quotations, isLoading, duplicateQuotation } = useQuotations();
+  const { quotations, isLoading } = useQuotations();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
@@ -69,13 +69,6 @@ export function QuotesTable() {
     if (next.search !== undefined) setSearch(next.search);
     if (next.status !== undefined) setStatus(next.status);
     setPage(1);
-  }
-
-  async function handleDuplicate(quotation: Quotation) {
-    const duplicated = await duplicateQuotation(quotation.id);
-    if (!duplicated) return;
-    setPage(1);
-    setFlashId(duplicated.id);
   }
 
   function handleRowAnimationEnd(event: AnimationEvent<HTMLTableRowElement>) {
@@ -181,7 +174,6 @@ export function QuotesTable() {
                               onDownloadPdf={downloadPdf}
                               onApprove={requestApprove}
                               onCancel={requestCancel}
-                              onDuplicate={(target) => void handleDuplicate(target)}
                               onDelete={requestDelete}
                             />
                           </div>

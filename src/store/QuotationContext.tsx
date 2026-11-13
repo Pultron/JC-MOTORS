@@ -12,8 +12,6 @@ interface QuotationContextValue {
   getQuotation: (id: string) => Promise<Quotation | undefined>;
   createQuotation: (input: CreateQuotationInput) => Promise<Quotation>;
   updateQuotation: (id: string, input: CreateQuotationInput) => Promise<Quotation | undefined>;
-  /** `silent` omite el aviso del store cuando la pantalla muestra el suyo. */
-  duplicateQuotation: (id: string, options?: { silent?: boolean }) => Promise<Quotation | undefined>;
   approveQuotation: (id: string) => Promise<Quotation | undefined>;
   cancelQuotation: (id: string) => Promise<Quotation | undefined>;
   deleteCancelledQuotation: (id: string) => Promise<boolean>;
@@ -77,15 +75,6 @@ export function QuotationProvider({ children }: { children: ReactNode }) {
     return quotation;
   }, [toast]);
 
-  const duplicateQuotation = useCallback(async (id: string, options?: { silent?: boolean }) => {
-    const quotation = await quotationService.duplicate(id);
-    if (quotation) {
-      setQuotations(await quotationService.list());
-      if (!options?.silent) toast.success({ title: 'Cotización creada', description: `Se creó la cotización ${quotation.folio}.` });
-    }
-    return quotation;
-  }, [toast]);
-
   const approveQuotation = useCallback(async (id: string) => {
     const quotation = await quotationService.approve(id);
     if (!quotation) return undefined;
@@ -130,14 +119,13 @@ export function QuotationProvider({ children }: { children: ReactNode }) {
       getQuotation,
       createQuotation,
       updateQuotation,
-      duplicateQuotation,
       approveQuotation,
       cancelQuotation,
       deleteCancelledQuotation,
       markQuotationShared,
       updateQuotationContact,
     }),
-    [quotations, isLoading, getQuotation, createQuotation, updateQuotation, duplicateQuotation, approveQuotation, cancelQuotation, deleteCancelledQuotation, markQuotationShared, updateQuotationContact],
+    [quotations, isLoading, getQuotation, createQuotation, updateQuotation, approveQuotation, cancelQuotation, deleteCancelledQuotation, markQuotationShared, updateQuotationContact],
   );
 
   return <QuotationContext.Provider value={value}>{children}</QuotationContext.Provider>;

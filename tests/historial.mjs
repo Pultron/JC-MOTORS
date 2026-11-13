@@ -234,47 +234,7 @@ try {
   assert.equal(await c.evaluate('document.querySelector("[data-testid=hi-search]").value'), '');
   assert.equal(await statusLabel(), 'Todas');
 
-  // 8. Duplicar: arriba, Pendiente, siguiente folio, filtros limpios, destello y toast
-  await c.evaluate('document.querySelector("[data-testid=hi-status]").click()');
-  await c.evaluate('document.querySelector("[data-testid=hi-status-option][data-value=Pendiente]").click()');
-  await waitRows(4);
-  await c.click('[data-testid=hi-dup-JC-0009]');
-  await waitRows(10);
-  assert.deepEqual((await folios()).slice(0, 2), ['JC-0010', 'JC-0009']);
-  assert.equal(await text('[data-testid=hi-row] [data-testid=hi-badge]'), 'Pendiente');
-  assert.equal(await text('[data-testid=hi-row] .hi-client'), 'Luis Ortega');
-  assert.equal(await statusLabel(), 'Todas', 'los filtros se limpian');
-  assert.equal(await text('[data-testid=hi-toast]'), 'Cotización duplicada como JC-0010');
-  assert.equal(await c.evaluate('document.querySelector("[data-testid=hi-row]").classList.contains("hi-flash")'), true, 'la fila nueva destella');
-  assert.equal(await c.evaluate('document.body.innerText.includes("Cotización creada")'), false, 'no se duplica el aviso del store');
-  await c.screenshot(`${dir}/duplicada.png`);
-  await sleep(2400);
-  assert.equal(await count('.hi-flash'), 0, 'el destello se limpia solo');
-  await sleep(1300);
-  assert.equal(await count('[data-testid=hi-toast]'), 0, 'el toast se va solo');
-
-  // 9. Dos duplicados seguidos: el primer temporizador no cierra el segundo toast
-  await c.click('[data-testid=hi-dup-JC-0009]');
-  await c.waitFor('document.querySelector("[data-testid=hi-toast]")?.innerText.includes("JC-0011")');
-  await sleep(1500);
-  await c.click('[data-testid=hi-dup-JC-0009]');
-  await c.waitFor('document.querySelector("[data-testid=hi-toast]")?.innerText.includes("JC-0012")');
-  await sleep(2100); // más de 3.3 s desde el primero
-  assert.equal(await text('[data-testid=hi-toast]'), 'Cotización duplicada como JC-0012');
-  assert.equal(await c.evaluate('getComputedStyle(document.querySelector("[data-testid=hi-toast]")).opacity'), '1');
-  await sleep(1500);
-  assert.equal(await count('[data-testid=hi-toast]'), 0);
-
-  // 10. Con movimiento reducido no queda ninguna fila con el destello pegado
-  await c.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-  await c.click('[data-testid=hi-dup-JC-0009]');
-  await c.waitFor('document.querySelector("[data-testid=hi-row]").dataset.folio === "JC-0013"');
-  assert.equal(await c.evaluate('getComputedStyle(document.querySelector(".hi-flash td")).animationName'), 'none');
-  await sleep(2400);
-  assert.equal(await count('.hi-flash'), 0);
-  await c.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
-
-  // 11. Ventana angosta: la tabla hace scroll horizontal y los menús no se cortan
+  // 8. Ventana angosta: la tabla hace scroll horizontal y los menús no se cortan
   await c.send('Emulation.setDeviceMetricsOverride', { width: 700, height: 900, deviceScaleFactor: 1, mobile: false });
   await sleep(300);
   assert.equal(await c.evaluate('(() => { const w = document.querySelector(".hi-table-wrap"); return w.scrollWidth > w.clientWidth; })()'), true);

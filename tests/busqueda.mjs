@@ -71,7 +71,7 @@ try {
   assert.match(await hash(), /p=3/);
 
   // #027 atrás desde una cotización vuelve al mismo lugar
-  await c.evaluate('document.querySelector("[data-testid=hi-row] [data-testid^=hi-view-]").click()');
+  await c.evaluate('location.hash = "#/cotizaciones/inexistente"'); // el ojito ya no existe: se llega por URL
   await sleep(500);
   assert.match(await hash(), /#\/cotizaciones\//);
   await c.evaluate('history.back()');

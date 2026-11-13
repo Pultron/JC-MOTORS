@@ -197,7 +197,6 @@ export function HistoryPage() {
                           <div className="hi-actions">
                             <QuotationActionsMenu
                               quotation={quotation}
-                              omit={['view']}
                               triggerClassName="hi-icon"
                               onOpenPdf={(target) => setPdfTarget(toPublicQuotation(target))}
                               onDownloadPdf={downloadPdf}

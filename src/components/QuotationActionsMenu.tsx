@@ -1,4 +1,4 @@
-import { Ban, Check, Copy, Download, Eye, FileText, LockKeyhole, Mail, MessageCircle, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { Ban, Check, Download, FileText, LockKeyhole, Mail, MessageCircle, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import type { Quotation, ShareMedium } from '../models/quotation';
 import { useShareQuotation } from '../store/ShareContext';
@@ -11,10 +11,7 @@ interface QuotationActionsMenuProps {
   onDownloadPdf?: (quotation: Quotation) => void;
   onApprove?: (quotation: Quotation) => void;
   onCancel?: (quotation: Quotation) => void;
-  onDuplicate?: (quotation: Quotation) => void;
   onDelete?: (quotation: Quotation) => void;
-  /** Claves de ítems que otra parte de la pantalla ya ofrece (p. ej. 'view', 'download', 'duplicate'). */
-  omit?: string[];
   triggerClassName?: string;
 }
 
@@ -41,9 +38,8 @@ interface MenuItemsInput extends QuotationActionsMenuProps {
   canShare: (medium: ShareMedium) => boolean;
 }
 
-function buildMenuItems({ quotation, navigate, onOpenPdf, onDownloadPdf, onApprove, onCancel, onDuplicate, onDelete, omit, share, canShare }: MenuItemsInput): MacMenuItem[] {
+function buildMenuItems({ quotation, navigate, onOpenPdf, onDownloadPdf, onApprove, onCancel, onDelete, share, canShare }: MenuItemsInput): MacMenuItem[] {
   const items: MacMenuItem[] = [
-    { key: 'view', label: 'Ver detalle', icon: Eye, onSelect: () => navigate(`/cotizaciones/${quotation.id}`) },
     { key: 'pdf', label: 'Ver cotización', icon: FileText, onSelect: () => onOpenPdf(quotation) },
   ];
 
@@ -65,8 +61,6 @@ function buildMenuItems({ quotation, navigate, onOpenPdf, onDownloadPdf, onAppro
     items.push({ key: 'internal', label: 'Ir a Control interno', icon: LockKeyhole, onSelect: () => navigate(`/control-interno/${quotation.id}`) });
   }
 
-  if (onDuplicate) items.push({ key: 'duplicate', label: 'Duplicar', icon: Copy, onSelect: () => onDuplicate(quotation) });
-
   // Las acciones que cambian el estado van al final, separadas de las de consulta.
   if (quotation.status === 'Pendiente') {
     if (onApprove) items.push({ key: 'approve', label: 'Aprobar cotización', icon: Check, separatorBefore: true, onSelect: () => onApprove(quotation) });
@@ -77,5 +71,5 @@ function buildMenuItems({ quotation, navigate, onOpenPdf, onDownloadPdf, onAppro
     items.push({ key: 'delete', label: 'Eliminar permanentemente', icon: Trash2, tone: 'danger', separatorBefore: true, onSelect: () => onDelete(quotation) });
   }
 
-  return omit ? items.filter((item) => !omit.includes(item.key)) : items;
+  return items;
 }

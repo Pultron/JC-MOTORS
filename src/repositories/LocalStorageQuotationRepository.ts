@@ -146,24 +146,6 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
     return cloneQuotation(updated);
   }
 
-  async duplicate(id: string): Promise<Quotation | undefined> {
-    const original = this.readAll().find((entry) => entry.id === id);
-    if (!original) return undefined;
-
-    return this.create({
-      ...(original.customerId ? { customerId: original.customerId } : {}),
-      customer: original.customer,
-      vehicle: original.vehicle,
-      items: original.items.map(({ id: _id, amount: _amount, ...item }) => ({ ...item, id: createId() })),
-      laborDiscountType: original.laborDiscountType,
-      laborDiscountValue: original.laborDiscountValue,
-      includeVat: original.includeVat,
-      validityDays: original.validityDays,
-      publicNotes: original.publicNotes,
-      customerNotes: original.customerNotes,
-    });
-  }
-
   async approve(id: string): Promise<Quotation | undefined> {
     const quotations = this.readAll();
     const quotation = quotations.find((entry) => entry.id === id);
