@@ -106,7 +106,7 @@ function MoneyInput({ value, onChange, label }: { value: string; onChange: (valu
   let invalid = false;
   try { cents = parseCents(value); } catch { invalid = true; }
   const display = focused || invalid || cents === null ? value : (cents / 100).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return <span className="profit-money"><span aria-hidden="true">$</span><input aria-label={label} aria-invalid={invalid} inputMode="decimal" type="text" placeholder="0.00" value={display} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onChange={e => onChange(e.target.value)} /></span>;
+  return <span className="profit-money"><span aria-hidden="true">$</span><input aria-label={label} aria-invalid={invalid} inputMode="decimal" type="text" value={display} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onChange={e => onChange(e.target.value)} /></span>;
 }
 
 export function InternalItemCostRow({ item, value, onChange }: { item: QuoteProfit['items'][number]; value: string; onChange: (value: string) => void }) {
@@ -118,7 +118,7 @@ export function AdditionalExpensesSection({ expenses, onChange, onRemove }: { ex
   return <section className="profit-expenses"><h3>Otros costos</h3>
     {expenses.length > 0 && <div className="profit-expense-head"><span>Descripción</span><span>Importe</span></div>}
     {expenses.map((expense, i) => <div className="profit-expense-row profit-row-in" key={expense.id}>
-      <input aria-label={`Descripción del gasto ${i + 1}`} placeholder="Nombre del gasto" value={expense.description} onChange={e => update(expense.id, { description: e.target.value })} />
+      <input aria-label={`Descripción del gasto ${i + 1}`} value={expense.description} onChange={e => update(expense.id, { description: e.target.value })} />
       <MoneyInput label={`Importe de ${expense.description || `gasto ${i + 1}`}`} value={expense.amount} onChange={amount => update(expense.id, { amount })} />
       <button type="button" aria-label={`Eliminar ${expense.description || `gasto ${i + 1}`}`} onClick={() => onRemove(expense.id)}><Trash2 size={17} /></button>
     </div>)}
