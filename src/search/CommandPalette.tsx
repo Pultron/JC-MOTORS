@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { Search, SearchX } from 'lucide-react';
 import { useNavigate } from 'react-router';
@@ -9,12 +9,10 @@ import { useCustomers } from '../store/CustomerContext';
 import { useQuotations } from '../store/QuotationContext';
 import '../styles/palette.css';
 import { moveActive, searchAll } from './globalSearch';
+import { PaletteContext } from './paletteContext';
 import type { GlobalResult } from './globalSearch';
 import { useDebouncedValue } from './useDebouncedValue';
 
-interface PaletteApi { open: () => void }
-const PaletteContext = createContext<PaletteApi>({ open: () => undefined });
-export const useCommandPalette = () => useContext(PaletteContext);
 
 /** Mounts the command palette. Nothing is indexed until the first time it opens. */
 export function CommandPaletteProvider({ children }: { children: ReactNode }) {

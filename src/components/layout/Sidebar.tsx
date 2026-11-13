@@ -1,6 +1,6 @@
 import { ChartNoAxesColumn, DatabaseBackup, FilePlus2, FileText, Gauge, History, Search, Store, UsersRound } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router';
-import { useCommandPalette } from '../../search/CommandPalette';
+import { useCommandPalette } from '../../search/paletteContext';
 import { useSidebarTheme } from '../../hooks/useSidebarTheme';
 import '../../styles/sidebar.css';
 import { JcLogo } from './JcLogo';
