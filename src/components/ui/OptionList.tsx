@@ -5,6 +5,8 @@ export interface ListItem {
   value: string;
   label: string;
   detail?: string;
+  /** Etiquetas pequeñas junto al detalle (p. ej. apodos). */
+  badges?: string[];
   /** Dibuja un separador fino debajo de la opción. */
   separatorAfter?: boolean;
 }
@@ -41,7 +43,13 @@ export function OptionList({ id, items, activeIndex, selectedValue, label, scrol
       <li id={optionId(id, index)} role="option" data-value={item.value} aria-selected={item.value === selectedValue} data-active={index === activeIndex ? 'true' : undefined} className="mac-option"
         onMouseMove={() => { if (index !== activeIndex) onActive(index); }} onClick={() => onPick(index)}>
         <span className="mac-option-check" aria-hidden="true">{item.value === selectedValue && <Check size={15} strokeWidth={2.4} />}</span>
-        <span className="min-w-0 flex-1">{item.label}{item.detail && <span className="mac-option-detail">{item.detail}</span>}</span>
+        <span className="min-w-0 flex-1">
+          <span className="mac-option-label">{item.label}</span>
+          {(item.detail || item.badges?.length) && <span className="mac-option-meta">
+            {item.detail && <span className="mac-option-detail">{item.detail}</span>}
+            {item.badges?.map((badge) => <span key={badge} className="mac-option-badge">{badge}</span>)}
+          </span>}
+        </span>
       </li>
       {item.separatorAfter && <li role="separator" className="mac-option-separator" />}
     </Fragment>)}

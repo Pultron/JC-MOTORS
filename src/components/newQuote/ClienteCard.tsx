@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { useNavigate } from 'react-router';
 import { User } from 'lucide-react';
 import type { QuoteFormData } from '../../models/quoteDraft';
 import type { CustomerProfile } from '../../models/quotation';
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export function ClienteCard({ form, errors, customers, onChange, onCustomerChange, onSelectCustomer, onBlurField, onCommitText }: Props) {
+  const navigate = useNavigate();
   const phoneId = useId();
   const emailId = useId();
   const contact = { telefono: form.phone, correo: form.email };
@@ -30,7 +32,7 @@ export function ClienteCard({ form, errors, customers, onChange, onCustomerChang
   return <div className="min-w-0 flex-[1_1_280px]">
     <Card allowOverflow>
       <CardHeader icon={<User size={18} />} title="Datos del cliente" />
-      <SearchCombobox label="Nombre" required testId="cliente-nombre" value={form.customerName} options={customers.map((customer) => ({ value: customer.id, label: customer.name, detail: `${customer.phone} ${customer.aliases.join(', ')}` }))} onChange={onCustomerChange} onSelect={onSelectCustomer} error={errors.customerName} onCommit={() => onCommitText('customerName')} searchIcon actionLabel="Crear nuevo cliente" onAction={() => onCustomerChange(form.customerName)} />
+      <SearchCombobox label="Nombre" required testId="cliente-nombre" value={form.customerName} options={customers.map((customer) => ({ value: customer.id, label: customer.name, detail: customer.phone, badges: customer.aliases }))} onChange={onCustomerChange} onSelect={onSelectCustomer} error={errors.customerName} onCommit={() => onCommitText('customerName')} searchIcon openOnlyFromIcon actionLabel="Crear nuevo cliente" onAction={() => navigate('/clientes')} />
       <FormRow label="Teléfono" htmlFor={phoneId} optional={phoneOptional} error={errors.phone}>
         <PhoneInput id={phoneId} data-testid="cliente-telefono" className="mac-row-input" aria-invalid={Boolean(errors.phone)} aria-describedby={describedByFor(phoneId, errors.phone, phoneOptional)} value={form.phone} onValueChange={(value) => onChange('phone', value)} onBlur={() => onBlurField('phone')} />
       </FormRow>
