@@ -415,3 +415,20 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
     scroll-behavior: auto !important;
   }
 }
+
+/* Quote templates: wide editor view, search field and concept rows. */
+.jc-tpl-pop--wide { max-width: min(520px, calc(100vw - 16px)); }
+.jc-tpl-search { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 6px; margin: 0 4px 4px; padding: 0 10px; border-radius: 8px; background: var(--color-mac-fill); color: var(--jc-pop-ink-2); }
+.jc-tpl-search input { flex: 1; min-width: 0; height: 32px; border: 0; background: transparent; color: var(--jc-pop-ink); font: inherit; outline: none; }
+.jc-tpl-search:focus-within { outline: 2px solid var(--color-mac-accent); }
+.jc-tpl-label--section { margin: 12px 0 0; }
+.jc-tpl-rows { display: flex; flex-direction: column; gap: 8px; }
+.jc-tpl-concept { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.jc-tpl-concept .jc-tpl-type { flex: 0 0 130px; padding: 0 6px; }
+.jc-tpl-concept .jc-tpl-desc { flex: 1 1 160px; min-width: 0; }
+.jc-tpl-concept .jc-tpl-qty { flex: 0 0 64px; padding: 0 6px; }
+.jc-tpl-concept .jc-tpl-money { flex: 0 0 110px; height: 36px; }
+.jc-tpl-concept .jc-tpl-icon:disabled { opacity: 0.4; cursor: not-allowed; }
+.jc-tpl-money > input { color: var(--jc-pop-ink); outline: none; }
+.jc-tpl-action--inline { width: auto; margin-top: 8px; padding-inline: 0; }
+.jc-tpl-action--inline:hover { background: transparent; text-decoration: underline; }

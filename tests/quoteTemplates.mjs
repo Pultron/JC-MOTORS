@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test, beforeEach } from 'node:test';
 import { installMemoryStorage } from './memoryStorage.mjs';
 import {
-  MAX_TEMPLATES, appendTemplateItems, checkTemplateName, quoteTemplateService, templateItemsFromForm,
+  appendTemplateItems, checkTemplateName, quoteTemplateService, templateItemsFromForm,
 } from '../src/services/quoteTemplateService.ts';
 import { applyBackup, buildBackup, parseBackup, serializeBackup } from '../src/storage/backupService.ts';
 import { BACKUP_EXPORT_KEYS, STORAGE_KEYS } from '../src/storage/storageKeys.ts';
@@ -45,11 +45,30 @@ test('invalid entries are skipped, valid ones survive', () => {
   assert.deepEqual(quoteTemplateService.list().map((t) => t.id), ['a']);
 });
 
-test('max 50 templates', () => {
-  for (let n = 1; n <= MAX_TEMPLATES; n += 1) assert.equal(quoteTemplateService.create(`Plantilla ${n}`, [item('Pieza')]).ok, true);
-  const over = quoteTemplateService.create('Una más', [item('Pieza')]);
-  assert.deepEqual(over, { ok: false, reason: 'limit' });
-  assert.equal(quoteTemplateService.list().length, MAX_TEMPLATES);
+test('no limit on the number of templates', () => {
+  for (let n = 1; n <= 60; n += 1) assert.equal(quoteTemplateService.create(`Plantilla ${n}`, [item('Pieza')]).ok, true);
+  assert.equal(quoteTemplateService.list().length, 60);
+});
+
+test('update replaces name and concepts, keeps id and date, validates like create', () => {
+  const a = quoteTemplateService.create('Frenos', [item('Balatas')], new Date('2026-01-01T00:00:00.000Z')).value;
+  quoteTemplateService.create('Suspensión', [item('Amortiguador')]);
+  const done = quoteTemplateService.update(a.id, 'Frenos delanteros', [item('Balatas', '$1,200.50', '2'), { description: 'Mano de obra', type: 'labor', quantity: '', unitPrice: '' }]);
+  assert.equal(done.ok, true);
+  const saved = quoteTemplateService.list().find((t) => t.id === a.id);
+  assert.equal(saved.name, 'Frenos delanteros');
+  assert.equal(saved.createdAt, a.createdAt);
+  assert.deepEqual(saved.items.map((i) => [i.type, i.quantity, i.unitPrice]), [['part', '2', '$1,200.50'], ['labor', '1', '']]);
+  assert.equal(quoteTemplateService.update(a.id, 'suspension', [item('X')]).reason, 'name-duplicate');
+  assert.equal(quoteTemplateService.update(a.id, '', [item('X')]).reason, 'name-empty');
+  assert.equal(quoteTemplateService.update(a.id, 'Frenos', [item('  ')]).reason, 'no-items');
+  assert.equal(quoteTemplateService.update('nope', 'X', [item('X')]).reason, 'not-found');
+  assert.equal(quoteTemplateService.update(a.id, 'Frenos delanteros', [item('Otra')]).ok, true, 'own name stays valid');
+});
+
+test('items are sanitized like the form: single-line description, money characters only, default quantity', () => {
+  const created = quoteTemplateService.create('Limpia', [{ description: ' Aceite\n  5W-30 ', type: 'part', quantity: ' ', unitPrice: ' $4a5,0.50\n' }]);
+  assert.deepEqual(created.value.items[0], { description: 'Aceite 5W-30', type: 'part', quantity: '1', unitPrice: '$45,0.50' });
 });
 
 test('name validation: empty, too long, duplicates ignore case, accents and spaces', () => {
@@ -106,6 +125,11 @@ test('appending respects the 100-concept cap and reports what did not fit', () =
   assert.equal(full.items.length, 100);
   assert.equal(full.added, 0);
   assert.equal(full.skipped, 1);
+});
+
+test('applying a template fills the price and quantity of the new rows', () => {
+  const result = appendTemplateItems([row('b', '', '')], { items: [item('Aceite', '450.50', '4'), { description: 'Mano de obra', type: 'labor', quantity: '1', unitPrice: '' }] }, 100, (() => { let n = 0; return () => `n${++n}`; })());
+  assert.deepEqual(result.items.map((i) => [i.type, i.description, i.quantity, i.unitPrice]), [['part', 'Aceite', '4', '450.50'], ['labor', 'Mano de obra', '1', '']]);
 });
 
 test('a lone blank placeholder row is replaced, but a filled lone row is kept', () => {
