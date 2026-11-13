@@ -3,9 +3,6 @@ import type { QuoteDraft } from '../../models/quoteDraft';
 
 interface Props {
   drafts: QuoteDraft[];
-  hasRecovery: boolean;
-  onRecover: () => void;
-  onDiscard: () => void;
   onOpen: (draft: QuoteDraft) => void;
   onDelete: (draft: QuoteDraft) => void;
   /** Draft currently loaded in the form, if any. */
@@ -14,15 +11,8 @@ interface Props {
 }
 
 /** Banner de recuperación del autoguardado y lista de borradores guardados. */
-export function BorradoresPanel({ drafts, hasRecovery, onRecover, onDiscard, onOpen, onDelete, activeId, onLeave }: Props) {
+export function BorradoresPanel({ drafts, onOpen, onDelete, activeId, onLeave }: Props) {
   return <>
-    {hasRecovery && <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] bg-mac-info-bg p-4 text-sm text-mac-info-text">
-      <span>Hay un formulario guardado automáticamente. ¿Deseas recuperarlo?</span>
-      <div className="flex gap-2">
-        <button type="button" data-testid="recuperar-autoguardado" className="mac-press h-11 rounded-[10px] bg-mac-accent px-4 font-semibold text-white hover:bg-mac-accent-hover" onClick={onRecover}>Recuperar</button>
-        <button type="button" className="mac-press h-11 rounded-[10px] bg-white px-4 font-semibold shadow-[0_0_0_1px_rgb(0_0_0/0.12)]" onClick={onDiscard}>Descartar</button>
-      </div>
-    </div>}
     {drafts.length > 0 && <section className="rounded-[14px] bg-white px-4 py-3 shadow-mac-card">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-semibold"><FolderOpen size={17} aria-hidden="true" className="text-mac-accent-text" />Borradores guardados<span className="rounded-full bg-mac-fill px-2 text-xs font-semibold text-mac-ink-2">{drafts.length}</span></h2>

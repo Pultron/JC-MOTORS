@@ -4,14 +4,13 @@ import { useUnsavedGuard } from './useUnsavedGuard';
 import { shouldBlockNavigation } from '../services/workshopForm';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useToast } from '../components/ui/Toast';
-import { useConfirm } from './useConfirm';
+import { useChoose, useConfirm } from './useConfirm';
 import { useDuplicateCustomerPrompt } from './useDuplicateCustomerPrompt';
 import { resolveCustomerSave } from '../services/customerMatching';
 import type { CustomerSaveAction } from '../services/customerMatching';
 import type { QuoteDraft, QuoteDraftItem, QuoteFormData } from '../models/quoteDraft';
 import type { CreateQuotationInput, CustomerProfile, Quotation } from '../models/quotation';
-import { DraftStorageFullError, quoteDraftService } from '../services/quoteDraftService';
-import type { TemporaryQuoteDraft } from '../services/quoteDraftService';
+import { quoteDraftService } from '../services/quoteDraftService';
 import { MAX_CONCEPTS } from '../services/quotationLayout';
 import { TEMPLATES_CHANGED_EVENT, appendTemplateItems, quoteTemplateService } from '../services/quoteTemplateService';
 import type { QuoteTemplate } from '../services/quoteTemplateService';
@@ -107,6 +106,7 @@ export function useCotizacionForm() {
   const { quotations, isLoading, createQuotation, updateQuotation } = useQuotations();
   const toast = useToast();
   const confirm = useConfirm();
+  const choose = useChoose();
   // Editing a saved quotation has no autosave: leaving with unsaved changes must ask first.
   const skipGuard = useRef(false);
   const { offerAfterSave } = useShareQuotation();
@@ -114,7 +114,8 @@ export function useCotizacionForm() {
   const [editReady, setEditReady] = useState(!editId);
   const [drafts, setDrafts] = useState<QuoteDraft[]>(() => quoteDraftService.list());
   const [activeDraft, setActiveDraft] = useState<QuoteDraft | null>(null);
-  const [recovery, setRecovery] = useState<TemporaryQuoteDraft | null>(() => quoteDraftService.getTemporary());
+  // The old automatic copy is gone: leaving now asks to save as a draft, so a stale copy is discarded once.
+  useEffect(() => { quoteDraftService.deleteTemporary(); }, []);
   // Errors appear after the user leaves a field (blur) or after a failed submit, then stay live until fixed.
   const [touched, setTouched] = useState<Record<string, true>>({});
   const [limitError, setLimitError] = useState('');
@@ -124,9 +125,7 @@ export function useCotizacionForm() {
   const clampNotified = useRef(false);
   const customerNameEdited = useRef(false);
   const [busy, setBusy] = useState(false);
-  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [dirty, setDirty] = useState(false);
-  const autosaveTimer = useRef<number | null>(null);
   const loadedEditId = useRef<string | null>(null);
   const quotationToEdit = quotations.find((quotation) => quotation.id === editId);
 
@@ -140,10 +139,8 @@ export function useCotizacionForm() {
     }
     loadedEditId.current = editId;
     setForm(formFromQuotation(quotationToEdit));
-    setRecovery(null);
     setActiveDraft(null);
     setDirty(false);
-    setSaveState('saved');
     setEditReady(true);
   }, [editId, isLoading, quotationToEdit, navigate]);
 
@@ -179,21 +176,6 @@ export function useCotizacionForm() {
   const suggestions = useMemo(() => Array.from(new Set(
     savedConcepts.flatMap((concept) => concept.items.map((item) => item.description)),
   )).sort((a, b) => a.localeCompare(b, 'es-MX')), [savedConcepts]);
-
-  useEffect(() => {
-    if (!dirty || recovery || editId) return;
-    setSaveState('saving');
-    autosaveTimer.current = window.setTimeout(() => {
-      try {
-        quoteDraftService.saveTemporary(form, activeDraft?.id ?? null);
-        setSaveState('saved');
-      } catch (error) {
-        setSaveState('idle');
-        toast.error({ title: 'Error al guardar', description: error instanceof DraftStorageFullError ? error.message : 'No se pudo guardar el borrador temporal. Revisa el espacio disponible.' });
-      }
-    }, 650);
-    return () => { if (autosaveTimer.current !== null) window.clearTimeout(autosaveTimer.current); };
-  }, [form, dirty, recovery, activeDraft, editId, toast]);
 
   useEffect(() => {
     if (!form.laborDiscountValue.trim()) return;
@@ -440,7 +422,6 @@ export function useCotizacionForm() {
       }
       if (!editId) {
         if (activeDraft) quoteDraftService.delete(activeDraft.id);
-        quoteDraftService.deleteTemporary();
         setDirty(false);
       }
       skipGuard.current = true;
@@ -455,19 +436,18 @@ export function useCotizacionForm() {
     }
   }
 
-  async function saveDraft() {
+  async function saveDraft(): Promise<boolean> {
     setBusy(true);
     try {
       const saved = await quoteDraftService.save(form, activeDraft ?? undefined);
       setActiveDraft(saved);
       setDrafts(quoteDraftService.list());
-      if (autosaveTimer.current !== null) window.clearTimeout(autosaveTimer.current);
-      quoteDraftService.deleteTemporary();
       setDirty(false);
-      setSaveState('saved');
       toast.success({ title: 'Borrador guardado', description: `El borrador ${saved.folio} se guardó correctamente.` });
+      return true;
     } catch {
       toast.error({ title: 'Error al guardar', description: 'No se pudo guardar el borrador.' });
+      return false;
     } finally {
       setBusy(false);
     }
@@ -481,9 +461,7 @@ export function useCotizacionForm() {
   }
 
   function resetToEmpty() {
-    if (autosaveTimer.current !== null) window.clearTimeout(autosaveTimer.current);
-    quoteDraftService.deleteTemporary();
-    setForm(emptyForm()); setActiveDraft(null); setRecovery(null); setTouched({}); setLimitError(''); setDirty(false); setSaveState('idle');
+    setForm(emptyForm()); setActiveDraft(null); setTouched({}); setLimitError(''); setDirty(false);
   }
 
   /** Leaves the open draft without saving: the draft stays as it was last saved and the form starts empty. */
@@ -499,10 +477,8 @@ export function useCotizacionForm() {
 
   async function openDraft(draft: QuoteDraft) {
     if (dirty && !(await confirm({ title: '¿Abrir este borrador?', description: 'Se reemplazarán los datos del formulario actual.', confirmLabel: 'Abrir borrador' }))) return;
-    quoteDraftService.deleteTemporary();
-    setRecovery(null);
     setForm({ ...draft.data, laborAmount: displayLaborAmount(draft.data.laborAmount), customerNotes: draft.data.customerNotes ?? '' });
-    setActiveDraft(draft); setTouched({}); setLimitError(''); setDirty(false); setSaveState('saved');
+    setActiveDraft(draft); setTouched({}); setLimitError(''); setDirty(false);
     toast.info({ title: 'Borrador abierto', description: `Borrador ${draft.folio} abierto.` });
   }
 
@@ -516,23 +492,16 @@ export function useCotizacionForm() {
     toast.warning({ title: 'Borrador eliminado', description: `Borrador ${draft.folio} eliminado.` });
   }
 
-  function recoverTemporary() {
-    if (!recovery) return;
-    setForm({ ...recovery.data, laborAmount: displayLaborAmount(recovery.data.laborAmount), customerNotes: recovery.data.customerNotes ?? '' });
-    setActiveDraft(drafts.find((draft) => draft.id === recovery.draftId) ?? null);
-    setRecovery(null); setTouched({}); setDirty(false); setSaveState('saved');
-  }
-
-  function discardTemporary() {
-    quoteDraftService.deleteTemporary();
-    setRecovery(null);
-  }
-
-  const guardActive = Boolean(editId) && dirty;
+  const guardActive = dirty;
   const guardRef = useRef(guardActive);
   guardRef.current = guardActive;
-  async function askToLeaveEdit() {
-    return confirm({ title: '¿Salir sin guardar?', description: 'Tienes cambios sin guardar en esta cotización. Si sales ahora se perderán.', confirmLabel: 'Salir sin guardar', cancelLabel: 'Seguir editando', tone: 'danger' });
+  async function askToLeaveEdit(): Promise<boolean> {
+    if (editId) {
+      return confirm({ title: '¿Salir sin guardar?', description: 'Tienes cambios sin guardar en esta cotización. Si sales ahora se perderán.', confirmLabel: 'Salir sin guardar', cancelLabel: 'Seguir editando', tone: 'danger' });
+    }
+    const choice = await choose({ title: '¿Guardar como borrador?', description: 'Tienes datos capturados sin guardar. Guárdalos como borrador para continuar después.', confirmLabel: 'Guardar como borrador', secondaryLabel: 'Salir sin guardar', cancelLabel: 'Seguir editando' });
+    if (choice === 'primary') return saveDraft();
+    return choice === 'secondary';
   }
   const askToLeaveRef = useRef(askToLeaveEdit);
   askToLeaveRef.current = askToLeaveEdit;
@@ -551,11 +520,11 @@ export function useCotizacionForm() {
   }, [blocker.state]);
 
   return {
-    form, errors, totals, discountFlash, suggestions, customers, busy, saveState,
-    editId, quotationToEdit, drafts, activeDraft, recovery,
+    form, errors, totals, discountFlash, suggestions, customers, busy,
+    editId, quotationToEdit, drafts, activeDraft,
     isLoadingEdit: Boolean(editId) && (!editReady || loadedEditId.current !== editId || isLoading),
     isSaved: !dirty && (Boolean(activeDraft) || Boolean(editId)),
     updateField, blurField, commitText, blurItem, updateCustomer, selectCustomer, canSaveCustomer, saveAsCustomer, canUpdateCustomer, updateLinkedCustomer, addItem, applyTemplate, updateItem, deleteItem, setLaborAmount,
-    submit, saveDraft, clearForm, leaveDraft, openDraft, deleteDraft, recoverTemporary, discardTemporary,
+    submit, saveDraft, clearForm, leaveDraft, openDraft, deleteDraft,
   };
 }
