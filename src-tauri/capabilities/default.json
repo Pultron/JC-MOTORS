@@ -19,6 +19,7 @@
     "allow-backup-pick",
     "allow-backup-apply",
     "allow-backup-discard",
+    "allow-wipe-all-data",
     "allow-save-shared-pdf",
     "allow-copy-file-to-clipboard",
     "allow-reveal-in-folder",

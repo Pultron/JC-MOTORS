@@ -123,6 +123,7 @@ Se agregaron **solo** estos permisos, uno por comando nuevo; la CSP **no cambió
 | `allow-backup-pick` | `backup_pick` | Abre el diálogo, valida (app, hashes, versión) y deja el respaldo en una carpeta temporal interna. |
 | `allow-backup-apply` | `backup_apply` | Aplica el respaldo preparado por `backup_pick` de forma atómica. |
 | `allow-backup-discard` | `backup_discard` | Descarta lo preparado. |
+| `allow-wipe-all-data` | `wipe_all_data` | «Borrar todos los datos» (Respaldo → Zona de peligro). Primero guarda y verifica una copia `.jcm` en `respaldos-auto/antes-de-borrar-<fecha>.jcm`; si falla, no borra nada. Luego vacía las tablas de negocio en una sola transacción (con rollback) y, solo después del commit, el contenido de `facturas/` y `enviados/`. Recibe solo un booleano (`include_workshop`); JavaScript no entrega rutas. |
 
 Notas de seguridad:
 

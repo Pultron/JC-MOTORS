@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-wipe-all-data"
+description = "Enables the wipe_all_data command without any pre-configured scope."
+commands.allow = ["wipe_all_data"]
+
+[[permission]]
+identifier = "deny-wipe-all-data"
+description = "Denies the wipe_all_data command without any pre-configured scope."
+commands.deny = ["wipe_all_data"]

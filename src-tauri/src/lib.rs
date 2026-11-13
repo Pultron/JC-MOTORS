@@ -6,6 +6,7 @@ pub mod files;
 pub mod migrate;
 pub mod share;
 pub mod store;
+pub mod wipe;
 #[cfg(test)]
 mod share_tests;
 #[cfg(test)]
@@ -161,6 +162,13 @@ async fn backup_apply(app: tauri::AppHandle, state: State<'_, AppState>) -> Resu
         *state.staged.lock().map_err(|_| LOCKED.to_string())? = None;
     }
     result
+}
+
+#[tauri::command]
+async fn wipe_all_data(app: tauri::AppHandle, state: State<'_, AppState>, include_workshop: bool) -> Result<wipe::WipeResult, String> {
+    let dir = data_dir(&app)?;
+    let hooks = wipe::WipeHooks { fail_backup: test_hook("JCM_TEST_FAIL_WIPE_BACKUP"), fail_midway: test_hook("JCM_TEST_FAIL_WIPE") };
+    with_conn(&state, |conn| wipe::wipe_all(conn, &dir, include_workshop, chrono::Local::now(), hooks))
 }
 
 #[tauri::command]
@@ -374,6 +382,7 @@ pub fn run() {
             backup_pick,
             backup_apply,
             backup_discard,
+            wipe_all_data,
             save_shared_pdf,
             copy_file_to_clipboard,
             reveal_in_folder,

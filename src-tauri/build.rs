@@ -19,6 +19,7 @@ fn main() {
                 "backup_pick",
                 "backup_apply",
                 "backup_discard",
+                "wipe_all_data",
                 "save_shared_pdf",
                 "copy_file_to_clipboard",
                 "reveal_in_folder",
