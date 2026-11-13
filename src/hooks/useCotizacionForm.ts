@@ -500,8 +500,12 @@ export function useCotizacionForm() {
       return confirm({ title: '¿Salir sin guardar?', description: 'Tienes cambios sin guardar en esta cotización. Si sales ahora se perderán.', confirmLabel: 'Salir sin guardar', cancelLabel: 'Seguir editando', tone: 'danger' });
     }
     const choice = await choose({ title: '¿Guardar como borrador?', description: 'Tienes datos capturados sin guardar. Guárdalos como borrador para continuar después.', confirmLabel: 'Guardar como borrador', secondaryLabel: 'Salir sin guardar', cancelLabel: 'Seguir editando' });
-    // Saving a draft keeps the user on this screen; only closing the window continues after the save.
-    if (choice === 'primary') return (await saveDraft()) && reason === 'close';
+    // Save only: the draft is stored, the form is cleared (not left "inside" the draft) and the user stays on this screen.
+    if (choice === 'primary') {
+      if (!(await saveDraft())) return false;
+      resetToEmpty();
+      return reason === 'close';
+    }
     return choice === 'secondary';
   }
   const askToLeaveRef = useRef(askToLeaveEdit);
