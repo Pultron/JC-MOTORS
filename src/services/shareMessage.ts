@@ -1,6 +1,8 @@
 import type { BusinessInfo } from '../config/businessInfo';
+import type { Invoice } from '../models/invoice';
 import type { PublicQuotation } from '../models/quotation';
 import { formatDate } from '../utils/dateFormat';
+import { formatearFolio, formatMoney as formatInvoiceMoney } from '../utils/invoiceFormat';
 import { formatMoney } from '../utils/money';
 import { validUntil } from './quotationLayout';
 
@@ -45,18 +47,20 @@ export function vehicleLabel(vehicle: { make: string; model: string; year?: numb
   return [vehicle.make, vehicle.model, vehicle.year ? String(vehicle.year) : ''].map((part) => part.trim()).filter(Boolean).join(' ');
 }
 
-function isMessageVariable(key: string): key is MessageVariable {
-  return MESSAGE_VARIABLES.some((variable) => variable.key === key);
-}
+/** Values for a render. A template may use only some variables (invoices have no vehicle or validity). */
+export type MessageValues = Readonly<Partial<Record<MessageVariable, string>>>;
 
 /**
  * Replaces {variables}. Unknown names are left untouched; values are inserted literally (no `$&` surprises).
  * When {vehiculo} is empty the whole " para tu {vehiculo}" phrase is dropped and leftover spacing is cleaned.
  */
-export function renderTemplate(template: string, values: Readonly<Record<MessageVariable, string>>): string {
+export function renderTemplate(template: string, values: MessageValues): string {
   let source = template;
-  if (!values.vehiculo.trim()) source = source.replace(/[ \t]*\bpara tu \{vehiculo\}/g, '');
-  const filled = source.replace(/\{([a-z_]+)\}/g, (match, key: string) => (isMessageVariable(key) ? values[key] : match));
+  if (values.vehiculo !== undefined && !values.vehiculo.trim()) source = source.replace(/[ \t]*\bpara tu \{vehiculo\}/g, '');
+  const filled = source.replace(/\{([a-z_]+)\}/g, (match, key: string) => {
+    const value = Object.prototype.hasOwnProperty.call(values, key) ? values[key as MessageVariable] : undefined;
+    return typeof value === 'string' ? value : match;
+  });
   return filled
     .replace(/\r\n?/g, '\n')
     .split('\n')
@@ -100,4 +104,74 @@ export function buildShareMessage(quotation: PublicQuotation, business: Pick<Bus
 /** Live preview with the sample data of MESSAGE_VARIABLES. */
 export function previewMessage(template: string): string {
   return renderTemplate(template, EXAMPLE_VALUES);
+}
+
+// ---- Invoices --------------------------------------------------------------------------------------------------
+
+/** Default message for sharing an invoice (editable in "Datos del taller"). */
+export const DEFAULT_INVOICE_MESSAGE_TEMPLATE = 'Hola {nombre}, te comparto tu factura {folio} de {taller}.\nTotal: {total}\nCualquier duda, estamos a tus órdenes.\n{taller} · {telefono_taller}';
+
+/** Variables an invoice message understands. Any other {name} stays as typed. */
+export const INVOICE_MESSAGE_VARIABLES: readonly MessageVariableInfo[] = [
+  { key: 'nombre', description: 'Primer nombre del cliente', example: 'María' },
+  { key: 'folio', description: 'Folio interno de la factura', example: '0042' },
+  { key: 'taller', description: 'Nombre del taller', example: 'JC MOTORS' },
+  { key: 'total', description: 'Total de la factura', example: '$4,350.00' },
+  { key: 'telefono_taller', description: 'Teléfono del taller', example: '(667) 351-8806' },
+];
+
+export const INVOICE_EXAMPLE_VALUES: Readonly<Record<string, string>> = Object.freeze(
+  Object.fromEntries(INVOICE_MESSAGE_VARIABLES.map((variable) => [variable.key, variable.example])),
+);
+
+/** "JUAN PÉREZ" -> "Juan": CFDI names are usually all caps, which reads as shouting in a greeting. */
+function greetingName(fullName: string): string {
+  const first = firstName(fullName);
+  return first && first === first.toLocaleUpperCase('es-MX') && first !== first.toLocaleLowerCase('es-MX')
+    ? first.charAt(0) + first.slice(1).toLocaleLowerCase('es-MX')
+    : first;
+}
+
+/** Total as the SAT wrote it ("$4,350.00"), with the currency code when it is not pesos. */
+function invoiceTotalText(invoice: Pick<Invoice, 'total' | 'moneda'>): string {
+  const amount = formatInvoiceMoney(invoice.total) || invoice.total.trim();
+  const currency = invoice.moneda?.trim().toUpperCase();
+  return amount && currency && currency !== 'MXN' ? `${amount} ${currency}` : amount;
+}
+
+export function invoiceMessageValues(
+  invoice: Pick<Invoice, 'folio' | 'total' | 'moneda' | 'receptor'>,
+  business: Pick<BusinessInfo, 'nombre' | 'telefonos'>,
+  contactName?: string,
+): Record<'nombre' | 'folio' | 'taller' | 'total' | 'telefono_taller', string> {
+  return {
+    nombre: greetingName(contactName?.trim() || invoice.receptor.nombre),
+    folio: formatearFolio(invoice.folio),
+    taller: business.nombre,
+    total: invoiceTotalText(invoice),
+    telefono_taller: business.telefonos[0] ?? '',
+  };
+}
+
+/** Email subject: "Factura 0042 · JC Motors". */
+export function buildInvoiceShareSubject(folio: number, businessName: string): string {
+  return `Factura ${formatearFolio(folio)} · ${businessName}`;
+}
+
+/** Text (WhatsApp / email body) and subject for an invoice. `contactName` (the matched Cliente) wins over the receptor's legal name for the greeting. */
+export function buildInvoiceShareMessage(
+  invoice: Pick<Invoice, 'folio' | 'total' | 'moneda' | 'receptor'>,
+  business: Pick<BusinessInfo, 'nombre' | 'telefonos' | 'mensajeFacturas'>,
+  contactName?: string,
+): ShareMessage {
+  const template = business.mensajeFacturas?.trim() ? business.mensajeFacturas : DEFAULT_INVOICE_MESSAGE_TEMPLATE;
+  return {
+    text: renderTemplate(template, invoiceMessageValues(invoice, business, contactName)),
+    subject: buildInvoiceShareSubject(invoice.folio, business.nombre),
+  };
+}
+
+/** Live preview of an invoice template with sample data. */
+export function previewInvoiceMessage(template: string): string {
+  return renderTemplate(template, INVOICE_EXAMPLE_VALUES);
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DEFAULT_BUSINESS_INFO } from '../src/config/businessInfo.ts';
-import { DEFAULT_MESSAGE_TEMPLATE } from '../src/services/shareMessage.ts';
+import { DEFAULT_INVOICE_MESSAGE_TEMPLATE, DEFAULT_MESSAGE_TEMPLATE } from '../src/services/shareMessage.ts';
 import { applyDatos, applyMensaje, buildSaveCandidate, changedSections, insertAtCursor, isDirty, saveToastCopy, shouldBlockNavigation, joinAddress, splitAddress, toFormValues, validateWorkshopForm } from '../src/services/workshopForm.ts';
 
 test('splitAddress: two lines, old single line, extra lines and CRLF', () => {
@@ -70,7 +70,9 @@ test('changedSections tells which part differs and ignores revert-to-original', 
 });
 
 test('saveToastCopy: message-only gets its own title, everything else the generic one', () => {
-  assert.equal(saveToastCopy('mensaje').title, 'Mensaje para clientes guardado');
+  assert.equal(saveToastCopy('mensaje').title, 'Mensaje para cotizaciones guardado');
+  assert.equal(saveToastCopy('mensajeFacturas').title, 'Mensaje para facturas guardado');
+  assert.equal(saveToastCopy('mensajes').title, 'Mensajes guardados');
   assert.equal(saveToastCopy('datos').title, 'Datos guardados');
   assert.equal(saveToastCopy('ambos').title, 'Datos guardados');
   assert.equal(saveToastCopy('datos').description, 'Los cambios del taller ya están activos en tus cotizaciones.');
@@ -93,4 +95,32 @@ test('shouldBlockNavigation only blocks a dirty form that moves to another locat
   assert.equal(shouldBlockNavigation(true, here, { pathname: '/historial' }), true);
   assert.equal(shouldBlockNavigation(true, here, { pathname: '/taller', search: '' }), false);
   assert.equal(shouldBlockNavigation(true, here, { pathname: '/taller', search: '?x=1' }), true);
+});
+
+test('invoice message: defaults to the invoice template, dirty tracking, sections and independent storage', () => {
+  const saved = toFormValues(DEFAULT_BUSINESS_INFO);
+  assert.equal(saved.mensajeFacturas, DEFAULT_INVOICE_MESSAGE_TEMPLATE);
+  assert.equal(isDirty(saved, { ...saved, mensajeFacturas: '' }), false, 'blank means default');
+  assert.equal(isDirty(saved, { ...saved, mensajeFacturas: `${DEFAULT_INVOICE_MESSAGE_TEMPLATE}\n` }), false);
+  assert.equal(isDirty(saved, { ...saved, mensajeFacturas: 'otro' }), true);
+  // The quotation default must not be confused with the invoice default.
+  assert.equal(isDirty(saved, { ...saved, mensajeFacturas: DEFAULT_MESSAGE_TEMPLATE }), true);
+  assert.equal(changedSections(saved, { ...saved, mensajeFacturas: 'hola' }), 'mensajeFacturas');
+  assert.equal(changedSections(saved, { ...saved, mensaje: 'a', mensajeFacturas: 'b' }), 'mensajes');
+  assert.equal(changedSections(saved, { ...saved, nombre: 'Otro', mensajeFacturas: 'b' }), 'ambos');
+  assert.equal(changedSections(saved, { ...saved, nombre: 'Otro' }), 'datos');
+
+  const base = { ...DEFAULT_BUSINESS_INFO, mensajeClientes: 'cot', mensajeFacturas: 'fac' };
+  const values = toFormValues(base);
+  assert.equal(values.mensaje, 'cot');
+  assert.equal(values.mensajeFacturas, 'fac');
+  const reset = applyMensaje({ ...values, mensajeFacturas: DEFAULT_INVOICE_MESSAGE_TEMPLATE }, base);
+  assert.equal('mensajeFacturas' in reset, false);
+  assert.equal(reset.mensajeClientes, 'cot', 'the other message is untouched');
+  assert.equal('mensajeFacturas' in applyMensaje({ ...values, mensajeFacturas: '  ' }, base), false);
+  assert.equal(applyMensaje({ ...values, mensaje: DEFAULT_MESSAGE_TEMPLATE }, base).mensajeFacturas, 'fac');
+  const both = buildSaveCandidate({ ...values, nombre: 'Taller X', mensajeFacturas: 'nueva' }, base);
+  assert.equal(both.nombre, 'Taller X');
+  assert.equal(both.mensajeFacturas, 'nueva');
+  assert.equal(both.mensajeClientes, 'cot');
 });

@@ -214,7 +214,7 @@ export function HistoryPage() {
                       >
                         <td className="hi-folio">{quotation.folio}</td>
                         <td className="hi-date">{formatDate(quotation.createdAt, 'medium')}</td>
-                        <td className="hi-client"><span className="hi-client-name" aria-hidden="true" title={quotation.customer.name}>{quotation.customer.name}</span><ShareStatusLine quotation={quotation} customerName={quotation.customer.name} /></td>
+                        <td className="hi-client"><span className="hi-client-name" aria-hidden="true" title={quotation.customer.name}>{quotation.customer.name}</span><ShareStatusLine record={quotation} customerName={quotation.customer.name} /></td>
                         <td className="hi-vehicle">{quotation.vehicle.make} {quotation.vehicle.model}</td>
                         <td><span className="hi-badge" data-status={quotation.status} data-testid="hi-badge"><i aria-hidden="true" />{quotation.status}</span></td>
                         <td className="hi-right hi-total">{formatMoney(total)}</td>

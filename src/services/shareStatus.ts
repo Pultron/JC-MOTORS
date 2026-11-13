@@ -1,11 +1,12 @@
-import type { Quotation } from '../models/quotation';
+import type { ShareMedium } from '../models/quotation';
 import { formatDate, formatTime12 } from '../utils/dateFormat';
 
-export type ShareRecord = Pick<Quotation, 'sharedAt' | 'sharedVia'>;
+/** Anything that can be shared: quotations and invoices carry the same two optional fields. */
+export type ShareRecord = { sharedAt?: string; sharedVia?: ShareMedium };
 
 export type ShareStatus =
   | { kind: 'none' }
-  | { kind: 'shared'; medium: 'whatsapp' | 'email'; sharedAt: string };
+  | { kind: 'shared'; medium: ShareMedium; sharedAt: string };
 
 const CHANNEL_VISIBLE = { whatsapp: 'WhatsApp', email: 'Correo' } as const;
 const CHANNEL_SPOKEN = { whatsapp: 'WhatsApp', email: 'correo' } as const;

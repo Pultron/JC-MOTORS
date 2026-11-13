@@ -12,6 +12,8 @@ export interface BusinessInfo {
   sitio?: string;
   /** Custom message template for WhatsApp / email. Absent means the default template. */
   mensajeClientes?: string;
+  /** Custom message template for sharing invoices. Absent means the default invoice template. */
+  mensajeFacturas?: string;
 }
 
 /** Exact values that used to be hardcoded in the quotation PDF. */
@@ -27,7 +29,7 @@ export const MESSAGE_MAX = 800;
 export const NAME_MAX = 28;
 export const ADDRESS_LINE_MAX = 40;
 
-export type BusinessInfoErrors = Partial<Record<'nombre' | 'telefono' | 'direccion' | 'correo' | 'mensajeClientes', string>>;
+export type BusinessInfoErrors = Partial<Record<'nombre' | 'telefono' | 'direccion' | 'correo' | 'mensajeClientes' | 'mensajeFacturas', string>>;
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -53,7 +55,8 @@ export function isBusinessInfo(value: unknown): value is BusinessInfo {
     && Array.isArray(info.telefonos) && info.telefonos.every((phone) => typeof phone === 'string')
     && typeof info.direccion === 'string'
     && isOptionalString(info.correo) && isOptionalString(info.rfc) && isOptionalString(info.sitio)
-    && isOptionalString(info.mensajeClientes) && (typeof info.mensajeClientes !== 'string' || info.mensajeClientes.length <= MESSAGE_MAX);
+    && isOptionalString(info.mensajeClientes) && (typeof info.mensajeClientes !== 'string' || info.mensajeClientes.length <= MESSAGE_MAX)
+    && isOptionalString(info.mensajeFacturas) && (typeof info.mensajeFacturas !== 'string' || info.mensajeFacturas.length <= MESSAGE_MAX);
 }
 
 function cloneDefaults(): BusinessInfo {
@@ -86,6 +89,7 @@ export function validateBusinessInfo(info: BusinessInfo): BusinessInfoErrors {
   else if (lines.some((line) => line.length > ADDRESS_LINE_MAX)) errors.direccion = `Cada línea admite máximo ${ADDRESS_LINE_MAX} caracteres.`;
   if (info.correo?.trim() && !EMAIL.test(info.correo.trim())) errors.correo = 'Escribe un correo válido.';
   if ((info.mensajeClientes ?? '').length > MESSAGE_MAX) errors.mensajeClientes = `El mensaje admite máximo ${MESSAGE_MAX} caracteres.`;
+  if ((info.mensajeFacturas ?? '').length > MESSAGE_MAX) errors.mensajeFacturas = `El mensaje admite máximo ${MESSAGE_MAX} caracteres.`;
   return errors;
 }
 
@@ -102,6 +106,8 @@ export function normalizeBusinessInfo(info: BusinessInfo): BusinessInfo {
   // Line breaks are part of the message, so only the ends are trimmed. Blank means "use the default".
   const message = info.mensajeClientes?.replace(/\r\n?/g, '\n').trim();
   if (message) normalized.mensajeClientes = message;
+  const invoiceMessage = info.mensajeFacturas?.replace(/\r\n?/g, '\n').trim();
+  if (invoiceMessage) normalized.mensajeFacturas = invoiceMessage;
   return normalized;
 }
 

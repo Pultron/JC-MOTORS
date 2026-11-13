@@ -1,7 +1,7 @@
 import { ADDRESS_LINE_MAX, NAME_MAX, phoneDigits } from '../config/businessInfo';
 import type { BusinessInfo } from '../config/businessInfo';
 import { validateEmail, validatePhone } from '../validation/fields';
-import { DEFAULT_MESSAGE_TEMPLATE } from './shareMessage';
+import { DEFAULT_INVOICE_MESSAGE_TEMPLATE, DEFAULT_MESSAGE_TEMPLATE } from './shareMessage';
 
 /** Everything the "Datos del taller" page edits. The stored address is one string; the form shows two rows. */
 export interface WorkshopFormValues {
@@ -10,7 +10,10 @@ export interface WorkshopFormValues {
   calle: string;
   colonia: string;
   correo: string;
+  /** Quotation message template. */
   mensaje: string;
+  /** Invoice message template. */
+  mensajeFacturas: string;
 }
 
 export type WorkshopFormErrors = Partial<Record<'nombre' | 'telefono' | 'calle' | 'colonia' | 'correo', string>>;
@@ -37,6 +40,7 @@ export function toFormValues(info: BusinessInfo): WorkshopFormValues {
     ...splitAddress(info.direccion),
     correo: info.correo ?? '',
     mensaje: info.mensajeClientes ?? DEFAULT_MESSAGE_TEMPLATE,
+    mensajeFacturas: info.mensajeFacturas ?? DEFAULT_INVOICE_MESSAGE_TEMPLATE,
   };
 }
 
@@ -52,9 +56,9 @@ export function applyDatos(values: WorkshopFormValues, base: BusinessInfo): Busi
 }
 
 /** The default text counts as "no custom message", exactly as it is stored. */
-const normalizeMessage = (message: string): string => {
+const normalizeMessage = (message: string, fallback: string = DEFAULT_MESSAGE_TEMPLATE): string => {
   const trimmed = message.trim();
-  return trimmed === '' ? DEFAULT_MESSAGE_TEMPLATE : trimmed;
+  return trimmed === '' ? fallback : trimmed;
 };
 
 /** True when `current` would change what is stored. Compares the normalized form, so stray spaces are not "changes". */
@@ -64,7 +68,8 @@ export function isDirty(saved: WorkshopFormValues, current: WorkshopFormValues):
     || saved.calle.trim() !== current.calle.trim()
     || saved.colonia.trim() !== current.colonia.trim()
     || saved.correo.trim() !== current.correo.trim()
-    || normalizeMessage(saved.mensaje) !== normalizeMessage(current.mensaje);
+    || normalizeMessage(saved.mensaje) !== normalizeMessage(current.mensaje)
+    || normalizeMessage(saved.mensajeFacturas, DEFAULT_INVOICE_MESSAGE_TEMPLATE) !== normalizeMessage(current.mensajeFacturas, DEFAULT_INVOICE_MESSAGE_TEMPLATE);
 }
 
 /** Per-row validation of the data section. Errors are keyed by the row they belong to. */
@@ -96,11 +101,16 @@ export function insertAtCursor(text: string, selStart: number, selEnd: number, i
   return { text: text.slice(0, start) + insert + text.slice(end), caret: start + insert.length };
 }
 
-/** The message part over the stored info. The default text (or blank) is stored as "no custom message". */
+/** Both message templates over the stored info. The default text (or blank) is stored as "no custom message". */
 export function applyMensaje(values: WorkshopFormValues, base: BusinessInfo): BusinessInfo {
-  const { mensajeClientes: _previous, ...rest } = base;
+  const { mensajeClientes: _previous, mensajeFacturas: _previousInvoices, ...rest } = base;
   const text = values.mensaje.trim();
-  return text === '' || text === DEFAULT_MESSAGE_TEMPLATE ? rest : { ...rest, mensajeClientes: values.mensaje };
+  const invoiceText = values.mensajeFacturas.trim();
+  return {
+    ...rest,
+    ...(text === '' || text === DEFAULT_MESSAGE_TEMPLATE ? {} : { mensajeClientes: values.mensaje }),
+    ...(invoiceText === '' || invoiceText === DEFAULT_INVOICE_MESSAGE_TEMPLATE ? {} : { mensajeFacturas: values.mensajeFacturas }),
+  };
 }
 
 /** Everything the page saves in one atomic write: data and message together. */
@@ -108,20 +118,33 @@ export function buildSaveCandidate(values: WorkshopFormValues, base: BusinessInf
   return applyMensaje(values, applyDatos(values, base));
 }
 
-export type ChangedSections = 'datos' | 'mensaje' | 'ambos' | 'ninguno';
+/**
+ * 'mensaje' = only the quotation message, 'mensajeFacturas' = only the invoice message,
+ * 'mensajes' = both messages and no data, 'ambos' = data plus at least one message.
+ */
+export type ChangedSections = 'datos' | 'mensaje' | 'mensajeFacturas' | 'mensajes' | 'ambos' | 'ninguno';
 
 /** Which part of the form differs from the saved values; drives the wording of the save toast. */
 export function changedSections(saved: WorkshopFormValues, current: WorkshopFormValues): ChangedSections {
-  const datos = isDirty(saved, { ...current, mensaje: saved.mensaje });
-  const mensaje = isDirty(saved, { ...saved, mensaje: current.mensaje });
-  if (datos && mensaje) return 'ambos';
+  const datos = isDirty(saved, { ...current, mensaje: saved.mensaje, mensajeFacturas: saved.mensajeFacturas });
+  const cotizaciones = isDirty(saved, { ...saved, mensaje: current.mensaje });
+  const facturas = isDirty(saved, { ...saved, mensajeFacturas: current.mensajeFacturas });
+  if (datos && (cotizaciones || facturas)) return 'ambos';
   if (datos) return 'datos';
-  return mensaje ? 'mensaje' : 'ninguno';
+  if (cotizaciones && facturas) return 'mensajes';
+  if (cotizaciones) return 'mensaje';
+  return facturas ? 'mensajeFacturas' : 'ninguno';
 }
 
 export function saveToastCopy(sections: ChangedSections): { title: string; description: string } {
   if (sections === 'mensaje') {
-    return { title: 'Mensaje para clientes guardado', description: 'Se usará al enviar cotizaciones por WhatsApp o correo.' };
+    return { title: 'Mensaje para cotizaciones guardado', description: 'Se usará al enviar cotizaciones por WhatsApp o correo.' };
+  }
+  if (sections === 'mensajeFacturas') {
+    return { title: 'Mensaje para facturas guardado', description: 'Se usará al enviar facturas por WhatsApp o correo.' };
+  }
+  if (sections === 'mensajes') {
+    return { title: 'Mensajes guardados', description: 'Se usarán al enviar cotizaciones y facturas por WhatsApp o correo.' };
   }
   return { title: 'Datos guardados', description: 'Los cambios del taller ya están activos en tus cotizaciones.' };
 }

@@ -22,7 +22,7 @@ export function freshInitialValues(info: BusinessInfo): FreshFormValues {
 
 /** Field rules of the workshop page plus the stored-format rules (the form never produces an address stored info rejects). */
 export function validateFreshForm(values: FreshFormValues, base: BusinessInfo): FreshFormErrors {
-  const errors = validateWorkshopForm({ ...values, mensaje: '' });
+  const errors = validateWorkshopForm({ ...values, mensaje: '', mensajeFacturas: '' });
   if (Object.keys(errors).length > 0) return errors;
   const stored = validateBusinessInfo(buildFreshInfo(values, base));
   if (stored.nombre) errors.nombre = stored.nombre;
@@ -34,7 +34,7 @@ export function validateFreshForm(values: FreshFormValues, base: BusinessInfo): 
 
 /** Form rows -> BusinessInfo as it is stored (phone formatted, address on two lines, blank email dropped). */
 export function buildFreshInfo(values: FreshFormValues, base: BusinessInfo): BusinessInfo {
-  return normalizeBusinessInfo(applyDatos({ ...values, mensaje: '' }, base));
+  return normalizeBusinessInfo(applyDatos({ ...values, mensaje: '', mensajeFacturas: '' }, base));
 }
 
 /**

@@ -164,3 +164,23 @@ test('#019 PDF with a corrupt key still generates with the defaults', () => {
   data.set(KEY, '[[[');
   assert.ok(pdfText('business-corrupt').includes('(667) 351-8806'));
 });
+
+test('invoice message: optional, trimmed, limited to 800, validated in backups, old data loads', () => {
+  data.set(KEY, JSON.stringify({ nombre: 'VIEJO', telefonos: ['(667) 000-0000'], direccion: 'X' }));
+  assert.equal(loadBusinessInfo().mensajeFacturas, undefined);
+  const saved = saveBusinessInfo({ ...custom, mensajeFacturas: '  Factura {folio}\nGracias  ' });
+  assert.equal(saved.mensajeFacturas, 'Factura {folio}\nGracias');
+  assert.equal(loadBusinessInfo().mensajeFacturas, 'Factura {folio}\nGracias');
+  assert.equal('mensajeFacturas' in saveBusinessInfo({ ...custom, mensajeFacturas: '   ' }), false);
+  assert.ok(validateBusinessInfo({ ...custom, mensajeFacturas: 'x'.repeat(801) }).mensajeFacturas);
+  assert.deepEqual(validateBusinessInfo({ ...custom, mensajeFacturas: 'x'.repeat(800) }), {});
+  assert.throws(() => saveBusinessInfo({ ...custom, mensajeFacturas: 'x'.repeat(801) }));
+
+  saveBusinessInfo({ ...custom, mensajeFacturas: 'Factura {folio}' });
+  const backup = parseBackup(serializeBackup(buildBackup()));
+  const base = JSON.parse(backup.claves[KEY]);
+  assert.equal(base.mensajeFacturas, 'Factura {folio}');
+  for (const bad of [{ ...base, mensajeFacturas: 5 }, { ...base, mensajeFacturas: 'x'.repeat(801) }]) {
+    assert.throws(() => parseBackup(serializeBackup({ ...backup, claves: { [KEY]: JSON.stringify(bad) } })), BackupError);
+  }
+});

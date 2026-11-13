@@ -1,4 +1,5 @@
 import type { Invoice } from '../models/invoice';
+import type { ShareMedium } from '../models/quotation';
 import type { InvoiceRepository, SaveInvoiceResult } from './InvoiceRepository';
 
 import { quarantineCorrupt, readGuardedJson } from '../storage/corruptBackup';
@@ -37,6 +38,15 @@ export class LocalStorageInvoiceRepository implements InvoiceRepository {
     this.writeAll(this.readAll().filter((invoice) => invoice.uuid !== uuid));
   }
 
+  async markShared(uuid: string, via: ShareMedium): Promise<Invoice | undefined> {
+    const invoices = this.readAll();
+    const invoice = invoices.find((entry) => entry.uuid === uuid);
+    if (!invoice) return undefined;
+    const shared: Invoice = { ...invoice, sharedAt: new Date().toISOString(), sharedVia: via };
+    this.writeAll(invoices.map((entry) => (entry.uuid === uuid ? shared : entry)));
+    return shared;
+  }
+
   private readAll(): Invoice[] {
     const result = readGuardedJson(INVOICES_STORAGE_KEY, DAMAGED, (value): value is Array<Partial<Invoice>> => Array.isArray(value));
     if (result.status !== 'ok') return [];
@@ -56,6 +66,8 @@ export class LocalStorageInvoiceRepository implements InvoiceRepository {
 
 /** Facturas guardadas antes de existir la trazabilidad de importación. */
 function withDefaults(invoice: Partial<Invoice> & { qrUrl?: string }): Invoice {
+  const { sharedAt, sharedVia, ...rest } = invoice;
+  const shareRecord = typeof sharedAt === 'string' && (sharedVia === 'whatsapp' || sharedVia === 'email') ? { sharedAt, sharedVia } : {};
   return {
     ...(invoice.qrUrl && !invoice.urlQrOriginal ? { urlQrOriginal: invoice.qrUrl } : {}),
     origen: 'xml',
@@ -66,6 +78,7 @@ function withDefaults(invoice: Partial<Invoice> & { qrUrl?: string }): Invoice {
     confirmadosQr: [],
     revisadoPorUsuario: false,
     selloIncompleto: false,
-    ...invoice,
+    ...rest,
+    ...shareRecord,
   } as Invoice;
 }

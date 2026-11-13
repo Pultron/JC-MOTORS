@@ -42,7 +42,7 @@ const MAX_NAME_CHARS = 120;
 export function sanitizeFileBase(raw: string): string {
   const filtered = Array.from(raw).filter((char) => !/[\u0000-\u001f\u007f-\u009f]/.test(char) && !'<>:"/\\|?*'.includes(char)).join('');
   let name = filtered.split(/\s+/).filter(Boolean).join(' ');
-  if (name.toLowerCase().endsWith('.pdf')) name = name.slice(0, -4);
+  if (/\.(pdf|xml)$/i.test(name)) name = name.slice(0, -4);
   name = Array.from(name).slice(0, MAX_NAME_CHARS).join('').replace(/[. ]+$/, '').replace(/^\s+/, '');
   if (!name) name = 'Documento';
   const stem = (name.split('.')[0] ?? '').trimEnd().toUpperCase();
@@ -110,7 +110,7 @@ export function effectiveContact(quotation: Pick<Quotation, 'customer' | 'custom
 export const MEDIUM_LABEL: Record<ShareMedium, string> = { whatsapp: 'WhatsApp', email: 'correo' };
 
 /** "Compartida por WhatsApp el 12 de noviembre de 2026, 5:40 p.m." — empty when it was never shared. */
-export function sharedLabel(quotation: Pick<Quotation, 'sharedAt' | 'sharedVia'>): string {
+export function sharedLabel(quotation: { sharedAt?: string; sharedVia?: ShareMedium }): string {
   if (!quotation.sharedAt || !quotation.sharedVia) return '';
   const when = formatDate(quotation.sharedAt, 'dateTime');
   return when ? `Compartida por ${MEDIUM_LABEL[quotation.sharedVia]} el ${when}` : '';
@@ -127,6 +127,11 @@ export function nativeInvoke(): Invoke | undefined {
 export async function saveSharedPdf(invoke: Invoke, blob: Blob, filenameBase: string): Promise<string> {
   const bytes = Array.from(new Uint8Array(await blob.arrayBuffer()));
   return invoke<string>('save_shared_pdf', { filenameBase, bytes });
+}
+
+/** Saves a PDF or XML to the share folder; the extension is validated again in Rust (whitelist). */
+export async function saveSharedFile(invoke: Invoke, bytes: Uint8Array, filenameBase: string, ext: 'pdf' | 'xml'): Promise<string> {
+  return invoke<string>('save_shared_file', { filenameBase, ext, bytes: Array.from(bytes) });
 }
 
 export const copyFileToClipboard = (invoke: Invoke, path: string) => invoke<void>('copy_file_to_clipboard', { path });
