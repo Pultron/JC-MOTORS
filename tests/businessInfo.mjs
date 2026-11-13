@@ -98,6 +98,31 @@ test('#019 backup: exported, validated on import, merge keeps local and replace 
   assert.equal(loadBusinessInfo().nombre, 'DEL ARCHIVO');
 });
 
+test('share message: optional field, old data loads, backup validates with and without it', () => {
+  assert.equal(loadBusinessInfo().mensajeClientes, undefined);
+  data.set(KEY, JSON.stringify({ nombre: 'VIEJO', telefonos: ['(667) 000-0000'], direccion: 'X' }));
+  assert.equal(loadBusinessInfo().nombre, 'VIEJO');
+  assert.equal(loadBusinessInfo().mensajeClientes, undefined);
+
+  const saved = saveBusinessInfo({ ...custom, mensajeClientes: '  Hola {nombre}\nSaludos  ' });
+  assert.equal(saved.mensajeClientes, 'Hola {nombre}\nSaludos');
+  assert.equal(loadBusinessInfo().mensajeClientes, 'Hola {nombre}\nSaludos');
+  assert.equal('mensajeClientes' in saveBusinessInfo({ ...custom, mensajeClientes: '   ' }), false);
+
+  assert.ok(validateBusinessInfo({ ...custom, mensajeClientes: 'x'.repeat(801) }).mensajeClientes);
+  assert.deepEqual(validateBusinessInfo({ ...custom, mensajeClientes: 'x'.repeat(800) }), {});
+
+  saveBusinessInfo({ ...custom, mensajeClientes: 'Hola {nombre}' });
+  const backup = parseBackup(serializeBackup(buildBackup()));
+  assert.equal(JSON.parse(backup.claves[KEY]).mensajeClientes, 'Hola {nombre}');
+  const base = JSON.parse(backup.claves[KEY]);
+  for (const bad of [{ ...base, mensajeClientes: 5 }, { ...base, mensajeClientes: 'x'.repeat(801) }]) {
+    assert.throws(() => parseBackup(serializeBackup({ ...backup, claves: { [KEY]: JSON.stringify(bad) } })), BackupError);
+  }
+  const { mensajeClientes: _omit, ...without } = base;
+  assert.doesNotThrow(() => parseBackup(serializeBackup({ ...backup, claves: { [KEY]: JSON.stringify(without) } })));
+});
+
 // --- PDF ---------------------------------------------------------------------------------------------------------
 const outDir = join(tmpdir(), 'jc-motors-pdf-tests');
 mkdirSync(outDir, { recursive: true });

@@ -1,15 +1,16 @@
-import { useId, useState } from 'react';
-import { Store } from 'lucide-react';
+import { useId, useRef, useState } from 'react';
+import { MessageSquareText, Store } from 'lucide-react';
 import { Card } from '../components/newQuote/primitives/Card';
 import { CardHeader } from '../components/newQuote/primitives/CardHeader';
 import { FormRow, describedByFor } from '../components/newQuote/primitives/FormRow';
 import { PhoneInput } from '../components/ui/PhoneInput';
 import { useToast } from '../components/ui/Toast';
 import {
-  loadBusinessInfo, resetBusinessInfo, saveBusinessInfo, validateBusinessInfo,
+  MESSAGE_MAX, loadBusinessInfo, resetBusinessInfo, saveBusinessInfo, validateBusinessInfo,
 } from '../config/businessInfo';
 import type { BusinessInfo, BusinessInfoErrors } from '../config/businessInfo';
 import { useConfirm } from '../hooks/useConfirm';
+import { DEFAULT_MESSAGE_TEMPLATE, MESSAGE_VARIABLES, previewMessage } from '../services/shareMessage';
 import '../styles/respaldo.css';
 
 interface FormState {
@@ -42,6 +43,38 @@ export function WorkshopPage() {
   const [base, setBase] = useState<BusinessInfo>(loadBusinessInfo);
   const [form, setForm] = useState<FormState>(() => toForm(base));
   const [errors, setErrors] = useState<BusinessInfoErrors>({});
+  const messageId = useId();
+  const messageRef = useRef<HTMLTextAreaElement>(null);
+  const [message, setMessage] = useState(() => base.mensajeClientes ?? DEFAULT_MESSAGE_TEMPLATE);
+  const messageDirty = message.trim() !== (base.mensajeClientes ?? DEFAULT_MESSAGE_TEMPLATE);
+  const messageTooLong = message.length > MESSAGE_MAX;
+
+  function insertVariable(key: string) {
+    const area = messageRef.current;
+    const token = `{${key}}`;
+    const start = area?.selectionStart ?? message.length;
+    const end = area?.selectionEnd ?? message.length;
+    setMessage((current) => (current.slice(0, start) + token + current.slice(end)).slice(0, MESSAGE_MAX + token.length));
+    window.requestAnimationFrame(() => {
+      area?.focus();
+      area?.setSelectionRange(start + token.length, start + token.length);
+    });
+  }
+
+  function handleSaveMessage() {
+    if (messageTooLong) return;
+    // The default text is stored as "no custom message", so a future change of the default reaches this workshop.
+    const custom = message.trim() === DEFAULT_MESSAGE_TEMPLATE || message.trim() === '' ? undefined : message;
+    try {
+      const { mensajeClientes: _previous, ...rest } = base;
+      const saved = saveBusinessInfo(custom ? { ...rest, mensajeClientes: custom } : rest);
+      setBase(saved);
+      setMessage(saved.mensajeClientes ?? DEFAULT_MESSAGE_TEMPLATE);
+      toast.success({ title: 'Mensaje guardado', description: 'Se usará al enviar cotizaciones por WhatsApp o correo.' });
+    } catch {
+      toast.error({ title: 'No se pudo guardar', description: 'El almacenamiento está lleno o no está disponible. Tu mensaje anterior no se modificó.' });
+    }
+  }
 
   const update = (key: keyof FormState, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -76,6 +109,7 @@ export function WorkshopPage() {
     const defaults = resetBusinessInfo();
     setBase(defaults);
     setForm(toForm(defaults));
+    setMessage(DEFAULT_MESSAGE_TEMPLATE);
     setErrors({});
     toast.success({ title: 'Valores originales restablecidos', description: 'Se usan los datos que traía la app.' });
   }
@@ -101,6 +135,28 @@ export function WorkshopPage() {
         <div className="flex justify-end gap-3 px-4 py-3">
           <button type="button" data-testid="taller-reset" className="mac-btn mac-btn-secondary" onClick={() => void handleReset()}>Restablecer valores originales</button>
           <button type="button" data-testid="taller-save" className="mac-btn mac-btn-primary" onClick={handleSave}>Guardar</button>
+        </div>
+      </Card>
+      <Card as="section">
+        <CardHeader icon={<MessageSquareText size={18} />} title="Mensaje para clientes" subtitle="Texto que acompaña la cotización al enviarla por WhatsApp o correo." />
+        <div className="px-4 pb-2">
+          <label htmlFor={messageId} className="sr-only">Mensaje para clientes</label>
+          <textarea ref={messageRef} id={messageId} data-testid="taller-mensaje" rows={6} className="w-full resize-y rounded-lg border border-mac-separator bg-white px-3 py-2 text-sm leading-5 text-mac-ink" aria-invalid={messageTooLong} value={message} onChange={(event) => setMessage(event.target.value)} />
+          <div className="mt-1 flex justify-between text-[12px] text-mac-ink-2">
+            <span role={messageTooLong ? 'alert' : undefined} className={messageTooLong ? 'text-red-600' : undefined}>{messageTooLong ? `Máximo ${MESSAGE_MAX} caracteres.` : 'Las variables se reemplazan al enviar.'}</span>
+            <span>{message.length}/{MESSAGE_MAX}</span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Variables disponibles">
+            {MESSAGE_VARIABLES.map((variable) => (
+              <button key={variable.key} type="button" title={variable.description} data-testid={`taller-variable-${variable.key}`} className="rounded-md bg-mac-tint px-2 py-1 text-[12px] font-medium text-mac-accent-text" onClick={() => insertVariable(variable.key)}>{`{${variable.key}}`}</button>
+            ))}
+          </div>
+        </div>
+        <p className="respaldo-hint">Vista previa con datos de ejemplo</p>
+        <pre data-testid="taller-mensaje-preview" className="mx-4 mb-3 mt-2 whitespace-pre-wrap rounded-lg bg-slate-50 px-3 py-2 font-sans text-sm leading-5 text-mac-ink">{previewMessage(message)}</pre>
+        <div className="flex justify-end gap-3 px-4 py-3">
+          <button type="button" data-testid="taller-mensaje-reset" className="mac-btn mac-btn-secondary" disabled={message === DEFAULT_MESSAGE_TEMPLATE} onClick={() => setMessage(DEFAULT_MESSAGE_TEMPLATE)}>Restablecer mensaje original</button>
+          <button type="button" data-testid="taller-mensaje-save" className="mac-btn mac-btn-primary" disabled={!messageDirty || messageTooLong} onClick={handleSaveMessage}>Guardar mensaje</button>
         </div>
       </Card>
     </div>
