@@ -56,9 +56,9 @@ export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChang
         <div className={rowClass}><span className="text-mac-ink-2">Refacciones</span><strong data-testid="resumen-refacciones" className="font-semibold">{formatMoney(totals.subtotalRefacciones)}</strong></div>
         <div className={rowClass}>
           <label htmlFor="quote-labor" className="text-mac-ink-2">Mano de obra</label>
-          <div className="flex h-9 w-40 items-center rounded-lg bg-mac-fill transition-[box-shadow] duration-[180ms] focus-within:outline focus-within:outline-2 focus-within:outline-mac-accent">
-            <span aria-hidden="true" className="pl-3 text-mac-ink-2">$</span>
-            <input id="quote-labor" data-testid="resumen-mano-obra" inputMode="decimal" autoComplete="off" aria-invalid={Boolean(errors.laborAmount)} aria-describedby={errors.laborAmount ? 'quote-labor-error' : undefined} onBlur={onLaborBlur} className="h-full min-w-0 flex-1 border-0 bg-transparent px-3 text-right text-sm outline-none focus-visible:!outline-none" value={form.laborAmount} onChange={(event) => onLaborChange(sanitizeMoneyInput(event.target.value))} />
+          <div className="mac-money !h-9 w-40">
+            <span aria-hidden="true">$</span>
+            <input id="quote-labor" data-testid="resumen-mano-obra" inputMode="decimal" autoComplete="off" aria-invalid={Boolean(errors.laborAmount)} aria-describedby={errors.laborAmount ? 'quote-labor-error' : undefined} onBlur={onLaborBlur} className="px-3 text-right text-sm" value={form.laborAmount} onChange={(event) => onLaborChange(sanitizeMoneyInput(event.target.value))} />
           </div>
         </div>
         <FieldError id="quote-labor-error" message={errors.laborAmount} className="px-4 pb-2 text-right" />
