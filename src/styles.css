@@ -185,6 +185,16 @@ input[type="number"]::-webkit-outer-spin-button {
 @media (prefers-reduced-motion: reduce) { .mac-discount-flash { animation: none !important; } }
 .mac-row-input { flex: 1; min-width: 0; height: 44px; border: 0; background: transparent; padding: 0; color: var(--color-mac-ink); font-size: 14px; }
 .mac-row-input:focus-visible { outline: none !important; }
+/* "Opcional" a la derecha de la fila; desaparece en cuanto el campo tiene texto. */
+.mac-row-optional { flex: none; margin-left: 12px; color: var(--color-mac-ink-2); font-size: 13px; opacity: .8; pointer-events: none; }
+.mac-row-lead { flex: none; margin-right: 8px; color: var(--color-mac-ink-2); }
+/* Campo de dinero: "$" fijo a la izquierda, fuera del valor. */
+.mac-money { display: flex; align-items: center; height: 40px; border-radius: 8px; background: var(--color-mac-fill); transition: background-color 180ms ease, box-shadow 180ms ease; }
+.mac-money:focus-within { outline: 2px solid var(--color-mac-accent); }
+.mac-money[data-invalid="true"] { box-shadow: inset 0 0 0 2px var(--color-mac-danger); }
+.mac-money > span { flex: none; padding-left: 12px; color: var(--color-mac-ink-2); font-size: 14px; }
+.mac-money > input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; padding: 0 12px 0 4px; color: var(--color-mac-ink); font-size: 14px; }
+.mac-money > input:focus-visible { outline: none !important; }
 textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .mac-fill-input { height: 40px; min-width: 0; border: 0; border-radius: 8px; background: var(--color-mac-fill); padding: 0 12px; color: var(--color-mac-ink); font-size: 14px; transition: background-color 180ms ease, box-shadow 180ms ease; }
 .mac-fill-input:focus-visible { outline: 2px solid var(--color-mac-accent); outline-offset: 0; }
