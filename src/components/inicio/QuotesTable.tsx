@@ -8,7 +8,7 @@ import { searchQuotations } from '../../search/quotationSearch';
 import { useDebouncedValue } from '../../search/useDebouncedValue';
 import { QuotationActionsMenu } from '../QuotationActionsMenu';
 import { QuotationPdfDialog } from '../QuotationPdfDialog';
-import { SharedMark } from '../share/SharedMark';
+import { ShareStatusLine } from '../share/ShareStatusLine';
 import { StatusBadge } from '../StatusBadge';
 import { useCancelledQuotationDeletion } from '../../hooks/useCancelledQuotationDeletion';
 import { useQuotationActions } from '../../hooks/useQuotationActions';
@@ -158,7 +158,7 @@ export function QuotesTable() {
                       >
                         <td className="font-semibold text-mac-ink">{quotation.folio}</td>
                         <td className="num text-mac-ink-2">{formatDate(quotation.createdAt, 'medium')}</td>
-                        <td className="max-w-0 truncate font-semibold text-mac-ink" title={quotation.customer.name}>{quotation.customer.name}<SharedMark quotation={quotation} /></td>
+                        <td className="max-w-0 font-semibold text-mac-ink"><span className="block truncate" aria-hidden="true" title={quotation.customer.name}>{quotation.customer.name}</span><ShareStatusLine quotation={quotation} customerName={quotation.customer.name} /></td>
                         <td className="max-w-0 truncate text-mac-ink-2" title={quotation.vehicle.year ? `${vehicle} ${quotation.vehicle.year}` : vehicle}>{vehicle}</td>
                         <td>
                           <span key={quotation.status} className={isFlashing ? 'badge-pop' : undefined}>

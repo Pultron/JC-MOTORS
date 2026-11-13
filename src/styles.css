@@ -432,3 +432,10 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .jc-tpl-money > input { color: var(--jc-pop-ink); outline: none; }
 .jc-tpl-action--inline { width: auto; margin-top: 8px; padding-inline: 0; }
 .jc-tpl-action--inline:hover { background: transparent; text-decoration: underline; }
+
+/* Share status line under the customer name (Historial, Inicio, detail). Success green and muted gray are both >= 4.5:1 on the always-light content surface; dark mode does not restyle this surface. */
+.share-line { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; line-height: 16px; color: var(--color-mac-ink-2); }
+.share-line[data-share="whatsapp"], .share-line[data-share="email"] { color: var(--color-mac-success); }
+.share-line-text { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.share-line-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-line-icon { flex: none; }

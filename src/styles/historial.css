@@ -98,7 +98,8 @@
 .hi-right { text-align: right !important; }
 .hi-folio { font-weight: 700; white-space: nowrap; }
 .hi-date { color: var(--text-2); white-space: nowrap; }
-.hi-client { font-weight: 600; }
+.hi-client { max-width: 260px; font-weight: 600; }
+.hi-client-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hi-vehicle { color: var(--text-3); }
 .hi-total { font-weight: 600; white-space: nowrap; }
 
