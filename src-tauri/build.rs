@@ -22,6 +22,7 @@ fn main() {
                 "backup_discard",
                 "wipe_all_data",
                 "save_shared_pdf",
+                "save_shared_file",
                 "copy_file_to_clipboard",
                 "reveal_in_folder",
                 "open_whatsapp",

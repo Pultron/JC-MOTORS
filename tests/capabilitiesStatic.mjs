@@ -9,7 +9,7 @@ const libRs = readFileSync('src-tauri/src/lib.rs', 'utf8');
 const cargo = readFileSync('src-tauri/Cargo.toml', 'utf8');
 const conf = readFileSync('src-tauri/tauri.conf.json', 'utf8');
 
-const SHARE_COMMANDS = ['save_shared_pdf', 'copy_file_to_clipboard', 'reveal_in_folder', 'open_whatsapp', 'open_mailto', 'open_gmail'];
+const SHARE_COMMANDS = ['save_shared_pdf', 'save_shared_file', 'copy_file_to_clipboard', 'reveal_in_folder', 'open_whatsapp', 'open_mailto', 'open_gmail'];
 
 test('capability contains only app-command allow-* permissions (no core, fs, shell, dialog, opener)', () => {
   for (const permission of capability.permissions) {

@@ -29,6 +29,7 @@ try {
   // Compartir: llegan a Rust, que rechaza los datos inválidos ANTES de tocar el disco, el portapapeles o abrir nada.
   const share = [
     ['save_shared_pdf', { filenameBase: 'x', bytes: [1, 2, 3] }, /PDF válido/],
+    ['save_shared_file', { filenameBase: 'x', ext: 'xml', bytes: [1, 2, 3] }, /XML válido/],
     ['copy_file_to_clipboard', { path: 'C:/Windows/win.ini' }, /ruta del archivo no es válida/],
     ['reveal_in_folder', { path: 'C:/Windows/win.ini' }, /ruta del archivo no es válida/],
     ['open_whatsapp', { phone: '123', text: 'x' }, /10 dígitos/],

@@ -153,16 +153,77 @@ fn cleanup_removes_only_old_pdfs_in_dir() {
     }
     fs::write(tmp.path().join("fuera.pdf"), pdf()).unwrap();
     let day30 = Duration::from_secs(30 * 24 * 3600);
-    assert_eq!(cleanup_old_pdfs(&dir, SystemTime::now() + Duration::from_secs(29 * 24 * 3600), day30), 0, "nothing is 30 days old yet");
+    assert_eq!(cleanup_old_files(&dir, SystemTime::now() + Duration::from_secs(29 * 24 * 3600), day30), 0, "nothing is 30 days old yet");
     let future = SystemTime::now() + Duration::from_secs(31 * 24 * 3600);
     let recent = fs::File::options().write(true).open(dir.join("nuevo.pdf")).unwrap();
     recent.set_modified(future - Duration::from_secs(3600)).unwrap();
     drop(recent);
-    assert_eq!(cleanup_old_pdfs(&dir, future, day30), 1, "only viejo.pdf: nuevo is recent, txt and subfolder are untouched");
+    assert_eq!(cleanup_old_files(&dir, future, day30), 1, "only viejo.pdf: nuevo is recent, txt and subfolder are untouched");
     assert!(!dir.join("viejo.pdf").exists());
     assert!(dir.join("nuevo.pdf").exists());
     assert!(dir.join("viejo.txt").exists());
     assert!(dir.join("sub/viejo.pdf").exists());
     assert!(tmp.path().join("fuera.pdf").exists());
-    assert_eq!(cleanup_old_pdfs(&tmp.path().join("no-existe"), future, day30), 0);
+    assert_eq!(cleanup_old_files(&tmp.path().join("no-existe"), future, day30), 0);
+}
+
+fn xml() -> Vec<u8> {
+    b"\xEF\xBB\xBF\n <?xml version=\"1.0\"?><cfdi:Comprobante/>".to_vec()
+}
+
+#[test]
+fn save_shared_file_accepts_xml_and_rejects_bad_content_or_ext() {
+    let tmp = tempfile::tempdir().unwrap();
+    let dir = tmp.path().join("enviados");
+    let path = save_shared_file_in(&dir, "Factura A-1 - Ana", "xml", &xml()).unwrap();
+    assert_eq!(path, dir.join("Factura A-1 - Ana.xml"));
+    assert_eq!(fs::read(&path).unwrap(), xml());
+    // Same name again is rewritten atomically (numbering only happens when the write fails).
+    assert_eq!(save_shared_file_in(&dir, "Factura A-1 - Ana", ".XML", &xml()).unwrap(), dir.join("Factura A-1 - Ana.xml"));
+    // A base name that already ends in .xml does not double the extension.
+    assert_eq!(save_shared_file_in(&dir, "otra.xml", "xml", &xml()).unwrap(), dir.join("otra.xml"));
+    // Wrong magic for the declared type.
+    assert!(save_shared_file_in(&dir, "x", "xml", b"%PDF-1.4").is_err());
+    assert!(save_shared_file_in(&dir, "x", "xml", b"plain text").is_err());
+    assert!(save_shared_file_in(&dir, "x", "xml", &[]).is_err());
+    assert!(save_shared_file_in(&dir, "x", "pdf", &xml()).is_err());
+    // Extension outside the whitelist.
+    for ext in ["exe", "txt", "", "pdf.exe", "../pdf"] {
+        assert!(save_shared_file_in(&dir, "x", ext, &pdf()).is_err(), "ext {ext:?}");
+    }
+    // Size cap applies to xml too.
+    let mut huge = b"<a>".to_vec();
+    huge.resize(MAX_PDF_BYTES + 1, b' ');
+    assert!(save_shared_file_in(&dir, "x", "xml", &huge).is_err());
+}
+
+#[test]
+fn copy_and_reveal_validation_accepts_xml_only_inside_enviados() {
+    let tmp = tempfile::tempdir().unwrap();
+    let dir = tmp.path().join("enviados");
+    let ok = save_shared_file_in(&dir, "f", "xml", &xml()).unwrap();
+    assert_eq!(validate_shared_path(&dir, &ok.to_string_lossy()).unwrap(), ok);
+    let outside = tmp.path().join("fuera.xml");
+    fs::write(&outside, xml()).unwrap();
+    assert!(validate_shared_path(&dir, &outside.to_string_lossy()).is_err());
+    let other = dir.join("a.txt");
+    fs::write(&other, b"x").unwrap();
+    assert!(validate_shared_path(&dir, &other.to_string_lossy()).is_err());
+    let sub = dir.join("sub");
+    fs::create_dir_all(&sub).unwrap();
+    fs::write(sub.join("b.xml"), xml()).unwrap();
+    assert!(validate_shared_path(&dir, &sub.join("b.xml").to_string_lossy()).is_err());
+}
+
+#[test]
+fn cleanup_removes_old_xml_too() {
+    let tmp = tempfile::tempdir().unwrap();
+    let dir = tmp.path().join("enviados");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join("viejo.xml"), xml()).unwrap();
+    fs::write(dir.join("viejo.txt"), b"x").unwrap();
+    let future = SystemTime::now() + Duration::from_secs(40 * 24 * 3600);
+    assert_eq!(cleanup_old_files(&dir, future, Duration::from_secs(30 * 24 * 3600)), 1);
+    assert!(!dir.join("viejo.xml").exists());
+    assert!(dir.join("viejo.txt").exists());
 }

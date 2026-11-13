@@ -22,6 +22,7 @@
     "allow-backup-discard",
     "allow-wipe-all-data",
     "allow-save-shared-pdf",
+    "allow-save-shared-file",
     "allow-copy-file-to-clipboard",
     "allow-reveal-in-folder",
     "allow-open-whatsapp",

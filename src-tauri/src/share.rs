@@ -40,7 +40,8 @@ pub fn sanitize_file_base(raw: &str) -> String {
         .filter(|c| !c.is_control() && !matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*'))
         .collect();
     let mut name = filtered.split_whitespace().collect::<Vec<_>>().join(" ");
-    if name.to_ascii_lowercase().ends_with(".pdf") {
+    let lower = name.to_ascii_lowercase();
+    if lower.ends_with(".pdf") || lower.ends_with(".xml") {
         name.truncate(name.len() - 4);
     }
     let mut name: String = name.chars().take(MAX_NAME_CHARS).collect();
@@ -55,33 +56,61 @@ pub fn sanitize_file_base(raw: &str) -> String {
     name
 }
 
+/// Extensiones que se pueden compartir (adjunto de cotización = PDF; de factura = su PDF o XML original).
+pub const SHARED_EXTENSIONS: [&str; 2] = ["pdf", "xml"];
+
+fn is_shared_extension(ext: &std::ffi::OsStr) -> bool {
+    SHARED_EXTENSIONS.iter().any(|allowed| ext.eq_ignore_ascii_case(allowed))
+}
+
+/// Comprobación mínima de contenido: PDF con `%PDF-`; XML que empieza (tras BOM/espacios) con `<`.
+fn content_matches(ext: &str, bytes: &[u8]) -> bool {
+    match ext {
+        "pdf" => bytes.starts_with(b"%PDF-"),
+        "xml" => {
+            let body = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF][..]).unwrap_or(bytes);
+            body.iter().find(|b| !b.is_ascii_whitespace()) == Some(&b'<')
+        }
+        _ => false,
+    }
+}
+
 /// Escribe el PDF en `dir`. Si el nombre está ocupado (p. ej. abierto en otro programa) prueba " (2)", " (3)"…
 pub fn save_shared_pdf_in(dir: &Path, filename_base: &str, bytes: &[u8]) -> R<PathBuf> {
-    if bytes.len() > MAX_PDF_BYTES {
-        return err("El PDF es demasiado grande para compartirlo.");
+    save_shared_file_in(dir, filename_base, "pdf", bytes)
+}
+
+/// Escribe un archivo `.pdf` o `.xml` (extensión en lista blanca, contenido verificado) en `dir`.
+pub fn save_shared_file_in(dir: &Path, filename_base: &str, ext: &str, bytes: &[u8]) -> R<PathBuf> {
+    let ext = ext.trim().trim_start_matches('.').to_ascii_lowercase();
+    if !SHARED_EXTENSIONS.contains(&ext.as_str()) {
+        return err("El tipo de archivo no se puede compartir.");
     }
-    if !bytes.starts_with(b"%PDF-") {
-        return err("El archivo generado no es un PDF válido");
+    if bytes.len() > MAX_PDF_BYTES {
+        return err("El archivo es demasiado grande para compartirlo.");
+    }
+    if !content_matches(&ext, bytes) {
+        return err(if ext == "pdf" { "El archivo generado no es un PDF válido" } else { "El archivo no es un XML válido" });
     }
     crate::files::ensure_dir(dir)?;
     let base = sanitize_file_base(filename_base);
     let mut last_error = None;
     for attempt in 1..=5 {
-        let name = if attempt == 1 { format!("{base}.pdf") } else { format!("{base} ({attempt}).pdf") };
+        let name = if attempt == 1 { format!("{base}.{ext}") } else { format!("{base} ({attempt}).{ext}") };
         let target = dir.join(name);
         match write_atomic(&target, bytes) {
             Ok(()) => return Ok(target),
             Err(error) => last_error = Some(error),
         }
     }
-    Err(last_error.unwrap_or_else(|| crate::error::AppError("No se pudo guardar el PDF.".into())))
+    Err(last_error.unwrap_or_else(|| crate::error::AppError("No se pudo guardar el archivo.".into())))
 }
 
 // ---------------------------------------------------------------------------------------------
 // Path validation (only direct children of enviados/)
 // ---------------------------------------------------------------------------------------------
 
-/// Acepta únicamente un archivo `.pdf` regular, hijo directo de `dir`, sin enlaces simbólicos ni `..`.
+/// Acepta únicamente un archivo `.pdf` o `.xml` regular, hijo directo de `dir`, sin enlaces simbólicos ni `..`.
 /// Devuelve la ruta `dir/<nombre>` (sin prefijo `\\?\`).
 pub fn validate_shared_path(dir: &Path, path: &str) -> R<PathBuf> {
     const BAD: &str = "La ruta del archivo no es válida.";
@@ -102,7 +131,7 @@ pub fn validate_shared_path(dir: &Path, path: &str) -> R<PathBuf> {
         return err(BAD);
     }
     let Some(file_name) = file_canon.file_name() else { return err(BAD) };
-    if !Path::new(file_name).extension().is_some_and(|e| e.eq_ignore_ascii_case("pdf")) {
+    if !Path::new(file_name).extension().is_some_and(is_shared_extension) {
         return err(BAD);
     }
     Ok(dir.join(file_name))
@@ -212,14 +241,14 @@ pub fn is_allowed_url(url: &str) -> bool {
 // Cleanup
 // ---------------------------------------------------------------------------------------------
 
-/// Borra los `*.pdf` (archivos regulares, sin recursión) con más de `max_age` de antigüedad. Devuelve cuántos borró.
-pub fn cleanup_old_pdfs(dir: &Path, now: SystemTime, max_age: Duration) -> usize {
+/// Borra los `*.pdf` y `*.xml` (archivos regulares, sin recursión) con más de `max_age` de antigüedad. Devuelve cuántos borró.
+pub fn cleanup_old_files(dir: &Path, now: SystemTime, max_age: Duration) -> usize {
     let Ok(entries) = fs::read_dir(dir) else { return 0 };
     let mut removed = 0;
     for entry in entries.flatten() {
         let path = entry.path();
         let Ok(meta) = fs::symlink_metadata(&path) else { continue };
-        if !meta.is_file() || !path.extension().is_some_and(|e| e.eq_ignore_ascii_case("pdf")) {
+        if !meta.is_file() || !path.extension().is_some_and(is_shared_extension) {
             continue;
         }
         let Ok(modified) = meta.modified() else { continue };
@@ -231,7 +260,7 @@ pub fn cleanup_old_pdfs(dir: &Path, now: SystemTime, max_age: Duration) -> usize
 }
 
 pub fn cleanup_shared_dir(data_dir: &Path) -> usize {
-    cleanup_old_pdfs(&shared_dir(data_dir), SystemTime::now(), Duration::from_secs(RETENTION_DAYS * 24 * 60 * 60))
+    cleanup_old_files(&shared_dir(data_dir), SystemTime::now(), Duration::from_secs(RETENTION_DAYS * 24 * 60 * 60))
 }
 
 // ---------------------------------------------------------------------------------------------

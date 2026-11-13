@@ -298,6 +298,14 @@ async fn save_shared_pdf(app: tauri::AppHandle, filename_base: String, bytes: Ve
     Ok(path.to_string_lossy().into_owned())
 }
 
+/// Guarda un `.pdf` o `.xml` (extensión validada en Rust) a compartir en `<datos>/enviados/` y devuelve la ruta completa.
+#[tauri::command]
+async fn save_shared_file(app: tauri::AppHandle, filename_base: String, ext: String, bytes: Vec<u8>) -> Result<String, String> {
+    let dir = share::shared_dir(&data_dir(&app)?);
+    let path = share::save_shared_file_in(&dir, &filename_base, &ext, &bytes).map_err(String::from)?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
 /// Pone el archivo (CF_HDROP) en el portapapeles para pegarlo en WhatsApp. Solo archivos de `enviados/`.
 #[tauri::command]
 async fn copy_file_to_clipboard(app: tauri::AppHandle, path: String) -> Result<(), String> {
@@ -428,6 +436,7 @@ pub fn run() {
             backup_discard,
             wipe_all_data,
             save_shared_pdf,
+            save_shared_file,
             copy_file_to_clipboard,
             reveal_in_folder,
             open_whatsapp,
