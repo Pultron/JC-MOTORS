@@ -13,7 +13,6 @@ import {
 } from '../config/businessInfo';
 import type { BusinessInfo } from '../config/businessInfo';
 import { useChoose, useConfirm } from '../hooks/useConfirm';
-import { useShortcut } from '../hooks/useShortcuts';
 import { useUnsavedGuard } from '../hooks/useUnsavedGuard';
 import { userMessage } from '../utils/userMessage';
 import { DEFAULT_MESSAGE_TEMPLATE, EXAMPLE_VALUES, MESSAGE_VARIABLES, buildShareSubject, previewMessage } from '../services/shareMessage';
@@ -38,7 +37,7 @@ export function WorkshopPage() {
   const messageRef = useRef<HTMLTextAreaElement>(null);
   const message = values.mensaje;
   const dirty = isDirty(toFormValues(base), values);
-  // Refs mirror the latest state so async flows (dialog, blocker, shortcut) never act on stale closures.
+  // Refs mirror the latest state so async flows (dialog, blocker) never act on stale closures.
   const baseRef = useRef(base);
   const valuesRef = useRef(values);
   const dirtyRef = useRef(dirty);
@@ -128,7 +127,6 @@ export function WorkshopPage() {
 
   askToLeaveRef.current = askToLeave;
 
-  useShortcut('save', () => { if (dirtyRef.current) void save(); });
 
   const blocker = useBlocker(({ currentLocation, nextLocation }) => shouldBlockNavigation(dirtyRef.current, currentLocation, nextLocation));
   const askingRef = useRef(false);

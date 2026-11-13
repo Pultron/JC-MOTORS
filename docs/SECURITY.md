@@ -63,7 +63,7 @@ Con `tests/cspFlujos.mjs` contra el ejecutable de Tauri, con perfil de WebView2 
 - vista previa del PDF de una cotización de 12 conceptos (2 hojas, logo, fuentes);
 - importar factura XML;
 - importar factura PDF (PDF.js con su *worker*, jsQR) y ver el original (PDF.js sobre canvas);
-- paleta de búsqueda (Ctrl+K);
+- paleta de búsqueda;
 - lectura de un respaldo en Respaldo → importar;
 - tema oscuro del sistema.
 

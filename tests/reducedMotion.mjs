@@ -5,7 +5,7 @@ import { connect } from './cdpClient.mjs';
 // #036: con prefers-reduced-motion: reduce nada se anima y los toasts desaparecen igual (temporizador de JS).
 // Requiere `npm run dev` (APP_URL) y un navegador con perfil AISLADO y --remote-debugging-port=CDP_PORT.
 const BASE = process.env.APP_URL ?? 'http://localhost:5173';
-const ROUTES = ['/', '/nueva-cotizacion', '/historial', '/clientes', '/facturas', '/control-interno', '/respaldo', '/datos-del-taller', '/atajos'];
+const ROUTES = ['/', '/nueva-cotizacion', '/historial', '/clientes', '/facturas', '/control-interno', '/respaldo', '/datos-del-taller'];
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const c = await connect(Number(process.env.CDP_PORT ?? 9223));
 

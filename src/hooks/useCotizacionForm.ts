@@ -66,12 +66,6 @@ function formFromQuotation(quotation: Quotation): QuoteFormData {
   };
 }
 
-/** True when the user typed something worth keeping (an untouched or emptied form is not saved as a draft). */
-function hasContent(form: QuoteFormData): boolean {
-  const text = [form.customerName, form.phone, form.email, form.make, form.model, form.year, form.plates, form.laborAmount, form.publicNotes, form.customerNotes];
-  return text.some((value) => value.trim() !== '') || form.items.some((item) => item.description.trim() !== '' || item.unitPrice.trim() !== '');
-}
-
 const FIRST_FIELD_SELECTOR = '[data-testid="cliente-nombre"]';
 
 /** Puts the cursor in the first field of the form (customer name). */
@@ -432,35 +426,6 @@ export function useCotizacionForm() {
     toast.info({ title: 'Formulario limpio.' });
   }
 
-  /**
-   * Ctrl/⌘+N on this screen. Unsaved work is never dropped: a new quote's content goes to a saved draft (the existing draft
-   * mechanism); changes to an existing quote ask first, because a draft copy of an edit would be confusing.
-   */
-  async function startNew() {
-    if (busy) return;
-    if (dirty && hasContent(form)) {
-      if (editId) {
-        const accepted = await confirm({ title: '¿Empezar una cotización nueva?', description: 'Tienes cambios sin guardar en esta cotización. Si continúas, se descartarán.', confirmLabel: 'Descartar y empezar', tone: 'danger' });
-        if (!accepted) return;
-      } else {
-        try {
-          const saved = await quoteDraftService.save(form, activeDraft ?? undefined);
-          setDrafts(quoteDraftService.list());
-          toast.info({ title: 'Borrador guardado', description: `Lo que tenías sin guardar quedó en el borrador ${saved.folio}.` });
-        } catch {
-          toast.error({ title: 'No se pudo guardar el borrador', description: 'Tu cotización sigue abierta. Guarda un borrador manualmente antes de empezar otra.' });
-          return;
-        }
-      }
-    }
-    if (autosaveTimer.current !== null) window.clearTimeout(autosaveTimer.current);
-    // A temporary draft waiting to be recovered belongs to an earlier session: it stays until the user decides.
-    if (!recovery) quoteDraftService.deleteTemporary();
-    setForm(emptyForm()); setActiveDraft(null); setTouched({}); setLimitError(''); setDirty(false); setSaveState('idle');
-    if (editId) navigate('/nueva-cotizacion', { replace: true });
-    window.requestAnimationFrame(focusFirstField);
-  }
-
   async function openDraft(draft: QuoteDraft) {
     if (dirty && !(await confirm({ title: '¿Abrir este borrador?', description: 'Se reemplazarán los datos del formulario actual.', confirmLabel: 'Abrir borrador' }))) return;
     quoteDraftService.deleteTemporary();
@@ -497,6 +462,6 @@ export function useCotizacionForm() {
     isLoadingEdit: Boolean(editId) && (!editReady || loadedEditId.current !== editId || isLoading),
     isSaved: !dirty && (Boolean(activeDraft) || Boolean(editId)),
     updateField, blurField, commitText, blurItem, updateCustomer, selectCustomer, addItem, applyTemplate, updateItem, deleteItem, setLaborAmount,
-    submit, saveDraft, clearForm, startNew, openDraft, deleteDraft, recoverTemporary, discardTemporary,
+    submit, saveDraft, clearForm, openDraft, deleteDraft, recoverTemporary, discardTemporary,
   };
 }

@@ -252,17 +252,6 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .jc-tpl-form .jc-tpl-note { padding-inline: 0; }
 .jc-tpl-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 .jc-tpl-buttons .mac-btn { height: 34px; }
-.jc-kbd { display: inline-flex; min-width: 28px; height: 24px; flex: none; align-items: center; justify-content: center; padding: 0 8px; border-radius: 6px; background: var(--color-mac-fill); color: var(--color-mac-ink-2); font-family: var(--font-mac); font-size: 12px; font-weight: 600; white-space: nowrap; }
-.jc-shortcuts { max-width: 720px; margin: 0 auto; color: var(--color-mac-ink); font-family: var(--font-mac); }
-.jc-shortcuts h1 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.015em; }
-.jc-shortcuts header p { margin: 6px 0 0; color: var(--color-mac-ink-2); font-size: 14px; line-height: 1.45; }
-.jc-shortcuts h2 { margin: 28px 0 8px; padding-inline: 4px; color: var(--color-mac-ink-2); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-.jc-shortcuts ul { margin: 0; padding: 0; overflow: hidden; border-radius: 14px; background: var(--jc-pop-bg); box-shadow: var(--shadow-mac-card); list-style: none; }
-.jc-shortcuts li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; }
-.jc-shortcuts li + li { border-top: 1px solid var(--color-mac-separator); }
-.jc-shortcuts li div { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
-.jc-shortcuts li strong { font-size: 14px; font-weight: 600; color: var(--jc-pop-ink); }
-.jc-shortcuts li span { color: var(--jc-pop-ink-2); font-size: 13px; line-height: 1.4; }
 .mac-option-empty { margin: 0; padding: 8px 12px; font-size: 12px; color: var(--color-mac-ink-2); }
 .mac-option-action { display: block; width: 100%; margin-top: 4px; padding: 8px 12px; border: 0; border-top: 1px solid rgb(60 60 67 / 18%); border-radius: 8px; background: transparent; color: var(--color-mac-accent-text); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
 .mac-option-action:hover { background: var(--color-mac-tint); }

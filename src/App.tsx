@@ -13,7 +13,6 @@ import { InternalControlPage } from './pages/InternalControlPage';
 import { InternalControlDetailPage } from './pages/InternalControlDetailPage';
 import { BackupPage } from './pages/BackupPage';
 import { WorkshopPage } from './pages/WorkshopPage';
-import { ShortcutsPage } from './pages/ShortcutsPage';
 import { WelcomeGuard, WelcomeRoute } from './pages/WelcomeRoute';
 import { FULL_BLEED } from './routes/routeHandle';
 import { StorageNoticeBridge } from './storage/StorageNoticeBridge';
@@ -63,7 +62,6 @@ const router = createHashRouter([
               { path: 'control-interno/:quotationId', element: <InternalControlDetailPage /> },
               { path: 'respaldo', element: <BackupPage /> },
               { path: 'datos-del-taller', element: <WorkshopPage /> },
-              { path: 'atajos', element: <ShortcutsPage /> },
               { path: 'cotizaciones/:id', element: <QuotationDetailPage /> },
               { path: '*', element: <Navigate to="/" replace /> },
             ],

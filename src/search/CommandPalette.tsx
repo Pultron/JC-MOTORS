@@ -3,7 +3,6 @@ import type { KeyboardEvent, ReactNode } from 'react';
 import { Search, SearchX } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { EmptyState } from '../components/ui/EmptyState';
-import { useShortcut } from '../hooks/useShortcuts';
 import type { Invoice } from '../models/invoice';
 import { createInvoiceRepository } from '../repositories/repositoryFactory';
 import { useCustomers } from '../store/CustomerContext';
@@ -17,13 +16,12 @@ interface PaletteApi { open: () => void }
 const PaletteContext = createContext<PaletteApi>({ open: () => undefined });
 export const useCommandPalette = () => useContext(PaletteContext);
 
-/** Mounts the Ctrl/⌘+K palette. Nothing is indexed until the first time it opens. */
+/** Mounts the command palette. Nothing is indexed until the first time it opens. */
 export function CommandPaletteProvider({ children }: { children: ReactNode }) {
   const [opener, setOpener] = useState<HTMLElement | null | undefined>(undefined);
   const isOpen = opener !== undefined;
   const open = useCallback(() => setOpener((current) => (current !== undefined ? current : (document.activeElement as HTMLElement | null))), []);
   const close = useCallback(() => setOpener(undefined), []);
-  useShortcut('search', open);
   const api = useMemo(() => ({ open }), [open]);
   return (
     <PaletteContext.Provider value={api}>

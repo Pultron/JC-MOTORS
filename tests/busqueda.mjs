@@ -104,7 +104,7 @@ try {
 
   // M04 paleta
   await go('/historial');
-  await press('k', 'KeyK', 75, 2); // Ctrl+K
+  await c.click('[data-testid=sb-search]');
   await c.waitFor('Boolean(document.querySelector("[data-testid=palette]"))');
   assert.equal(await c.evaluate('document.querySelector("[data-testid=palette]").getAttribute("aria-modal")'), 'true');
   assert.equal(await c.evaluate('document.querySelector("[data-testid=palette-input]").getAttribute("role")'), 'combobox');
