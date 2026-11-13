@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { LogOut, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import { BorradoresPanel } from '../components/newQuote/BorradoresPanel';
 import { ClienteCard } from '../components/newQuote/ClienteCard';
 import { DetallesCard } from '../components/newQuote/DetallesCard';
@@ -26,12 +26,8 @@ export function NuevaCotizacionPage() {
     {!editId && <span role="status" className="sr-only">{saveState === 'saving' ? 'Guardando…' : saveState === 'saved' ? 'Guardado automáticamente' : 'Guardado automático'}</span>}
     <form onSubmit={handleSubmit} noValidate className="flex flex-wrap items-start gap-6 px-8 pb-10 pt-4">
       <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-5">
-        {!editId && <BorradoresPanel drafts={state.drafts} hasRecovery={Boolean(state.recovery)} onRecover={state.recoverTemporary} onDiscard={state.discardTemporary} onOpen={state.openDraft} onDelete={state.deleteDraft} />}
+        {!editId && <BorradoresPanel drafts={state.drafts} hasRecovery={Boolean(state.recovery)} onRecover={state.recoverTemporary} onDiscard={state.discardTemporary} onOpen={state.openDraft} onDelete={state.deleteDraft} activeId={activeDraft?.id} onLeave={() => void state.leaveDraft()} />}
         {editId && quotationToEdit && <p className="flex items-center gap-2 text-xs font-medium text-mac-accent-text"><RotateCcw size={14} aria-hidden="true" />Editando cotización {quotationToEdit.folio}</p>}
-        {!editId && activeDraft && <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-mac-accent-text">
-          <span className="flex items-center gap-2"><RotateCcw size={14} aria-hidden="true" />Editando borrador {activeDraft.folio}</span>
-          <button type="button" data-testid="borrador-salir" className="mac-press inline-flex h-7 items-center gap-1.5 rounded-full border border-mac-separator bg-white px-3 text-xs font-semibold text-mac-ink hover:bg-mac-fill" onClick={() => void state.leaveDraft()}><LogOut size={13} aria-hidden="true" />Salir del borrador</button>
-        </div>}
         <div className="flex flex-wrap gap-5">
           <ClienteCard form={form} errors={errors} customers={state.customers} onChange={state.updateField} onCustomerChange={state.updateCustomer} onSelectCustomer={state.selectCustomer} onBlurField={state.blurField} onCommitText={state.commitText} />
           <VehiculoCard form={form} errors={errors} onChange={state.updateField} onBlurField={state.blurField} onCommitText={state.commitText} />
