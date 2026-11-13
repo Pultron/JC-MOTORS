@@ -429,10 +429,25 @@ export function useCotizacionForm() {
   async function clearForm() {
     const accepted = await confirm({ title: '¿Limpiar el formulario?', description: 'Se borrarán todos los datos capturados en esta cotización.', confirmLabel: 'Limpiar formulario', tone: 'danger' });
     if (!accepted) return;
+    resetToEmpty();
+    toast.info({ title: 'Formulario limpio.' });
+  }
+
+  function resetToEmpty() {
     if (autosaveTimer.current !== null) window.clearTimeout(autosaveTimer.current);
     quoteDraftService.deleteTemporary();
     setForm(emptyForm()); setActiveDraft(null); setRecovery(null); setTouched({}); setLimitError(''); setDirty(false); setSaveState('idle');
-    toast.info({ title: 'Formulario limpio.' });
+  }
+
+  /** Leaves the open draft without saving: the draft stays as it was last saved and the form starts empty. */
+  async function leaveDraft() {
+    if (!activeDraft) return;
+    if (dirty) {
+      const accepted = await confirm({ title: '¿Salir del borrador?', description: `Los cambios sin guardar de ${activeDraft.folio} se perderán. El borrador conserva su última versión guardada.`, confirmLabel: 'Salir sin guardar', tone: 'danger' });
+      if (!accepted) return;
+    }
+    resetToEmpty();
+    toast.info({ title: 'Saliste del borrador', description: 'El formulario quedó limpio.' });
   }
 
   async function openDraft(draft: QuoteDraft) {
@@ -449,7 +464,8 @@ export function useCotizacionForm() {
     if (!accepted) return;
     quoteDraftService.delete(draft.id);
     setDrafts(quoteDraftService.list());
-    if (activeDraft?.id === draft.id) setActiveDraft(null);
+    // Deleting the draft that is open also clears the form, otherwise its data would linger unsaved.
+    if (activeDraft?.id === draft.id) resetToEmpty();
     toast.warning({ title: 'Borrador eliminado', description: `Borrador ${draft.folio} eliminado.` });
   }
 
@@ -471,6 +487,6 @@ export function useCotizacionForm() {
     isLoadingEdit: Boolean(editId) && (!editReady || loadedEditId.current !== editId || isLoading),
     isSaved: !dirty && (Boolean(activeDraft) || Boolean(editId)),
     updateField, blurField, commitText, blurItem, updateCustomer, selectCustomer, addItem, applyTemplate, updateItem, deleteItem, setLaborAmount,
-    submit, saveDraft, clearForm, openDraft, deleteDraft, recoverTemporary, discardTemporary,
+    submit, saveDraft, clearForm, leaveDraft, openDraft, deleteDraft, recoverTemporary, discardTemporary,
   };
 }
