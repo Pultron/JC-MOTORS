@@ -1,4 +1,5 @@
-import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useBlocker } from 'react-router';
 import { focusFirstInvalid } from '../utils/focusFirstInvalid';
 import { MessageSquareText, Store } from 'lucide-react';
 import { Card } from '../components/newQuote/primitives/Card';
@@ -11,9 +12,12 @@ import {
   MESSAGE_MAX, loadBusinessInfo, resetBusinessInfo, saveBusinessInfo,
 } from '../config/businessInfo';
 import type { BusinessInfo } from '../config/businessInfo';
-import { useConfirm } from '../hooks/useConfirm';
+import { useChoose, useConfirm } from '../hooks/useConfirm';
+import { useShortcut } from '../hooks/useShortcuts';
+import { useUnsavedGuard } from '../hooks/useUnsavedGuard';
+import { userMessage } from '../utils/userMessage';
 import { DEFAULT_MESSAGE_TEMPLATE, EXAMPLE_VALUES, MESSAGE_VARIABLES, buildShareSubject, previewMessage } from '../services/shareMessage';
-import { applyDatos, insertAtCursor, toFormValues, validateWorkshopForm } from '../services/workshopForm';
+import { buildSaveCandidate, changedSections, insertAtCursor, isDirty, saveToastCopy, shouldBlockNavigation, toFormValues, validateWorkshopForm } from '../services/workshopForm';
 import type { WorkshopFormErrors, WorkshopFormValues } from '../services/workshopForm';
 import '../styles/respaldo.css';
 
@@ -23,6 +27,7 @@ const MESSAGE_COUNTER_FROM = 700;
 export function WorkshopPage() {
   const toast = useToast();
   const confirm = useConfirm();
+  const choose = useChoose();
   const ids = { nombre: useId(), telefono: useId(), calle: useId(), colonia: useId(), correo: useId() };
   const pageRef = useRef<HTMLDivElement>(null);
   const [base, setBase] = useState<BusinessInfo>(loadBusinessInfo);
@@ -32,7 +37,15 @@ export function WorkshopPage() {
   const messageCounterId = `${messageId}-counter`;
   const messageRef = useRef<HTMLTextAreaElement>(null);
   const message = values.mensaje;
-  const messageDirty = message.trim() !== (base.mensajeClientes ?? DEFAULT_MESSAGE_TEMPLATE);
+  const dirty = isDirty(toFormValues(base), values);
+  // Refs mirror the latest state so async flows (dialog, blocker, shortcut) never act on stale closures.
+  const baseRef = useRef(base);
+  const valuesRef = useRef(values);
+  const dirtyRef = useRef(dirty);
+  baseRef.current = base;
+  valuesRef.current = values;
+  dirtyRef.current = dirty;
+  useUnsavedGuard(dirty);
   const messageTooLong = message.length > MESSAGE_MAX;
   const [previewMode, setPreviewMode] = useState<'whatsapp' | 'correo'>('whatsapp');
   const preview = previewMessage(message);
@@ -56,48 +69,82 @@ export function WorkshopPage() {
     setMessage(result.text);
   }
 
-  function handleSaveMessage() {
-    if (messageTooLong) return;
-    // The default text is stored as "no custom message", so a future change of the default reaches this workshop.
-    const custom = message.trim() === DEFAULT_MESSAGE_TEMPLATE || message.trim() === '' ? undefined : message;
-    try {
-      const { mensajeClientes: _previous, ...rest } = base;
-      const saved = saveBusinessInfo(custom ? { ...rest, mensajeClientes: custom } : rest);
-      setBase(saved);
-      setMessage(saved.mensajeClientes ?? DEFAULT_MESSAGE_TEMPLATE);
-      toast.success({ title: 'Mensaje guardado', description: 'Se usará al enviar cotizaciones por WhatsApp o correo.' });
-    } catch {
-      toast.error({ title: 'No se pudo guardar', description: 'El almacenamiento está lleno o no está disponible. Tu mensaje anterior no se modificó.' });
-    }
-  }
-
   const update = (key: keyof WorkshopFormErrors, value: string) => {
     setValues((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: undefined }));
   };
 
-  function handleSave() {
-    const found = validateWorkshopForm(values);
+  /** One atomic write of data + message. Returns false (showing only the field errors) when the form is invalid or the write fails. */
+  async function save(): Promise<boolean> {
+    const current = valuesRef.current;
+    const found = validateWorkshopForm(current);
     setErrors(found);
-    if (Object.keys(found).length > 0) {
-      toast.error({ title: 'Revisa los datos', description: 'Corrige los campos marcados para guardar.' });
+    if (Object.keys(found).length > 0 || current.mensaje.length > MESSAGE_MAX) {
       window.requestAnimationFrame(() => focusFirstInvalid(pageRef.current ?? document));
-      return;
+      return false;
     }
     try {
-      const saved = saveBusinessInfo(applyDatos(values, base));
+      const sections = changedSections(toFormValues(baseRef.current), current);
+      const saved = saveBusinessInfo(buildSaveCandidate(current, baseRef.current));
+      // Refs first: a blocked navigation proceeds right after this and must already see a clean form.
+      baseRef.current = saved;
+      dirtyRef.current = false;
       setBase(saved);
-      setValues((current) => ({ ...toFormValues(saved), mensaje: current.mensaje }));
-      toast.success({ title: 'Datos del taller guardados', description: 'Las próximas cotizaciones en PDF usarán estos datos.' });
-    } catch {
-      toast.error({ title: 'No se pudo guardar', description: 'El almacenamiento está lleno o no está disponible. Tus datos anteriores no se modificaron.' });
+      setValues(toFormValues(saved));
+      toast.success(saveToastCopy(sections));
+      return true;
+    } catch (error) {
+      toast.error({ title: 'No se pudo guardar', description: userMessage(error, 'taller-guardar') });
+      return false;
     }
   }
+
+  function discard() {
+    const original = toFormValues(baseRef.current);
+    valuesRef.current = original;
+    dirtyRef.current = false;
+    setValues(original);
+    setErrors({});
+  }
+
+  /** Asks what to do with unsaved changes. Resolves true when it is fine to leave (saved or discarded). */
+  async function askToLeave(): Promise<boolean> {
+    const choice = await choose({
+      icon: 'save',
+      title: '¿Guardar los cambios?',
+      description: 'Cambiaste los datos del taller. Si sales sin guardar, se perderán.',
+      confirmLabel: 'Guardar',
+      secondaryLabel: 'Descartar',
+      cancelLabel: 'Seguir editando',
+    });
+    if (choice === 'primary') return save();
+    if (choice === 'secondary') {
+      discard();
+      return true;
+    }
+    return false;
+  }
+
+  useShortcut('save', () => { if (dirtyRef.current) void save(); });
+
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => shouldBlockNavigation(dirtyRef.current, currentLocation, nextLocation));
+  const askingRef = useRef(false);
+  useEffect(() => {
+    if (blocker.state !== 'blocked' || askingRef.current) return;
+    askingRef.current = true;
+    void askToLeave().then((canLeave) => {
+      askingRef.current = false;
+      if (canLeave) blocker.proceed();
+      else blocker.reset();
+    });
+    // askToLeave reads everything through refs, so only the blocker state drives this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blocker.state]);
 
   async function handleResetMessage() {
     const accepted = await confirm({
       title: '¿Restablecer el mensaje original?',
-      description: 'El texto del editor volverá al mensaje que trae la app. No se guarda hasta que pulses Guardar mensaje.',
+      description: 'El texto del editor volverá al mensaje que trae la app. No se guarda hasta que pulses Guardar cambios.',
       confirmLabel: 'Restablecer',
     });
     if (accepted) setMessage(DEFAULT_MESSAGE_TEMPLATE);
@@ -119,7 +166,7 @@ export function WorkshopPage() {
 
   return <div ref={pageRef} className="respaldo-page">
     <h1 className="sr-only">Datos del taller</h1>
-    <div className="mx-auto flex w-full max-w-[760px] flex-col gap-5 px-5 pb-10 pt-6 sm:px-8">
+    <div className="mx-auto flex w-full max-w-[760px] flex-col gap-5 px-5 pt-6 sm:px-8" style={{ paddingBottom: dirty ? 96 : 40 }}>
       <Card as="section">
         <CardHeader icon={<Store size={18} />} title="Datos del taller" subtitle="Aparecen en el encabezado y el pie de la cotización en PDF." />
         <FormRow label="Nombre" htmlFor={ids.nombre} required error={errors.nombre}>
@@ -139,7 +186,6 @@ export function WorkshopPage() {
         </FormRow>
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <button type="button" data-testid="taller-reset" className="taller-link" onClick={() => void handleReset()}>Restablecer valores originales</button>
-          <button type="button" data-testid="taller-save" className="mac-btn mac-btn-primary" onClick={handleSave}>Guardar</button>
         </div>
       </Card>
       <Card as="section">
@@ -172,9 +218,14 @@ export function WorkshopPage() {
         </div>
         <div className="flex items-center justify-between gap-3 px-4 pb-3">
           <button type="button" data-testid="taller-mensaje-reset" className="taller-link" disabled={message === DEFAULT_MESSAGE_TEMPLATE} onClick={() => void handleResetMessage()}>Restablecer mensaje original</button>
-          <button type="button" data-testid="taller-mensaje-save" className="mac-btn mac-btn-primary" disabled={!messageDirty || messageTooLong} onClick={handleSaveMessage}>Guardar mensaje</button>
         </div>
       </Card>
     </div>
+    {dirty && <div role="region" aria-label="Cambios sin guardar" data-testid="taller-savebar" className="taller-savebar">
+      <span className="taller-savebar-dot" aria-hidden="true" />
+      <p className="taller-savebar-text">Tienes cambios sin guardar</p>
+      <button type="button" data-testid="taller-discard" className="taller-link" onClick={discard}>Descartar</button>
+      <button type="button" data-testid="taller-save" className="mac-btn mac-btn-primary" onClick={() => void save()}>Guardar cambios</button>
+    </div>}
   </div>;
 }

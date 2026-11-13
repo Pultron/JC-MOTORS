@@ -18,3 +18,12 @@
 .taller-mail-subject { display: flex; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--color-mac-separator); color: var(--color-mac-ink); font-size: 13px; font-weight: 600; }
 .taller-mail-subject span { flex: none; color: var(--color-mac-ink-2); font-weight: 500; }
 .taller-mail-body { padding: 10px 12px; color: var(--color-mac-ink); font-size: 14px; line-height: 20px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Unsaved-changes bar: fixed to the bottom of the content area (clear of the fixed sidebar on wide screens). */
+.taller-savebar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 40; display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 12px 20px; border-top: .5px solid var(--color-mac-separator); background: rgb(255 255 255 / 92%); backdrop-filter: blur(16px) saturate(1.6); box-shadow: 0 -4px 18px rgb(0 0 0 / 6%); animation: tallerBarIn 180ms ease-out both; }
+@media (min-width: 1024px) { .taller-savebar { left: 264px; } }
+.taller-savebar-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: #ff9500; }
+.taller-savebar-text { margin: 0 auto 0 0; color: var(--color-mac-ink); font-size: 13px; font-weight: 500; }
+@keyframes tallerBarIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .taller-savebar { animation: none; } }
+@media print { .taller-savebar { display: none; } }

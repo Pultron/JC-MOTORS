@@ -30,3 +30,13 @@ test('messages already written for the user are kept untouched and not logged', 
     console.error = original;
   }
 });
+
+test('taller-guardar context keeps the edits-stay-on-screen wording and logs the detail', () => {
+  const original = console.error;
+  console.error = () => {};
+  try {
+    assert.match(userMessage(new Error('QuotaExceededError'), 'taller-guardar'), /siguen en pantalla/);
+  } finally {
+    console.error = original;
+  }
+});

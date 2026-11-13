@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DEFAULT_BUSINESS_INFO } from '../src/config/businessInfo.ts';
 import { DEFAULT_MESSAGE_TEMPLATE } from '../src/services/shareMessage.ts';
-import { applyDatos, insertAtCursor, isDirty, joinAddress, splitAddress, toFormValues, validateWorkshopForm } from '../src/services/workshopForm.ts';
+import { applyDatos, applyMensaje, buildSaveCandidate, changedSections, insertAtCursor, isDirty, saveToastCopy, shouldBlockNavigation, joinAddress, splitAddress, toFormValues, validateWorkshopForm } from '../src/services/workshopForm.ts';
 
 test('splitAddress: two lines, old single line, extra lines and CRLF', () => {
   assert.deepEqual(splitAddress('Av. Río #1\nCol. Morelos'), { calle: 'Av. Río #1', colonia: 'Col. Morelos' });
@@ -59,4 +59,38 @@ test('insertAtCursor inserts at the caret, replaces a selection and clamps bad o
   assert.deepEqual(insertAtCursor('abc', 2, 0, 'X'), { text: 'Xc', caret: 1 });
   assert.deepEqual(insertAtCursor('abc', 99, 99, 'X'), { text: 'abcX', caret: 4 });
   assert.deepEqual(insertAtCursor('', 0, 0, '{a}'), { text: '{a}', caret: 3 });
+});
+
+test('changedSections tells which part differs and ignores revert-to-original', () => {
+  const saved = toFormValues(DEFAULT_BUSINESS_INFO);
+  assert.equal(changedSections(saved, { ...saved }), 'ninguno');
+  assert.equal(changedSections(saved, { ...saved, nombre: 'Otro' }), 'datos');
+  assert.equal(changedSections(saved, { ...saved, mensaje: 'hola' }), 'mensaje');
+  assert.equal(changedSections(saved, { ...saved, correo: 'a@b.mx', mensaje: 'hola' }), 'ambos');
+});
+
+test('saveToastCopy: message-only gets its own title, everything else the generic one', () => {
+  assert.equal(saveToastCopy('mensaje').title, 'Mensaje para clientes guardado');
+  assert.equal(saveToastCopy('datos').title, 'Datos guardados');
+  assert.equal(saveToastCopy('ambos').title, 'Datos guardados');
+  assert.equal(saveToastCopy('datos').description, 'Los cambios del taller ya están activos en tus cotizaciones.');
+});
+
+test('applyMensaje stores the default or blank text as "no custom message"; buildSaveCandidate saves both parts', () => {
+  const base = { ...DEFAULT_BUSINESS_INFO, mensajeClientes: 'viejo' };
+  const values = toFormValues(base);
+  assert.equal('mensajeClientes' in applyMensaje({ ...values, mensaje: DEFAULT_MESSAGE_TEMPLATE }, base), false);
+  assert.equal('mensajeClientes' in applyMensaje({ ...values, mensaje: '   ' }, base), false);
+  assert.equal(applyMensaje({ ...values, mensaje: 'nuevo' }, base).mensajeClientes, 'nuevo');
+  const both = buildSaveCandidate({ ...values, nombre: 'Taller X', mensaje: 'nuevo' }, base);
+  assert.equal(both.nombre, 'Taller X');
+  assert.equal(both.mensajeClientes, 'nuevo');
+});
+
+test('shouldBlockNavigation only blocks a dirty form that moves to another location', () => {
+  const here = { pathname: '/taller', search: '' };
+  assert.equal(shouldBlockNavigation(false, here, { pathname: '/historial' }), false);
+  assert.equal(shouldBlockNavigation(true, here, { pathname: '/historial' }), true);
+  assert.equal(shouldBlockNavigation(true, here, { pathname: '/taller', search: '' }), false);
+  assert.equal(shouldBlockNavigation(true, here, { pathname: '/taller', search: '?x=1' }), true);
 });

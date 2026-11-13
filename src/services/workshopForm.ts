@@ -95,3 +95,40 @@ export function insertAtCursor(text: string, selStart: number, selEnd: number, i
   const end = Math.max(clamp(selStart), clamp(selEnd));
   return { text: text.slice(0, start) + insert + text.slice(end), caret: start + insert.length };
 }
+
+/** The message part over the stored info. The default text (or blank) is stored as "no custom message". */
+export function applyMensaje(values: WorkshopFormValues, base: BusinessInfo): BusinessInfo {
+  const { mensajeClientes: _previous, ...rest } = base;
+  const text = values.mensaje.trim();
+  return text === '' || text === DEFAULT_MESSAGE_TEMPLATE ? rest : { ...rest, mensajeClientes: values.mensaje };
+}
+
+/** Everything the page saves in one atomic write: data and message together. */
+export function buildSaveCandidate(values: WorkshopFormValues, base: BusinessInfo): BusinessInfo {
+  return applyMensaje(values, applyDatos(values, base));
+}
+
+export type ChangedSections = 'datos' | 'mensaje' | 'ambos' | 'ninguno';
+
+/** Which part of the form differs from the saved values; drives the wording of the save toast. */
+export function changedSections(saved: WorkshopFormValues, current: WorkshopFormValues): ChangedSections {
+  const datos = isDirty(saved, { ...current, mensaje: saved.mensaje });
+  const mensaje = isDirty(saved, { ...saved, mensaje: current.mensaje });
+  if (datos && mensaje) return 'ambos';
+  if (datos) return 'datos';
+  return mensaje ? 'mensaje' : 'ninguno';
+}
+
+export function saveToastCopy(sections: ChangedSections): { title: string; description: string } {
+  if (sections === 'mensaje') {
+    return { title: 'Mensaje para clientes guardado', description: 'Se usará al enviar cotizaciones por WhatsApp o correo.' };
+  }
+  return { title: 'Datos guardados', description: 'Los cambios del taller ya están activos en tus cotizaciones.' };
+}
+
+interface NavigationTarget { pathname: string; search?: string }
+
+/** Leaving is only "leaving" when the destination is another page; same-page updates (e.g. search params) pass. */
+export function shouldBlockNavigation(dirty: boolean, current: NavigationTarget, next: NavigationTarget): boolean {
+  return dirty && (current.pathname !== next.pathname || (current.search ?? '') !== (next.search ?? ''));
+}
