@@ -9,6 +9,8 @@ import { sanitizeMoneyInput, sanitizeSingleLine } from '../validation/fields';
 import { MAX_CONCEPTS } from './quotationLayout';
 
 export const TEMPLATE_NAME_MAX_LENGTH = 60;
+/** Fired on `window` after the saved concepts change, so the description suggestions can refresh. */
+export const TEMPLATES_CHANGED_EVENT = 'jc:templates-changed';
 
 /** A concept inside a template. `unitPrice` is only a suggestion: the user can edit it after applying. */
 export interface QuoteTemplateItem {
@@ -30,18 +32,18 @@ export type TemplateFailure = 'name-empty' | 'name-too-long' | 'name-duplicate' 
 export type TemplateResult<T = QuoteTemplate> = { ok: true; value: T } | { ok: false; reason: TemplateFailure };
 
 export const TEMPLATE_FAILURE_MESSAGES: Record<TemplateFailure, string> = {
-  'name-empty': 'Escribe un nombre para la plantilla.',
+  'name-empty': 'Escribe un nombre para el concepto.',
   'name-too-long': `El nombre admite máximo ${TEMPLATE_NAME_MAX_LENGTH} caracteres.`,
-  'name-duplicate': 'Ya tienes una plantilla con ese nombre.',
-  'no-items': 'Agrega al menos un concepto con descripción para guardar la plantilla.',
-  'not-found': 'Esa plantilla ya no existe.',
-  'storage-full': 'No hay espacio para guardar la plantilla. Libera espacio e inténtalo de nuevo.',
-  'storage-error': 'No se pudo guardar la plantilla. Inténtalo de nuevo.',
+  'name-duplicate': 'Ya tienes un concepto con ese nombre.',
+  'no-items': 'Agrega al menos un concepto con descripción para guardar el concepto.',
+  'not-found': 'Ese concepto ya no existe.',
+  'storage-full': 'No hay espacio para guardar el concepto. Libera espacio e inténtalo de nuevo.',
+  'storage-error': 'No se pudo guardar el concepto. Inténtalo de nuevo.',
 };
 
 const DAMAGED: GuardedReadOptions = {
   backupName: 'templates',
-  damagedMessage: 'Las plantillas estaban dañadas; se guardó una copia de respaldo',
+  damagedMessage: 'Los conceptos guardados estaban dañados; se guardó una copia de respaldo',
 };
 
 const compareKey = (name: string) => name.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLocaleLowerCase('es-MX');
@@ -120,6 +122,7 @@ export function appendTemplateItems(existing: readonly QuoteDraftItem[], templat
 function persist(templates: QuoteTemplate[]): TemplateFailure | null {
   try {
     writeRaw(STORAGE_KEYS.templates, JSON.stringify(templates));
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event(TEMPLATES_CHANGED_EVENT));
     return null;
   } catch (error) {
     return isQuotaError(error) ? 'storage-full' : 'storage-error';

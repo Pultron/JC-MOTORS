@@ -10,7 +10,7 @@ import type { CreateQuotationInput, Quotation } from '../models/quotation';
 import { DraftStorageFullError, quoteDraftService } from '../services/quoteDraftService';
 import type { TemporaryQuoteDraft } from '../services/quoteDraftService';
 import { MAX_CONCEPTS } from '../services/quotationLayout';
-import { appendTemplateItems } from '../services/quoteTemplateService';
+import { TEMPLATES_CHANGED_EVENT, appendTemplateItems, quoteTemplateService } from '../services/quoteTemplateService';
 import type { QuoteTemplate } from '../services/quoteTemplateService';
 import { MAX_CONCEPTS_MESSAGE, normalizeQuoteForm, validateQuoteForm } from '../services/quoteValidation';
 import { useCustomers } from '../store/CustomerContext';
@@ -169,9 +169,16 @@ export function useCotizacionForm() {
     setTouched((current) => keys.every((key) => current[key]) ? current : { ...current, ...Object.fromEntries(keys.map((key) => [key, true as const])) });
   }
 
+  // Description suggestions come only from the concepts the user saved in "Conceptos".
+  const [savedConcepts, setSavedConcepts] = useState(() => quoteTemplateService.list());
+  useEffect(() => {
+    const reload = () => setSavedConcepts(quoteTemplateService.list());
+    window.addEventListener(TEMPLATES_CHANGED_EVENT, reload);
+    return () => window.removeEventListener(TEMPLATES_CHANGED_EVENT, reload);
+  }, []);
   const suggestions = useMemo(() => Array.from(new Set(
-    quotations.flatMap((quote) => quote.items.map((item) => item.description)),
-  )).sort((a, b) => a.localeCompare(b, 'es-MX')), [quotations]);
+    savedConcepts.flatMap((concept) => concept.items.map((item) => item.description)),
+  )).sort((a, b) => a.localeCompare(b, 'es-MX')), [savedConcepts]);
 
   useEffect(() => {
     if (!dirty || recovery || editId) return;
@@ -290,9 +297,9 @@ export function useCotizacionForm() {
     updateField('items', result.items);
     setLimitError('');
     if (result.skipped > 0) {
-      toast.warning({ title: 'La plantilla no cupo completa', description: `Se agregaron ${result.added} de ${total} conceptos: el máximo es ${MAX_CONCEPTS} por cotización.` });
+      toast.warning({ title: 'El concepto no cupo completo', description: `Se agregaron ${result.added} de ${total} conceptos: el máximo es ${MAX_CONCEPTS} por cotización.` });
     } else {
-      toast.success({ title: 'Plantilla aplicada', description: `Se agregaron ${result.added} ${result.added === 1 ? 'concepto' : 'conceptos'} de “${template.name}”. Puedes editarlos.` });
+      toast.success({ title: 'Concepto agregado', description: `Se agregaron ${result.added} ${result.added === 1 ? 'concepto' : 'conceptos'} de “${template.name}”. Puedes editarlos.` });
     }
   }
 

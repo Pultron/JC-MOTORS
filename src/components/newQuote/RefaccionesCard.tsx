@@ -31,7 +31,7 @@ export function RefaccionesCard({ form, errors, suggestions, totalParts, onAdd, 
   const initialIds = useRef(new Set(form.items.map((item) => item.id)));
   const atLimit = form.items.length >= MAX_CONCEPTS;
   return <Card delayMs={70} className="@container">
-    <CardHeader icon={<Package size={18} />} title="Refacciones y materiales" subtitle="Agrega las refacciones y materiales a cotizar." trailing={<div className="flex items-center gap-2"><TemplatesMenu items={form.items} onApply={onApplyTemplate} /><span data-testid="contador-conceptos" data-level={conceptCounterLevel(form.items.length)} className="mac-concept-counter" aria-live="polite">Conceptos {form.items.length}/{MAX_CONCEPTS}</span></div>} />
+    <CardHeader icon={<Package size={18} />} title="Refacciones y materiales" subtitle="Agrega las refacciones y materiales a cotizar." trailing={<div className="flex items-center gap-2"><TemplatesMenu onApply={onApplyTemplate} /><span data-testid="contador-conceptos" data-level={conceptCounterLevel(form.items.length)} className="mac-concept-counter" aria-live="polite">Conceptos {form.items.length}/{MAX_CONCEPTS}</span></div>} />
     <div aria-hidden="true" className="hidden items-center gap-2 border-t border-mac-separator bg-mac-header-cols px-4 py-2 text-xs font-medium text-mac-ink-2 @[640px]:flex">
       <span className="min-w-0 flex-[1_1_220px]">Descripción</span>
       <span className="w-[72px]">Cantidad</span>

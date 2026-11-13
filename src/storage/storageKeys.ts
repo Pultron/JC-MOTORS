@@ -4,7 +4,7 @@ export const STORAGE_KEYS = {
   quoteDrafts: 'jc-motors:quote-drafts:v1',
   quoteAutosave: 'jc-motors:quote-autosave:v1',
   customers: 'jc-motors:customers:v1',
-  /** Plantillas de conceptos creadas por el usuario (máximo 50). */
+  /** Conceptos guardados por el usuario (sin límite de cantidad). */
   templates: 'jc-motors:templates:v1',
   internalControls: 'jc-motors:internal-controls:v1',
   internalCosts: 'jc-motors:internal-costs:v1',
