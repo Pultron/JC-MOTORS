@@ -9,6 +9,7 @@ import { useDebouncedValue } from '../../search/useDebouncedValue';
 import { QuotationActionsMenu } from '../QuotationActionsMenu';
 import { QuotationPdfDialog } from '../QuotationPdfDialog';
 import { ShareStatusLine } from '../share/ShareStatusLine';
+import { countPendingUnshared, pendingUnsharedText } from '../../services/shareFilter';
 import { StatusBadge } from '../StatusBadge';
 import { useCancelledQuotationDeletion } from '../../hooks/useCancelledQuotationDeletion';
 import { useQuotationActions } from '../../hooks/useQuotationActions';
@@ -55,6 +56,8 @@ export function QuotesTable() {
     return result;
   }, [sortedQuotations]);
 
+  const pendingUnshared = useMemo(() => countPendingUnshared(quotations), [quotations]);
+
   const searched = useMemo(() => searchQuotations(sortedQuotations, debouncedSearch), [sortedQuotations, debouncedSearch]);
   const filteredQuotations = useMemo(
     () => (status === 'Todas' ? searched : searched.filter((quotation) => quotation.status === status)),
@@ -90,6 +93,12 @@ export function QuotesTable() {
           <ChevronRight size={14} aria-hidden="true" />
         </Link>
       </div>
+
+      {pendingUnshared > 0 && (
+        <p className="px-5 pb-3 text-[12px]">
+          <Link to="/historial?estado=pendiente&envio=sin-compartir" data-testid="pendientes-sin-compartir" className="rounded-md font-semibold text-mac-accent-text underline-offset-2 transition-colors hover:text-mac-accent hover:underline">{pendingUnsharedText(pendingUnshared)}</Link>
+        </p>
+      )}
 
       <div className="flex flex-col gap-3 px-5 pb-4 lg:flex-row lg:items-center">
         <label className="inicio-search w-full lg:w-auto lg:flex-1">

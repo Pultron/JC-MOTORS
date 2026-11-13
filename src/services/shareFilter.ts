@@ -44,3 +44,13 @@ export function shareFilterEmptyTitle(filter: ShareFilter): string {
     default: return 'No hay cotizaciones';
   }
 }
+
+/** Pending quotations that were never shared. */
+export function countPendingUnshared(quotations: readonly (ShareRecord & { status: string })[]): number {
+  return quotations.filter((quotation) => quotation.status === 'Pendiente' && matchesShareFilter(quotation, 'sin-compartir')).length;
+}
+
+/** "3 pendientes sin compartir" / "1 pendiente sin compartir". */
+export function pendingUnsharedText(count: number): string {
+  return `${count} ${count === 1 ? 'pendiente' : 'pendientes'} sin compartir`;
+}
