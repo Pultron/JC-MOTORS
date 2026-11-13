@@ -159,7 +159,7 @@ export function TemplatesMenu({ items, onApply }: Props) {
           submitName();
         }} noValidate>
           <label htmlFor={nameInputId} className="jc-tpl-label">Nombre</label>
-          <input id={nameInputId} data-autofocus data-testid="plantillas-nombre" className="jc-tpl-input" value={name} maxLength={TEMPLATE_NAME_MAX_LENGTH + 20} autoComplete="off" placeholder="Ej. Afinación mayor" aria-invalid={Boolean(error)} aria-describedby={error ? nameErrorId : undefined} onChange={(event) => { setName(event.target.value); if (error) setError(''); }} />
+          <input id={nameInputId} data-autofocus data-testid="plantillas-nombre" className="jc-tpl-input" value={name} maxLength={TEMPLATE_NAME_MAX_LENGTH + 20} autoComplete="off" aria-required="true" aria-invalid={Boolean(error)} aria-describedby={error ? nameErrorId : undefined} onChange={(event) => { setName(event.target.value); if (error) setError(''); }} />
           <FieldError id={nameErrorId} message={error} className="pt-1" />
           {view.mode === 'save' && <p className="jc-tpl-note">Se guardan {plural(templateItemsFromForm(items).length)} con su descripción, cantidad y precio sugerido.</p>}
           <div className="jc-tpl-buttons">

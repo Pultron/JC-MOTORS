@@ -24,6 +24,7 @@ import { DISCOUNT_CLAMP_MESSAGES, clampDiscount } from '../utils/discountClamp';
 import { focusFirstInvalid } from '../utils/focusFirstInvalid';
 import { formatMoney } from '../utils/money';
 import { amountValue, formatPhone, normalizeEmail, normalizePlates, sanitizeSingleLine, stripLineBreaks, normalizePhone, parseDecimalStrict, phoneForStorage, PHONE_DIGITS } from '../validation/fields';
+import { titleCaseName } from '../validation/liveFormat';
 
 function blankItem(description = ''): QuoteDraftItem {
   return { id: createId(), type: 'part', description, quantity: '1', unitPrice: '' };
@@ -121,6 +122,7 @@ export function useCotizacionForm() {
   const [focusRequest, setFocusRequest] = useState(0);
   const [discountFlash, setDiscountFlash] = useState(0);
   const clampNotified = useRef(false);
+  const customerNameEdited = useRef(false);
   const [busy, setBusy] = useState(false);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [dirty, setDirty] = useState(false);
@@ -214,6 +216,7 @@ export function useCotizacionForm() {
 
   function updateCustomer(raw: string) {
     const value = stripLineBreaks(raw);
+    customerNameEdited.current = true;
     const match = customers.find((customer) => normalize(customer.name) === normalize(value)
       || customer.aliases.some((alias) => normalize(alias) === normalize(value)));
     setForm((current) => match ? {
@@ -225,14 +228,19 @@ export function useCotizacionForm() {
   function selectCustomer(id: string) {
     const customer = customers.find((item) => item.id === id);
     if (!customer) return;
+    customerNameEdited.current = false;
     setForm((current) => ({ ...current, customerId: id, customerName: customer.name, phone: formatPhone(customer.phone), email: customer.email ?? '' }));
     setDirty(true);
   }
 
   /** Blur on free-text fields that validate only on submit: collapses repeated spaces and trims. */
   function commitText(key: 'customerName' | 'make' | 'model') {
+    // Title case only applies to a name the user typed in this session and that is not a saved customer.
+    const titleCase = key === 'customerName' && customerNameEdited.current;
+    if (key === 'customerName') customerNameEdited.current = false;
     setForm((current) => {
-      const clean = sanitizeSingleLine(current[key]);
+      const cleaned = sanitizeSingleLine(current[key]);
+      const clean = titleCase && !current.customerId ? titleCaseName(cleaned) : cleaned;
       return clean === current[key] ? current : { ...current, [key]: clean };
     });
   }

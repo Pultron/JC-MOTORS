@@ -2,12 +2,13 @@ import { useId } from 'react';
 import { Car } from 'lucide-react';
 import type { QuoteFormData } from '../../models/quoteDraft';
 import { getVehicleModels, vehicleBrands } from '../../services/vehicleCatalog';
-import { MAX_YEAR, MIN_YEAR, sanitizePlatesInput } from '../../validation/fields';
+import { MAX_YEAR, MIN_YEAR } from '../../validation/fields';
 import { errorIdFor } from '../ui/FieldError';
+import { PlatesInput } from '../ui/PlatesInput';
 import { Select } from '../ui/Select';
 import { Card } from './primitives/Card';
 import { CardHeader } from './primitives/CardHeader';
-import { FormRow } from './primitives/FormRow';
+import { FormRow, describedByFor } from './primitives/FormRow';
 import { SearchCombobox } from './SearchCombobox';
 
 interface Props {
@@ -31,14 +32,14 @@ export function VehiculoCard({ form, errors, onChange, onBlurField, onCommitText
   return <div className="min-w-0 flex-[1_1_280px]">
     <Card allowOverflow>
       <CardHeader icon={<Car size={18} />} title="Datos del vehículo" />
-      <SearchCombobox label="Marca" required testId="vehiculo-marca" value={form.make} options={vehicleBrands.map((brand) => ({ value: brand, label: brand }))} onChange={selectMake} onSelect={selectMake} error={errors.make} onCommit={() => onCommitText('make')} placeholder="Busca o escribe" />
-      <SearchCombobox label="Modelo" required testId="vehiculo-modelo" value={form.model} options={models.map((model) => ({ value: model, label: model }))} onChange={(value) => onChange('model', value)} error={errors.model} onCommit={() => onCommitText('model')} placeholder="Busca o escribe" />
+      <SearchCombobox label="Marca" required testId="vehiculo-marca" value={form.make} options={vehicleBrands.map((brand) => ({ value: brand, label: brand }))} onChange={selectMake} onSelect={selectMake} error={errors.make} onCommit={() => onCommitText('make')} searchIcon />
+      <SearchCombobox label="Modelo" required testId="vehiculo-modelo" value={form.model} options={models.map((model) => ({ value: model, label: model }))} onChange={(value) => onChange('model', value)} error={errors.model} onCommit={() => onCommitText('model')} searchIcon />
       <FormRow label="Año" htmlFor={yearId} error={errors.year}>
-        <Select id={yearId} testId="vehiculo-anio" variant="row" invalid={Boolean(errors.year)} describedBy={errorIdFor(yearId, errors.year)} value={form.year} onChange={(value) => onChange('year', value)} placeholder="Seleccionar año" options={years.map((year) => ({ value: year, label: year }))} />
+        <Select id={yearId} testId="vehiculo-anio" variant="row" invalid={Boolean(errors.year)} describedBy={errorIdFor(yearId, errors.year)} value={form.year} onChange={(value) => onChange('year', value)} placeholder="Elegir" options={years.map((year) => ({ value: year, label: year }))} />
       </FormRow>
       <div className="overflow-hidden rounded-b-[14px]">
-        <FormRow label="Placas" htmlFor={platesId} error={errors.plates}>
-          <input id={platesId} data-testid="vehiculo-placas" className="mac-row-input uppercase" aria-invalid={Boolean(errors.plates)} aria-describedby={errorIdFor(platesId, errors.plates)} onBlur={() => onBlurField('plates')} value={form.plates} maxLength={16} onChange={(event) => onChange('plates', sanitizePlatesInput(event.target.value))} placeholder="ABC-123-A" />
+        <FormRow label="Placas" htmlFor={platesId} optional filled={form.plates !== ''} error={errors.plates}>
+          <PlatesInput id={platesId} data-testid="vehiculo-placas" className="mac-row-input uppercase" aria-invalid={Boolean(errors.plates)} aria-describedby={describedByFor(platesId, errors.plates, true)} onBlur={() => onBlurField('plates')} value={form.plates} maxLength={16} onValueChange={(value) => onChange('plates', value)} autoComplete="off" />
         </FormRow>
       </div>
     </Card>

@@ -4,10 +4,9 @@ import type { QuoteFormData } from '../../models/quoteDraft';
 import type { CustomerProfile } from '../../models/quotation';
 import { Card } from './primitives/Card';
 import { CardHeader } from './primitives/CardHeader';
-import { PHONE_MAX_LENGTH, phoneFromPaste, sanitizePhoneInput } from '../../validation/fields';
-import { errorIdFor } from '../ui/FieldError';
+import { PhoneInput } from '../ui/PhoneInput';
 import { EmailInput } from '../ui/EmailInput';
-import { FormRow } from './primitives/FormRow';
+import { FormRow, describedByFor } from './primitives/FormRow';
 import { SearchCombobox } from './SearchCombobox';
 
 interface Props {
@@ -27,20 +26,13 @@ export function ClienteCard({ form, errors, customers, onChange, onCustomerChang
   return <div className="min-w-0 flex-[1_1_280px]">
     <Card allowOverflow>
       <CardHeader icon={<User size={18} />} title="Datos del cliente" />
-      <SearchCombobox label="Nombre" required testId="cliente-nombre" value={form.customerName} options={customers.map((customer) => ({ value: customer.id, label: customer.name, detail: `${customer.phone} ${customer.aliases.join(', ')}` }))} onChange={onCustomerChange} onSelect={onSelectCustomer} error={errors.customerName} onCommit={() => onCommitText('customerName')} placeholder="Buscar por nombre o teléfono" actionLabel="Crear nuevo cliente" onAction={() => onCustomerChange(form.customerName)} />
-      <FormRow label="Teléfono" htmlFor={phoneId} error={errors.phone}>
-        <input id={phoneId} data-testid="cliente-telefono" type="tel" className="mac-row-input" aria-invalid={Boolean(errors.phone)} aria-describedby={errorIdFor(phoneId, errors.phone)} value={form.phone} inputMode="tel" maxLength={PHONE_MAX_LENGTH} onChange={(event) => onChange('phone', sanitizePhoneInput(event.target.value))} onPaste={(event) => {
-          // A pasted "+52 (667) 351-8806" is longer than maxLength, so the paste is resolved here instead of being truncated.
-          event.preventDefault();
-          const input = event.currentTarget;
-          const start = input.selectionStart ?? input.value.length;
-          const end = input.selectionEnd ?? start;
-          onChange('phone', phoneFromPaste(input.value.slice(0, start) + event.clipboardData.getData('text') + input.value.slice(end)));
-        }} onBlur={() => onBlurField('phone')} placeholder="10 dígitos, sin lada internacional" />
+      <SearchCombobox label="Nombre" required testId="cliente-nombre" value={form.customerName} options={customers.map((customer) => ({ value: customer.id, label: customer.name, detail: `${customer.phone} ${customer.aliases.join(', ')}` }))} onChange={onCustomerChange} onSelect={onSelectCustomer} error={errors.customerName} onCommit={() => onCommitText('customerName')} searchIcon actionLabel="Crear nuevo cliente" onAction={() => onCustomerChange(form.customerName)} />
+      <FormRow label="Teléfono" htmlFor={phoneId} optional filled={form.phone !== ''} error={errors.phone}>
+        <PhoneInput id={phoneId} data-testid="cliente-telefono" className="mac-row-input" aria-invalid={Boolean(errors.phone)} aria-describedby={describedByFor(phoneId, errors.phone, true)} value={form.phone} onValueChange={(value) => onChange('phone', value)} onBlur={() => onBlurField('phone')} />
       </FormRow>
       <div className="overflow-hidden rounded-b-[14px]">
-        <FormRow label="Correo" htmlFor={emailId} error={errors.email}>
-          <EmailInput id={emailId} data-testid="cliente-correo" anchorSelector=".mac-row" className="mac-row-input" aria-invalid={Boolean(errors.email)} aria-describedby={errorIdFor(emailId, errors.email)} onBlur={() => onBlurField('email')} value={form.email} onValueChange={(value) => onChange('email', value)} placeholder="cliente@correo.com" />
+        <FormRow label="Correo" htmlFor={emailId} optional filled={form.email !== ''} error={errors.email}>
+          <EmailInput id={emailId} data-testid="cliente-correo" anchorSelector=".mac-row" className="mac-row-input" aria-invalid={Boolean(errors.email)} aria-describedby={describedByFor(emailId, errors.email, true)} onBlur={() => onBlurField('email')} value={form.email} onValueChange={(value) => onChange('email', value)} />
         </FormRow>
       </div>
     </Card>
