@@ -77,7 +77,7 @@
 .profit-status-filter .profit-select { font-size: 12px; width: 132px; display: flex; align-items: center; gap: 6px; text-align: left; }
 .profit-table-scroll { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 380px); min-height: 120px; }
 .profit-table { width: 100%; min-width: 700px; border-collapse: separate; border-spacing: 0; text-align: left; font-size: 13px; }
-.profit-table th { background: #fff; border-bottom: 1px solid rgba(60, 60, 67, .14); color: var(--ink-2); padding: 10px; font-size: 12px; font-weight: 500; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+.profit-table th { background: #f5f5f7; color: var(--ink-2); padding: 10px; font-size: 12px; font-weight: 500; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
 .profit-table th:nth-child(n+3):nth-child(-n+6) { text-align: right; }
 .profit-table td:nth-child(n+3):nth-child(-n+6) { text-align: right; }
 .profit-table th:first-child { border-radius: 8px 0 0 8px; padding-left: 12px; }
@@ -89,7 +89,7 @@
 .profit-vehicle { display: block; color: var(--ink-2); font-size: 12px; margin-top: 2px; }
 .profit-table tr { cursor: pointer; transition: background-color .18s; }
 .profit-table tbody tr, .profit-table tbody tr:hover { background: #fff; }
-.profit-table tr.is-selected, .profit-table tbody tr.is-selected:hover { background: #fff5ee; }
+.profit-table tr.is-selected, .profit-table tbody tr.is-selected:hover { background: #fff; }
 .profit-table tr.is-selected td:first-child { box-shadow: inset 3px 0 0 var(--orange); }
 .profit-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
 .profit-badge-complete { background: #c9eed6; color: #0c6a2f; }
