@@ -9,12 +9,14 @@ import { customersNamed, resolveCustomerSave } from '../services/customerMatchin
 import { useCustomers } from '../store/CustomerContext';
 import { FieldError, errorIdFor } from '../components/ui/FieldError';
 import { EmailInput } from '../components/ui/EmailInput';
+import { PhoneInput } from '../components/ui/PhoneInput';
+import { titleCaseName } from '../validation/liveFormat';
 import { usePlatform, useShortcut } from '../hooks/useShortcuts';
 import { withShortcutHint } from '../utils/shortcuts';
 import { focusFirstInvalid } from '../utils/focusFirstInvalid';
 import {
-  PHONE_DIGITS, PHONE_MAX_LENGTH, formatPhone, normalizeEmail, normalizePhone, phoneForStorage, phoneFromPaste,
-  sanitizePhoneInput, sanitizeSingleLine, stripLineBreaks, validateEmail, validatePhone,
+  PHONE_DIGITS, formatPhone, normalizeEmail, normalizePhone, phoneForStorage,
+  sanitizeSingleLine, stripLineBreaks, validateEmail, validatePhone,
 } from '../validation/fields';
 import '../styles/clientes.css';
 
@@ -101,6 +103,8 @@ export function CustomersPage() {
   const nameRef = useRef<HTMLInputElement>(null);
   const aliasRef = useRef<HTMLInputElement>(null);
   const flashSeq = useRef(0);
+  /** True once the user typed in the name field; stored names are never re-cased unless they are edited. */
+  const nameEdited = useRef(false);
   const flashTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => () => window.clearTimeout(flashTimer.current), []);
@@ -139,6 +143,7 @@ export function CustomersPage() {
   }
 
   function resetForm() {
+    nameEdited.current = false;
     setDraft(emptyDraft());
     setAliases([]);
     setAliasText('');
@@ -148,6 +153,7 @@ export function CustomersPage() {
   }
 
   function editCustomer(customer: CustomerProfile) {
+    nameEdited.current = false;
     // Stored values are only displayed (a 10-digit phone formatted); nothing is rewritten until the user saves.
     setDraft({ name: customer.name, phone: formatPhone(customer.phone), email: customer.email ?? '' });
     setTouched({});
@@ -161,6 +167,7 @@ export function CustomersPage() {
   }
 
   function changeName(event: ChangeEvent<HTMLInputElement>) {
+    nameEdited.current = true;
     setDraft((current) => ({ ...current, name: event.target.value }));
     if (error) setError('');
   }
@@ -202,17 +209,13 @@ export function CustomersPage() {
     aliasRef.current?.focus();
   }
 
-  function changePhone(value: string) {
-    setDraft((current) => ({ ...current, phone: value }));
+  function blurName() {
+    if (!nameEdited.current) return;
+    setDraft((current) => ({ ...current, name: titleCaseName(current.name) }));
   }
 
-  function pastePhone(event: ClipboardEvent<HTMLInputElement>) {
-    // A pasted "+52 (667) 351-8806" is longer than maxLength, so the paste is resolved here instead of being truncated.
-    event.preventDefault();
-    const input = event.currentTarget;
-    const start = input.selectionStart ?? input.value.length;
-    const end = input.selectionEnd ?? start;
-    changePhone(phoneFromPaste(input.value.slice(0, start) + event.clipboardData.getData('text') + input.value.slice(end)));
+  function changePhone(value: string) {
+    setDraft((current) => ({ ...current, phone: value }));
   }
 
   function blurPhone() {
@@ -235,7 +238,7 @@ export function CustomersPage() {
   async function saveCustomer() {
     setError('');
 
-    const name = sanitizeSingleLine(draft.name);
+    const name = nameEdited.current ? titleCaseName(draft.name) : sanitizeSingleLine(draft.name);
     const phoneValid = validatePhone(draft.phone).ok;
     const emailValid = validateEmail(sanitizeSingleLine(draft.email)).ok;
     if (!name || !phoneValid || !emailValid) {
@@ -323,23 +326,24 @@ export function CustomersPage() {
             <div className="cli-group">
               <div className="cli-row" data-invalid={error ? 'true' : undefined}>
                 <label htmlFor="cli-name" className="cli-label">Nombre real <span className="cli-req" aria-hidden="true">*</span></label>
-                <input ref={nameRef} id="cli-name" data-testid="cli-name" className="cli-input" value={draft.name} onChange={changeName} placeholder="Ej. Jesús Pérez" required aria-required="true" aria-invalid={error ? 'true' : undefined} autoComplete="off" />
+                <input ref={nameRef} id="cli-name" data-testid="cli-name" className="cli-input" value={draft.name} onChange={changeName} onBlur={blurName} required aria-required="true" aria-invalid={error ? 'true' : undefined} autoComplete="off" />
                 {error && <span role="alert" className="cli-error" data-testid="cli-error">{error}</span>}
               </div>
               <div className="cli-row" data-invalid={phoneError ? 'true' : undefined}>
                 <label htmlFor="cli-phone" className="cli-label">Teléfono</label>
                 <div className="cli-field">
-                  <input id="cli-phone" data-testid="cli-phone" className="cli-input" type="tel" inputMode="tel" maxLength={PHONE_MAX_LENGTH} value={draft.phone} onChange={(event) => changePhone(sanitizePhoneInput(event.target.value))} onPaste={pastePhone} onBlur={blurPhone} aria-invalid={phoneError ? 'true' : undefined} aria-describedby={errorIdFor('cli-phone', phoneError)} placeholder="10 dígitos, sin lada internacional" autoComplete="off" />
+                  <PhoneInput id="cli-phone" data-testid="cli-phone" className="cli-input" value={draft.phone} onValueChange={changePhone} onBlur={blurPhone} aria-invalid={phoneError ? 'true' : undefined} aria-describedby={[errorIdFor('cli-phone', phoneError), 'cli-phone-optional'].filter(Boolean).join(' ')} />
                   <FieldError id="cli-phone-error" message={phoneError} />
                 </div>
+                {draft.phone === '' && <span id="cli-phone-optional" className="cli-aux">Opcional</span>}
               </div>
               <div className="cli-row" data-invalid={emailError ? 'true' : undefined}>
                 <label htmlFor="cli-email" className="cli-label">Correo</label>
                 <div className="cli-field">
-                  <EmailInput id="cli-email" data-testid="cli-email" anchorSelector=".cli-field" className="cli-input" value={draft.email} onValueChange={(email) => setDraft((current) => ({ ...current, email: stripLineBreaks(email) }))} onBlur={blurEmail} aria-invalid={emailError ? 'true' : undefined} aria-describedby={errorIdFor('cli-email', emailError)} placeholder="cliente@correo.com" autoComplete="off" />
+                  <EmailInput id="cli-email" data-testid="cli-email" anchorSelector=".cli-field" className="cli-input" value={draft.email} onValueChange={(email) => setDraft((current) => ({ ...current, email: stripLineBreaks(email) }))} onBlur={blurEmail} aria-invalid={emailError ? 'true' : undefined} aria-describedby={[errorIdFor('cli-email', emailError), 'cli-email-optional'].filter(Boolean).join(' ')} autoComplete="off" />
                   <FieldError id="cli-email-error" message={emailError} />
                 </div>
-                <span className="cli-aux">Opcional</span>
+                {draft.email === '' && <span id="cli-email-optional" className="cli-aux">Opcional</span>}
               </div>
               <div className="cli-row cli-row--chips">
                 <label htmlFor="cli-alias-input" className="cli-label">Apodos</label>
@@ -350,11 +354,12 @@ export function CustomersPage() {
                       <button type="button" aria-label={`Quitar apodo ${alias}`} onClick={() => removeAlias(alias)}><X size={9} strokeWidth={3.4} aria-hidden="true" /></button>
                     </span>
                   ))}
-                  <input ref={aliasRef} id="cli-alias-input" data-testid="cli-alias-input" className="cli-input cli-input--chip" value={aliasText} onChange={changeAliasText} onKeyDown={keyAlias} onPaste={pasteAliases} placeholder={aliases.length === 0 ? 'Ej. Chuy, Chucho' : undefined} autoComplete="off" />
+                  <input ref={aliasRef} id="cli-alias-input" data-testid="cli-alias-input" className="cli-input cli-input--chip" value={aliasText} onChange={changeAliasText} onKeyDown={keyAlias} onPaste={pasteAliases} aria-describedby="cli-alias-optional cli-alias-help" autoComplete="off" />
                 </div>
-                <span className="cli-aux">Enter o coma para separar</span>
+                {aliases.length === 0 && aliasText === '' && <span id="cli-alias-optional" className="cli-aux">Opcional</span>}
               </div>
             </div>
+            <p id="cli-alias-help" className="cli-note">Separa los apodos con Enter o coma.</p>
 
             <div className="cli-foot">
               {editing && <button type="button" className="cli-btn cli-btn--secondary" data-testid="cli-cancel" onClick={resetForm}>Cancelar</button>}
