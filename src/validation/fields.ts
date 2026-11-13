@@ -52,17 +52,18 @@ export function formatPhone(raw: string): string {
   return digits.length === PHONE_DIGITS ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}` : raw;
 }
 
-/** Keeps only phone characters (digits, spaces, parentheses, + and -). Safe on every keystroke. */
+/** Keeps only phone characters (digits, spaces, parentheses, + and -) and drops every digit after the 10th. Safe on every keystroke. */
 export function sanitizePhoneInput(text: string): string {
-  return text.replace(/[^\d\s()+-]/g, '');
+  let digits = 0;
+  return text.replace(/[^\d\s()+-]/g, '').replace(/\d/g, (digit) => (++digits <= PHONE_DIGITS ? digit : ''));
 }
 
 /** Pasted text: a valid 10-digit number (with or without 52 / 521) is shown formatted; the rest is kept so the length error can say what is wrong. */
 export function phoneFromPaste(text: string): string {
-  const filtered = sanitizePhoneInput(text).trim();
+  const filtered = text.replace(/[^\d\s()+-]/g, '').trim();
   const digits = normalizePhone(filtered);
   if (digits.length === PHONE_DIGITS) return formatPhone(digits);
-  return filtered.length > PHONE_MAX_LENGTH ? digits.slice(0, PHONE_MAX_LENGTH) : filtered;
+  return filtered.length > PHONE_MAX_LENGTH ? digits.slice(0, PHONE_DIGITS) : filtered;
 }
 
 /** Value to persist: the 10 normalized digits when valid, otherwise the trimmed text so legacy data is never rewritten. */

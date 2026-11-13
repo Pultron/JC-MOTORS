@@ -97,6 +97,8 @@ test('#005 phone paste and input helpers', async () => {
   assert.equal(phoneFromPaste('52 667 351 8806'), '(667) 351-8806');
   assert.equal(phoneFromPaste('521 667 351 8806'), '(667) 351-8806');
   assert.equal(phoneFromPaste('6673518'), '6673518');
-  assert.equal(phoneFromPaste('+1 (555) 123-4567 ext 99'), '1555123456799');
+  assert.equal(phoneFromPaste('+1 (555) 123-4567 ext 99'), '1555123456');
+  assert.equal(sanitizePhoneInput('123456789000000'), '1234567890');
+  assert.equal(sanitizePhoneInput('(667) 351-88069'), '(667) 351-8806');
   assert.equal(sanitizePhoneInput('66a7-3b'), '667-3');
 });
