@@ -20,7 +20,7 @@ const C = {
   navy: '#13294B', orange: '#F97316', orangeDark: '#C2410C', orangeLight: '#FF8A3D',
   text: '#13294B', text2: '#2B3B52', muted: '#4B5B70',
   card: '#F3F6FA', line: '#E3E9F1', sep: '#D5DEEA',
-  obsBg: '#FFF7ED', green: '#1B7A3E', white: '#FFFFFF',
+  obsBg: '#FFF7ED', laborBg: '#FFF3E8', laborBadge: '#FDE3CF', green: '#1B7A3E', white: '#FFFFFF',
 } as const;
 
 const RIGHT = PAGE_W - MARGIN_X;
@@ -250,12 +250,34 @@ function drawTable(page: Page, mode: Mode, sheet: Sheet, y: number): number {
   sheet.filas.forEach((item, index) => {
     const height = sheet.altos[index];
     page.font({ size: mode.rowFont });
+    const isLabor = item.type === 'labor';
+    const isLast = index === sheet.filas.length - 1;
     const lines = page.doc.splitTextToSize(item.description || '—', mm(rowTextWidth(mode))) as string[];
     const textTop = rowY + (height - lines.length * mode.rowFont * LINE) / 2;
-    page.text(lines, MARGIN_X + 16, textTop, { size: mode.rowFont, color: C.text });
+    const textX = MARGIN_X + (isLabor ? 20 : 16);
+    if (isLabor) {
+      // Labor rows get a peach background and an orange edge; the last row must follow the table's rounded corners.
+      if (isLast) {
+        page.rect(MARGIN_X, rowY, CONTENT_W, height, C.laborBg, radius);
+        page.rect(MARGIN_X, rowY, CONTENT_W, radius, C.laborBg);
+      } else {
+        page.rect(MARGIN_X, rowY, CONTENT_W, height, C.laborBg);
+      }
+      page.rect(MARGIN_X, rowY, 4, height - (isLast ? radius * 0.6 : 0), C.orange);
+    }
+    page.text(lines, textX, textTop, { size: mode.rowFont, color: C.text });
+    if (isLabor) {
+      const badgeFont = Math.max(7, mode.rowFont * 0.7);
+      const badgeW = page.width('M.O.', { size: badgeFont, bold: true }) + 12;
+      const badgeH = badgeFont * 1.9;
+      const badgeX = textX + page.width(lines[0], { size: mode.rowFont }) + 10;
+      const badgeY = textTop + (mode.rowFont * LINE - badgeH) / 2;
+      page.rect(badgeX, badgeY, badgeW, badgeH, C.laborBadge, 3);
+      page.middle('M.O.', badgeX + badgeW / 2, badgeY, badgeH, { size: badgeFont, bold: true, color: C.orangeDark, align: 'center' });
+    }
     page.middle(String(item.quantity), qtyX + mode.colQty / 2, rowY, height, { size: mode.rowFont, color: C.text, align: 'center' });
     page.middle(formatMoney(item.saleUnitPrice, 'pdf'), priceEnd - 16, rowY, height, { size: mode.rowFont, color: C.text2, align: 'right' });
-    page.middle(formatMoney(item.amount, 'pdf'), RIGHT - 16, rowY, height, { size: mode.rowFont, bold: true, color: C.navy, align: 'right' });
+    page.middle(formatMoney(item.amount, 'pdf'), RIGHT - 16, rowY, height, { size: mode.rowFont, bold: true, color: isLabor ? C.orangeDark : C.navy, align: 'right' });
     if (index < sheet.filas.length - 1) page.hline(MARGIN_X, RIGHT, rowY + height, C.line);
     rowY += height;
   });
