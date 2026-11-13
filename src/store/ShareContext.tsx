@@ -98,7 +98,7 @@ export function ShareProvider({ children }: { children: ReactNode }) {
           console.error('[compartir] registro', cause);
         }
       }
-      setFlow({ step: 'done', quotation, medium, contact, message, path, native: Boolean(invoke), clipboardOk, opened });
+      setFlow({ step: 'done', recipient: quotation.customer.name, medium, contact, message, path, native: Boolean(invoke), clipboardOk, opened });
     } finally {
       running.current = false;
       setBusy(false);

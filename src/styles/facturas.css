@@ -39,7 +39,9 @@
 .fac-bar { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; background: rgb(245 245 247 / 82%); backdrop-filter: blur(20px) saturate(1.6); border-bottom: 1px solid rgb(60 60 67 / 10%); }
 .fac-bar-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .fac-bar-title strong { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
-.fac-bar-actions { display: flex; gap: 8px; }
+.fac-bar-heading { display: flex; flex-direction: column; min-width: 0; }
+.fac-bar-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.fac-btn-secondary[data-available="false"] { color: #75757b; }
 .fac-btn-secondary { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid rgb(60 60 67 / 18%); border-radius: 8px; background: #fff; color: #1d1d1f; font: 500 12.5px var(--font-mac); cursor: pointer; transition: background 180ms var(--ease), transform 180ms var(--ease); }
 .fac-btn-secondary:hover:not(:disabled) { background: #f5f5f7; }
 .fac-btn-secondary:disabled { opacity: .55; cursor: progress; }

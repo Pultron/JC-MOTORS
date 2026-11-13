@@ -12,11 +12,14 @@ import { formatPhone, normalizeEmail, validateEmail, validatePhone } from '../..
 
 /** Result of one share attempt, shown in the persistent sheet. */
 export interface ShareDoneState {
-  quotation: Quotation;
+  /** Who it was sent to (shown in the result text). */
+  recipient: string;
+  /** What was attached: quotations are always PDFs, invoices keep their original (PDF or XML). */
+  fileLabel?: 'PDF' | 'XML';
   medium: ShareMedium;
   contact: ShareContact;
   message: { subject: string; text: string };
-  /** Saved PDF (native app only). */
+  /** Saved file (native app only). */
   path: string | null;
   native: boolean;
   clipboardOk: boolean;
@@ -46,7 +49,7 @@ export function ShareDialogs({ flow, busy, canUse, contactOf, onClose, onShare, 
   if (!flow) return null;
   if (flow.step === 'saved') return <SavedSheet key="saved" quotation={flow.quotation} busy={busy} canUse={canUse} onClose={onClose} onShare={onShare} />;
   if (flow.step === 'missing') {
-    return <MissingContactDialog key={`missing-${flow.medium}`} quotation={flow.quotation} medium={flow.medium} initial={contactOf(flow.quotation)} alternative={canUse(flow.quotation, otherMedium(flow.medium)) ? otherMedium(flow.medium) : null} busy={busy} onClose={onClose} onShare={onShare} onSaveAndSend={onSaveAndSend} />;
+    return <MissingContactDialog key={`missing-${flow.medium}`} target={flow.quotation} name={flow.quotation.customer.name} docNoun="cotización" note="Se guardará en los datos del cliente." medium={flow.medium} initial={contactOf(flow.quotation)} alternative={canUse(flow.quotation, otherMedium(flow.medium)) ? otherMedium(flow.medium) : null} busy={busy} onClose={onClose} onShare={onShare} onSaveAndSend={onSaveAndSend} />;
   }
   return <DoneSheet key="done" state={flow} onClose={onClose} onReveal={onReveal} onOpenGmail={onOpenGmail} />;
 }
@@ -54,7 +57,7 @@ export function ShareDialogs({ flow, busy, canUse, contactOf, onClose, onShare, 
 // ---- Shared shell ----------------------------------------------------------------------------------------------
 
 /** Native modal <dialog>: it stacks above the PDF preview (also a modal <dialog>) and toasts render inside it. */
-function Sheet({ labelId, busy = false, onClose, children }: { labelId: string; busy?: boolean; onClose: () => void; children: ReactNode }) {
+export function Sheet({ labelId, busy = false, onClose, children }: { labelId: string; busy?: boolean; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -74,7 +77,7 @@ function Sheet({ labelId, busy = false, onClose, children }: { labelId: string; 
   );
 }
 
-function MediumIcon({ medium, size = 16 }: { medium: ShareMedium; size?: number }) {
+export function MediumIcon({ medium, size = 16 }: { medium: ShareMedium; size?: number }) {
   return medium === 'whatsapp' ? <MessageCircle size={size} aria-hidden="true" /> : <Mail size={size} aria-hidden="true" />;
 }
 
@@ -117,15 +120,21 @@ export function ShareButton({ medium, active, busy = false, onClick, className =
 
 // ---- Missing contact -------------------------------------------------------------------------------------------
 
-interface MissingProps {
-  quotation: Quotation;
+interface MissingProps<T> {
+  /** What is being shared (a quotation or an invoice); handed back untouched to the callbacks. */
+  target: T;
+  /** Name shown in the title ("<name> no tiene teléfono registrado"). */
+  name: string;
+  docNoun: 'cotización' | 'factura';
+  /** Small print under the field: where the value will be kept. */
+  note: string;
   medium: ShareMedium;
   initial: ShareContact;
   alternative: ShareMedium | null;
   busy: boolean;
   onClose: () => void;
-  onShare: ShareDialogsProps['onShare'];
-  onSaveAndSend: ShareDialogsProps['onSaveAndSend'];
+  onShare: (target: T, medium: ShareMedium) => void;
+  onSaveAndSend: (target: T, medium: ShareMedium, value: string) => void;
 }
 
 function validateMissing(medium: ShareMedium, value: string): string {
@@ -136,7 +145,7 @@ function validateMissing(medium: ShareMedium, value: string): string {
   return hasEmailMedium({ phone: '', email: value }) ? '' : 'Usa un correo sin acentos ni caracteres especiales.';
 }
 
-function MissingContactDialog({ quotation, medium, initial, alternative, busy, onClose, onShare, onSaveAndSend }: MissingProps) {
+export function MissingContactDialog<T>({ target, name, docNoun, note, medium, initial, alternative, busy, onClose, onShare, onSaveAndSend }: MissingProps<T>) {
   const titleId = useId();
   const fieldId = useId();
   const [value, setValue] = useState(() => (medium === 'whatsapp' ? formatPhone(initial.phone) : initial.email));
@@ -145,7 +154,7 @@ function MissingContactDialog({ quotation, medium, initial, alternative, busy, o
   function submit() {
     const found = validateMissing(medium, value);
     setError(found);
-    if (!found) onSaveAndSend(quotation, medium, value);
+    if (!found) onSaveAndSend(target, medium, value);
   }
 
   const noun = medium === 'whatsapp' ? 'teléfono' : 'correo';
@@ -161,9 +170,9 @@ function MissingContactDialog({ quotation, medium, initial, alternative, busy, o
 
   return (
     <Sheet labelId={titleId} busy={busy} onClose={onClose}>
-      <h2 id={titleId} className="text-lg font-bold text-navy-950">{quotation.customer.name} no tiene {noun} registrado</h2>
+      <h2 id={titleId} className="text-lg font-bold text-navy-950">{name} no tiene {noun} registrado</h2>
       <p className="mt-1 text-sm text-slate-500">
-        {medium === 'whatsapp' ? 'Escribe su teléfono de 10 dígitos para abrir WhatsApp con la cotización.' : 'Escribe su correo para abrir tu correo con la cotización.'}
+        {medium === 'whatsapp' ? `Escribe su teléfono de 10 dígitos para abrir WhatsApp con la ${docNoun}.` : `Escribe su correo para abrir tu correo con la ${docNoun}.`}
       </p>
       <div className="mt-4">
         <label htmlFor={fieldId} className="mb-1 block text-xs font-medium text-slate-500">{medium === 'whatsapp' ? 'Teléfono' : 'Correo'}</label>
@@ -172,10 +181,10 @@ function MissingContactDialog({ quotation, medium, initial, alternative, busy, o
           : <EmailInput {...common} onKeyDown={onEnter} autoFocus placeholder="nombre@dominio.com" value={value} onValueChange={(next) => { setValue(next); setError(''); }} />}
         <FieldError id={`${fieldId}-error`} message={error} className="pt-1" />
       </div>
-      <p className="mt-2 text-xs text-slate-400">Se guardará en los datos del cliente.</p>
+      <p className="mt-2 text-xs text-slate-400">{note}</p>
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         {alternative
-          ? <button type="button" data-testid="share-instead" disabled={busy} className="text-sm font-medium text-mac-accent-text underline-offset-2 hover:underline disabled:opacity-50" onClick={() => onShare(quotation, alternative)}>Enviar por {MEDIUM_LABEL[alternative]} en su lugar</button>
+          ? <button type="button" data-testid="share-instead" disabled={busy} className="text-sm font-medium text-mac-accent-text underline-offset-2 hover:underline disabled:opacity-50" onClick={() => onShare(target, alternative)}>Enviar por {MEDIUM_LABEL[alternative]} en su lugar</button>
           : <span />}
         <div className="flex gap-2">
           <Button variant="secondary" disabled={busy} data-testid="share-cancel" onClick={onClose}>Cancelar</Button>
@@ -189,29 +198,29 @@ function MissingContactDialog({ quotation, medium, initial, alternative, busy, o
 // ---- Result ----------------------------------------------------------------------------------------------------
 
 function doneText(state: ShareDoneState): string {
-  const { medium, opened, native, clipboardOk, quotation } = state;
-  const name = quotation.customer.name;
+  const { medium, opened, native, clipboardOk, recipient } = state;
+  const file = state.fileLabel ?? 'PDF';
   if (!opened) {
     return native
-      ? `No se pudo abrir ${medium === 'whatsapp' ? 'WhatsApp' : 'tu correo'}. El PDF quedó guardado: muéstralo en la carpeta y envíalo a mano.`
-      : 'No se pudo abrir la ventana de envío. El PDF se descargó: adjúntalo a mano.';
+      ? `No se pudo abrir ${medium === 'whatsapp' ? 'WhatsApp' : 'tu correo'}. El ${file} quedó guardado: muéstralo en la carpeta y envíalo a mano.`
+      : `No se pudo abrir la ventana de envío. El ${file} se descargó: adjúntalo a mano.`;
   }
   if (!native) {
     return medium === 'whatsapp'
-      ? `Se abrió WhatsApp con ${name}. El PDF se descargó: adjúntalo desde tus descargas y presiona Enviar.`
-      : 'Se abrió tu correo. El PDF se descargó: adjúntalo desde tus descargas.';
+      ? `Se abrió WhatsApp con ${recipient}. El ${file} se descargó: adjúntalo desde tus descargas y presiona Enviar.`
+      : `Se abrió tu correo. El ${file} se descargó: adjúntalo desde tus descargas.`;
   }
   if (!clipboardOk) {
     return medium === 'whatsapp'
-      ? `Se abrió WhatsApp con ${name}. No se pudo copiar el PDF: arrástralo desde la carpeta y presiona Enviar.`
-      : 'Se abrió tu correo. No se pudo copiar el PDF: arrástralo desde la carpeta.';
+      ? `Se abrió WhatsApp con ${recipient}. No se pudo copiar el ${file}: arrástralo desde la carpeta y presiona Enviar.`
+      : `Se abrió tu correo. No se pudo copiar el ${file}: arrástralo desde la carpeta.`;
   }
   return medium === 'whatsapp'
-    ? `Se abrió WhatsApp con ${name}. Presiona Ctrl+V para adjuntar el PDF y luego Enviar.`
-    : 'Se abrió tu correo. Pega el PDF con Ctrl+V o arrástralo desde la carpeta.';
+    ? `Se abrió WhatsApp con ${recipient}. Presiona Ctrl+V para adjuntar el ${file} y luego Enviar.`
+    : `Se abrió tu correo. Pega el ${file} con Ctrl+V o arrástralo desde la carpeta.`;
 }
 
-function DoneSheet({ state, onClose, onReveal, onOpenGmail }: { state: ShareDoneState; onClose: () => void; onReveal: ShareDialogsProps['onReveal']; onOpenGmail: ShareDialogsProps['onOpenGmail'] }) {
+export function DoneSheet({ state, onClose, onReveal, onOpenGmail }: { state: ShareDoneState; onClose: () => void; onReveal: (path: string) => void; onOpenGmail: (state: ShareDoneState) => void }) {
   const titleId = useId();
   return (
     <Sheet labelId={titleId} onClose={onClose}>
