@@ -495,17 +495,18 @@ export function useCotizacionForm() {
   const guardActive = dirty;
   const guardRef = useRef(guardActive);
   guardRef.current = guardActive;
-  async function askToLeaveEdit(): Promise<boolean> {
+  async function askToLeaveEdit(reason: 'navigate' | 'close' = 'navigate'): Promise<boolean> {
     if (editId) {
       return confirm({ title: '¿Salir sin guardar?', description: 'Tienes cambios sin guardar en esta cotización. Si sales ahora se perderán.', confirmLabel: 'Salir sin guardar', cancelLabel: 'Seguir editando', tone: 'danger' });
     }
     const choice = await choose({ title: '¿Guardar como borrador?', description: 'Tienes datos capturados sin guardar. Guárdalos como borrador para continuar después.', confirmLabel: 'Guardar como borrador', secondaryLabel: 'Salir sin guardar', cancelLabel: 'Seguir editando' });
-    if (choice === 'primary') return saveDraft();
+    // Saving a draft keeps the user on this screen; only closing the window continues after the save.
+    if (choice === 'primary') return (await saveDraft()) && reason === 'close';
     return choice === 'secondary';
   }
   const askToLeaveRef = useRef(askToLeaveEdit);
   askToLeaveRef.current = askToLeaveEdit;
-  useUnsavedGuard(guardActive, () => askToLeaveRef.current());
+  useUnsavedGuard(guardActive, () => askToLeaveRef.current('close'));
   const blocker = useBlocker(({ currentLocation, nextLocation }) => !skipGuard.current && shouldBlockNavigation(guardRef.current, currentLocation, nextLocation));
   const askingRef = useRef(false);
   useEffect(() => {
