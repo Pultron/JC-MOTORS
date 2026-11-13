@@ -149,6 +149,17 @@ Se agregaron **solo** estos seis permisos (uno por comando). La CSP **no cambió
 
 **No hay** `opener:*`, `shell:*`, `fs:*`, `dialog:*` ni `core:*` en la capability. Lo verifica `tests/capabilitiesStatic.mjs` (parte de `npm test`) y, en la app compilada, `tests/tauriCapabilities.mjs` (los 6 comandos llegan a Rust; `plugin:opener|*` y `plugin:shell|*` quedan denegados).
 
+### Comandos de protección al cerrar la ventana
+
+Para avisar de cambios sin guardar al cerrar la app se agregaron **solo** dos permisos propios. No se concedió `core:window:*` ni `core:event:*` (`plugin:window|close` y `plugin:event|listen` siguen denegados). La CSP **no cambió**.
+
+| Permiso | Comando de Rust | Qué puede hacer |
+|---|---|---|
+| `allow-set-close-guard` | `set_close_guard(active)` | Solo fija un booleano en el estado de Rust (y borra el cierre pendiente). No recibe nada más. |
+| `allow-close-app-window` | `close_app_window()` | Sin argumentos. Desactiva la protección y destruye la ventana `main` de la propia app; no puede cerrar otras ventanas ni ejecutar nada más. |
+
+Flujo: con cambios sin guardar la página llama `set_close_guard(true)`. Rust intercepta `CloseRequested` de la ventana `main` (`prevent_close`) y avisa a la página evaluando un script **constante** (`window.dispatchEvent(new CustomEvent('jc:close-requested'))`, sin datos) desde Rust, por lo que no hace falta ningún permiso de eventos y la ejecución desde Rust no está sujeta a la CSP de la página. La página muestra Guardar / Descartar / Seguir editando. Failsafe: si ya hay un cierre pendiente sin respuesta, el siguiente intento de cierre se deja pasar, así que la app nunca queda imposible de cerrar. La decisión es la función pura `close_guard::decide_close` (con pruebas unitarias).
+
 Principios:
 
 - **Sin acceso libre al disco.** No hay `fs:*`, `shell:*` ni `dialog:*` para el WebView. El diálogo «Guardar como» lo abre **Rust** (`tauri_plugin_dialog` se usa solo desde `lib.rs`), así que el JavaScript solo puede entregar bytes y un nombre; el usuario decide la ruta y la extensión se fuerza desde Rust. El nombre del archivo se limpia a caracteres ASCII seguros y 80 caracteres.

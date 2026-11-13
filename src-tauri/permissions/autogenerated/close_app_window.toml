@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-close-app-window"
+description = "Enables the close_app_window command without any pre-configured scope."
+commands.allow = ["close_app_window"]
+
+[[permission]]
+identifier = "deny-close-app-window"
+description = "Denies the close_app_window command without any pre-configured scope."
+commands.deny = ["close_app_window"]

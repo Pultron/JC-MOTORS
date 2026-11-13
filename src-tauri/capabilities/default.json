@@ -24,6 +24,8 @@
     "allow-reveal-in-folder",
     "allow-open-whatsapp",
     "allow-open-mailto",
-    "allow-open-gmail"
+    "allow-open-gmail",
+    "allow-set-close-guard",
+    "allow-close-app-window"
   ]
 }

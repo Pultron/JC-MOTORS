@@ -45,7 +45,8 @@ export function WorkshopPage() {
   baseRef.current = base;
   valuesRef.current = values;
   dirtyRef.current = dirty;
-  useUnsavedGuard(dirty);
+  const askToLeaveRef = useRef<() => Promise<boolean>>(async () => true);
+  useUnsavedGuard(dirty, () => askToLeaveRef.current());
   const messageTooLong = message.length > MESSAGE_MAX;
   const [previewMode, setPreviewMode] = useState<'whatsapp' | 'correo'>('whatsapp');
   const preview = previewMessage(message);
@@ -124,6 +125,8 @@ export function WorkshopPage() {
     }
     return false;
   }
+
+  askToLeaveRef.current = askToLeave;
 
   useShortcut('save', () => { if (dirtyRef.current) void save(); });
 

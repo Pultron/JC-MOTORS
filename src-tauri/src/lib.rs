@@ -1,4 +1,5 @@
 pub mod backup;
+pub mod close_guard;
 pub mod db;
 pub mod error;
 pub mod files;
@@ -316,11 +317,40 @@ async fn open_gmail(email: String, subject: String, body: String) -> Result<(), 
     share::open_url(&url).map_err(String::from)
 }
 
+/// The page reports whether it has unsaved changes. Only a boolean; also clears any pending close.
+#[tauri::command]
+fn set_close_guard(guard: tauri::State<close_guard::CloseGuard>, active: bool) {
+    guard.set_active(active);
+}
+
+/// Closes the app's own main window (the page calls it after the user chose to leave). Takes no arguments.
+#[tauri::command]
+fn close_app_window(app: tauri::AppHandle, guard: tauri::State<close_guard::CloseGuard>) -> Result<(), String> {
+    guard.set_active(false);
+    let window = app.get_webview_window("main").ok_or("No se encontró la ventana principal.")?;
+    window.destroy().map_err(|error| error.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
+        .manage(close_guard::CloseGuard::default())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() != "main" {
+                    return;
+                }
+                if window.state::<close_guard::CloseGuard>().on_close_requested() {
+                    api.prevent_close();
+                    if let Some(webview) = window.app_handle().get_webview_window("main") {
+                        // Constant script, no user data; evaluated from Rust so no event permission is needed.
+                        let _ = webview.eval(close_guard::CLOSE_REQUESTED_SCRIPT);
+                    }
+                }
+            }
+        })
         .setup(|app| {
             // Limpieza de PDF compartidos con más de 30 días; los errores se ignoran.
             if let Ok(dir) = data_dir(app.handle()) {
@@ -349,7 +379,9 @@ pub fn run() {
             reveal_in_folder,
             open_whatsapp,
             open_mailto,
-            open_gmail
+            open_gmail,
+            set_close_guard,
+            close_app_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running JC Motors Cotizador");

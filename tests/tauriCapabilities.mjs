@@ -42,6 +42,11 @@ try {
     assert.doesNotMatch(r.e, /not allowed|no permitido|ACL/i, `${cmd} fue bloqueado por permisos: ${r.e}`);
   }
 
+  // Cierre de ventana: set_close_guard solo recibe un booleano (desactivado aquí para no interferir).
+  const guard = await call('set_close_guard', { active: false });
+  assert.equal(guard.ok, true, `set_close_guard debe estar permitido: ${guard.e}`);
+  // close_app_window cierra la app, así que NO se invoca; solo se verifica su permiso de forma estática (capabilitiesStatic.mjs).
+
   // Denegados: todo lo demás que Tauri expone por IPC.
   const denied = [
     ['plugin:dialog|open', {}], ['plugin:dialog|save', {}], ['plugin:fs|read_text_file', { path: 'C:/Windows/win.ini' }],

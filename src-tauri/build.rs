@@ -25,6 +25,8 @@ fn main() {
                 "open_whatsapp",
                 "open_mailto",
                 "open_gmail",
+                "set_close_guard",
+                "close_app_window",
             ]),
         ),
     )
