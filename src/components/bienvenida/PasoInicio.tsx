@@ -9,7 +9,6 @@ interface Props {
 /** Step 1: choose how to start. */
 export function PasoInicio({ onFresh, onRestore, disabled }: Props) {
   return <div data-testid="welcome-step-inicio">
-    <p className="bv-label">Bienvenido</p>
     <h1 className="bv-title">Bienvenido<br />a <span className="bv-title-accent">JC Motors</span></h1>
     <p className="bv-sub">Elige cómo quieres empezar.</p>
     <div className="bv-cards">
