@@ -1,9 +1,10 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useBlocker } from 'react-router';
 import { focusFirstInvalid } from '../utils/focusFirstInvalid';
-import { MessageSquareText, Store } from 'lucide-react';
+import { Store } from 'lucide-react';
 import { Card } from '../components/newQuote/primitives/Card';
 import { CardHeader } from '../components/newQuote/primitives/CardHeader';
+import { MessageCard } from '../components/taller/MessageCard';
 import { FormRow, describedByFor } from '../components/newQuote/primitives/FormRow';
 import { EmailInput } from '../components/ui/EmailInput';
 import { PhoneInput } from '../components/ui/PhoneInput';
@@ -15,13 +16,13 @@ import type { BusinessInfo } from '../config/businessInfo';
 import { useChoose, useConfirm } from '../hooks/useConfirm';
 import { useUnsavedGuard } from '../hooks/useUnsavedGuard';
 import { userMessage } from '../utils/userMessage';
-import { DEFAULT_MESSAGE_TEMPLATE, EXAMPLE_VALUES, MESSAGE_VARIABLES, buildShareSubject, previewMessage } from '../services/shareMessage';
-import { buildSaveCandidate, changedSections, insertAtCursor, isDirty, saveToastCopy, shouldBlockNavigation, toFormValues, validateWorkshopForm } from '../services/workshopForm';
+import {
+  DEFAULT_INVOICE_MESSAGE_TEMPLATE, DEFAULT_MESSAGE_TEMPLATE, EXAMPLE_VALUES, INVOICE_EXAMPLE_VALUES, INVOICE_MESSAGE_VARIABLES, MESSAGE_VARIABLES,
+  buildInvoiceShareSubject, buildShareSubject, previewInvoiceMessage, previewMessage,
+} from '../services/shareMessage';
+import { buildSaveCandidate, changedSections, isDirty, saveToastCopy, shouldBlockNavigation, toFormValues, validateWorkshopForm } from '../services/workshopForm';
 import type { WorkshopFormErrors, WorkshopFormValues } from '../services/workshopForm';
 import '../styles/respaldo.css';
-
-/** The counter only appears when the message nears the limit. */
-const MESSAGE_COUNTER_FROM = 700;
 
 export function WorkshopPage() {
   const toast = useToast();
@@ -32,10 +33,6 @@ export function WorkshopPage() {
   const [base, setBase] = useState<BusinessInfo>(loadBusinessInfo);
   const [values, setValues] = useState<WorkshopFormValues>(() => toFormValues(base));
   const [errors, setErrors] = useState<WorkshopFormErrors>({});
-  const messageId = useId();
-  const messageCounterId = `${messageId}-counter`;
-  const messageRef = useRef<HTMLTextAreaElement>(null);
-  const message = values.mensaje;
   const dirty = isDirty(toFormValues(base), values);
   // Refs mirror the latest state so async flows (dialog, blocker) never act on stale closures.
   const baseRef = useRef(base);
@@ -46,28 +43,8 @@ export function WorkshopPage() {
   dirtyRef.current = dirty;
   const askToLeaveRef = useRef<() => Promise<boolean>>(async () => true);
   useUnsavedGuard(dirty, () => askToLeaveRef.current());
-  const messageTooLong = message.length > MESSAGE_MAX;
-  const [previewMode, setPreviewMode] = useState<'whatsapp' | 'correo'>('whatsapp');
-  const preview = previewMessage(message);
-  const setMessage = (mensaje: string | ((current: string) => string)) => setValues((current) => ({ ...current, mensaje: typeof mensaje === 'function' ? mensaje(current.mensaje) : mensaje }));
-
-  // The caret is restored after React re-renders the controlled textarea (which would otherwise move it to the end).
-  const pendingCaret = useRef<number | null>(null);
-  useLayoutEffect(() => {
-    const caret = pendingCaret.current;
-    const area = messageRef.current;
-    pendingCaret.current = null;
-    if (caret === null || !area) return;
-    area.focus();
-    area.setSelectionRange(caret, caret);
-  }, [values.mensaje]);
-
-  function insertVariable(key: string) {
-    const area = messageRef.current;
-    const result = insertAtCursor(message, area?.selectionStart ?? message.length, area?.selectionEnd ?? message.length, `{${key}}`);
-    pendingCaret.current = result.caret;
-    setMessage(result.text);
-  }
+  const setMessage = (mensaje: string) => setValues((current) => ({ ...current, mensaje }));
+  const setInvoiceMessage = (mensajeFacturas: string) => setValues((current) => ({ ...current, mensajeFacturas }));
 
   const update = (key: keyof WorkshopFormErrors, value: string) => {
     setValues((current) => ({ ...current, [key]: value }));
@@ -79,7 +56,7 @@ export function WorkshopPage() {
     const current = valuesRef.current;
     const found = validateWorkshopForm(current);
     setErrors(found);
-    if (Object.keys(found).length > 0 || current.mensaje.length > MESSAGE_MAX) {
+    if (Object.keys(found).length > 0 || current.mensaje.length > MESSAGE_MAX || current.mensajeFacturas.length > MESSAGE_MAX) {
       window.requestAnimationFrame(() => focusFirstInvalid(pageRef.current ?? document));
       return false;
     }
@@ -142,19 +119,26 @@ export function WorkshopPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blocker.state]);
 
-  async function handleResetMessage() {
-    const accepted = await confirm({
+  async function confirmResetMessage(): Promise<boolean> {
+    return confirm({
       title: '¿Restablecer el mensaje original?',
       description: 'El texto del editor volverá al mensaje que trae la app. No se guarda hasta que pulses Guardar cambios.',
       confirmLabel: 'Restablecer',
     });
-    if (accepted) setMessage(DEFAULT_MESSAGE_TEMPLATE);
+  }
+
+  async function handleResetMessage() {
+    if (await confirmResetMessage()) setMessage(DEFAULT_MESSAGE_TEMPLATE);
+  }
+
+  async function handleResetInvoiceMessage() {
+    if (await confirmResetMessage()) setInvoiceMessage(DEFAULT_INVOICE_MESSAGE_TEMPLATE);
   }
 
   async function handleReset() {
     const accepted = await confirm({
       title: '¿Restablecer los datos originales?',
-      description: 'Los datos del taller y el mensaje volverán a los que traía la app. Los PDF ya generados no cambian.',
+      description: 'Los datos del taller y los mensajes volverán a los que traía la app. Los PDF ya generados no cambian.',
       confirmLabel: 'Restablecer',
     });
     if (!accepted) return;
@@ -189,38 +173,30 @@ export function WorkshopPage() {
           <button type="button" data-testid="taller-reset" className="taller-link" onClick={() => void handleReset()}>Restablecer valores originales</button>
         </div>
       </Card>
-      <Card as="section">
-        <CardHeader icon={<MessageSquareText size={18} />} title="Mensaje para clientes" subtitle="Texto que acompaña la cotización al enviarla por WhatsApp o correo." />
-        <div className="px-4 pb-2">
-          <label htmlFor={messageId} className="sr-only">Mensaje para clientes</label>
-          <textarea ref={messageRef} id={messageId} data-testid="taller-mensaje" rows={6} className="w-full resize-y rounded-lg border border-mac-separator bg-white px-3 py-2 text-sm leading-5 text-mac-ink" aria-invalid={messageTooLong} aria-describedby={messageCounterId} value={message} onChange={(event) => setMessage(event.target.value)} />
-          {message.length > MESSAGE_COUNTER_FROM && <p id={messageCounterId} data-testid="taller-mensaje-contador" role={messageTooLong ? 'alert' : undefined} className={`mt-1 text-right text-[12px] ${messageTooLong ? 'font-medium text-mac-danger' : 'text-mac-ink-2'}`}>{message.length} / {MESSAGE_MAX}{messageTooLong ? ' · Reduce el mensaje para guardarlo.' : ''}</p>}
-          <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Variables disponibles">
-            {MESSAGE_VARIABLES.map((variable) => (
-              <button key={variable.key} type="button" title={variable.description} data-testid={`taller-variable-${variable.key}`} className="rounded-md bg-mac-tint px-2 py-1 text-[12px] font-medium text-mac-accent-text" onMouseDown={(event) => event.preventDefault()} onClick={() => insertVariable(variable.key)}>{`{${variable.key}}`}</button>
-            ))}
-          </div>
-          <p className="mt-1.5 text-[12px] text-mac-ink-2">Toca para insertar</p>
-        </div>
-        <div className="flex items-center justify-between gap-3 border-t border-mac-separator px-4 pt-3">
-          <p className="text-[13px] text-mac-ink-2">Vista previa con datos de ejemplo</p>
-          <div className="mac-segment flex" role="group" aria-label="Formato de la vista previa">
-            <button type="button" data-testid="taller-preview-whatsapp" aria-pressed={previewMode === 'whatsapp'} onClick={() => setPreviewMode('whatsapp')}>WhatsApp</button>
-            <button type="button" data-testid="taller-preview-correo" aria-pressed={previewMode === 'correo'} onClick={() => setPreviewMode('correo')}>Correo</button>
-          </div>
-        </div>
-        <div data-testid="taller-mensaje-preview" data-mode={previewMode} className="px-4 pb-3 pt-3" aria-live="polite">
-          {previewMode === 'whatsapp'
-            ? <div className="taller-bubble">{preview}</div>
-            : <div className="taller-mail">
-              <p className="taller-mail-subject"><span>Asunto</span>{buildShareSubject(EXAMPLE_VALUES.folio, EXAMPLE_VALUES.taller)}</p>
-              <div className="taller-mail-body">{preview}</div>
-            </div>}
-        </div>
-        <div className="flex items-center justify-between gap-3 px-4 pb-3">
-          <button type="button" data-testid="taller-mensaje-reset" className="taller-link" disabled={message === DEFAULT_MESSAGE_TEMPLATE} onClick={() => void handleResetMessage()}>Restablecer mensaje original</button>
-        </div>
-      </Card>
+      <MessageCard
+        testBase="taller"
+        title="Mensaje para cotizaciones"
+        subtitle="Texto que acompaña la cotización al enviarla por WhatsApp o correo."
+        value={values.mensaje}
+        onChange={setMessage}
+        variables={MESSAGE_VARIABLES}
+        defaultTemplate={DEFAULT_MESSAGE_TEMPLATE}
+        preview={previewMessage(values.mensaje)}
+        previewSubject={buildShareSubject(EXAMPLE_VALUES.folio, EXAMPLE_VALUES.taller)}
+        onReset={() => void handleResetMessage()}
+      />
+      <MessageCard
+        testBase="taller-facturas"
+        title="Mensaje para facturas"
+        subtitle="Texto que acompaña la factura al enviarla por WhatsApp o correo."
+        value={values.mensajeFacturas}
+        onChange={setInvoiceMessage}
+        variables={INVOICE_MESSAGE_VARIABLES}
+        defaultTemplate={DEFAULT_INVOICE_MESSAGE_TEMPLATE}
+        preview={previewInvoiceMessage(values.mensajeFacturas)}
+        previewSubject={buildInvoiceShareSubject(42, INVOICE_EXAMPLE_VALUES.taller)}
+        onReset={() => void handleResetInvoiceMessage()}
+      />
     </div>
     <div className="taller-actions">
       <button type="button" data-testid="taller-discard" className="mac-btn mac-btn-secondary" disabled={!dirty} onClick={discard}>Descartar</button>
