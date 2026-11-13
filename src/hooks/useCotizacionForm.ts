@@ -367,6 +367,25 @@ export function useCotizacionForm() {
   const canSaveCustomer = !form.customerId && form.customerName.trim() !== '' && (form.phone.trim() !== '' || form.email.trim() !== '')
     && !allErrors.customerName && !allErrors.phone && !allErrors.email;
 
+  /** The linked customer exists but the form carries a valid phone/email that differs from what is stored. */
+  const linkedCustomer = form.customerId ? customers.find((customer) => customer.id === form.customerId) : undefined;
+  const customerChanges = (() => {
+    if (!linkedCustomer || allErrors.phone || allErrors.email) return null;
+    const phone = normalizePhone(form.phone) ? phoneForStorage(form.phone) : '';
+    const email = form.email.trim();
+    // Empty fields never erase what is stored; only new or different values count as a change.
+    const phoneChanged = phone !== '' && normalizePhone(phone) !== normalizePhone(linkedCustomer.phone);
+    const emailChanged = email !== '' && email.toLocaleLowerCase('es-MX') !== (linkedCustomer.email ?? '').toLocaleLowerCase('es-MX');
+    return phoneChanged || emailChanged ? { phone: phoneChanged ? phone : linkedCustomer.phone, email: emailChanged ? email : linkedCustomer.email } : null;
+  })();
+  const canUpdateCustomer = customerChanges !== null;
+
+  function updateLinkedCustomer() {
+    if (!linkedCustomer || !customerChanges) return;
+    updateStoredCustomer(linkedCustomer.id, { name: linkedCustomer.name, phone: customerChanges.phone, ...(customerChanges.email ? { email: customerChanges.email } : {}), aliases: linkedCustomer.aliases });
+    toast.success({ title: 'Datos actualizados', description: `Se actualizaron los datos de ${linkedCustomer.name} en Clientes.` });
+  }
+
   /** Explicit opt-in: stores the typed customer in Clientes and links the quotation to it. */
   async function saveAsCustomer() {
     if (!canSaveCustomer) return;
@@ -536,7 +555,7 @@ export function useCotizacionForm() {
     editId, quotationToEdit, drafts, activeDraft, recovery,
     isLoadingEdit: Boolean(editId) && (!editReady || loadedEditId.current !== editId || isLoading),
     isSaved: !dirty && (Boolean(activeDraft) || Boolean(editId)),
-    updateField, blurField, commitText, blurItem, updateCustomer, selectCustomer, canSaveCustomer, saveAsCustomer, addItem, applyTemplate, updateItem, deleteItem, setLaborAmount,
+    updateField, blurField, commitText, blurItem, updateCustomer, selectCustomer, canSaveCustomer, saveAsCustomer, canUpdateCustomer, updateLinkedCustomer, addItem, applyTemplate, updateItem, deleteItem, setLaborAmount,
     submit, saveDraft, clearForm, leaveDraft, openDraft, deleteDraft, recoverTemporary, discardTemporary,
   };
 }

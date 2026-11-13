@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { User, Sparkles, Search, UserPlus, BadgeCheck } from 'lucide-react';
+import { User, Sparkles, Search, UserPlus, BadgeCheck, RefreshCw } from 'lucide-react';
 import type { QuoteFormData } from '../../models/quoteDraft';
 import type { CustomerProfile } from '../../models/quotation';
 import { Card } from './primitives/Card';
@@ -22,9 +22,11 @@ interface Props {
   onCommitText: (key: 'customerName') => void;
   canSaveCustomer: boolean;
   onSaveCustomer: () => void;
+  canUpdateCustomer: boolean;
+  onUpdateCustomer: () => void;
 }
 
-export function ClienteCard({ form, errors, customers, onChange, onCustomerChange, onSelectCustomer, onBlurField, onCommitText, canSaveCustomer, onSaveCustomer }: Props) {
+export function ClienteCard({ form, errors, customers, onChange, onCustomerChange, onSelectCustomer, onBlurField, onCommitText, canSaveCustomer, onSaveCustomer, canUpdateCustomer, onUpdateCustomer }: Props) {
   const navigate = useNavigate();
   const [pickerOpen, setPickerOpen] = useState(false);
   const typed = form.customerName.trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('es-MX');
@@ -54,7 +56,8 @@ export function ClienteCard({ form, errors, customers, onChange, onCustomerChang
           <EmailInput id={emailId} data-testid="cliente-correo" anchorSelector=".mac-row" className="mac-row-input" aria-invalid={Boolean(errors.email)} aria-describedby={describedByFor(emailId, errors.email, emailOptional)} onBlur={() => onBlurField('email')} value={form.email} onValueChange={(value) => onChange('email', value)} />
         </FormRow>
         {canSaveCustomer && <button type="button" data-testid="cliente-guardar-frecuente" className="cli-save-customer mac-press" onClick={onSaveCustomer}><UserPlus size={15} aria-hidden="true" />Agregar como cliente frecuente</button>}
-        {form.customerId && <p data-testid="cliente-guardado" className="cli-saved-customer"><BadgeCheck size={15} aria-hidden="true" />Cliente frecuente</p>}
+        {canUpdateCustomer && <button type="button" data-testid="cliente-actualizar" className="cli-save-customer mac-press" onClick={onUpdateCustomer}><RefreshCw size={15} aria-hidden="true" />Actualizar datos del cliente</button>}
+        {form.customerId && !canUpdateCustomer && <p data-testid="cliente-guardado" className="cli-saved-customer"><BadgeCheck size={15} aria-hidden="true" />Cliente frecuente</p>}
       </div>
     </Card>
     <p className="px-4 pt-2 text-xs text-mac-ink-2">Selecciona un cliente o captura uno nuevo.</p>

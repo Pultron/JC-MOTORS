@@ -30,7 +30,7 @@ export function NuevaCotizacionPage() {
           <div className="min-w-0"><p className="text-sm font-semibold leading-tight text-mac-ink">Editando cotización <span className="rounded-md bg-mac-accent px-2 py-0.5 text-[13px] text-white">{quotationToEdit.folio}</span></p><p className="mt-1 text-xs text-mac-ink-2">Los cambios se aplican al guardar.</p></div>
         </div>}
         <div className="flex flex-wrap gap-5">
-          <ClienteCard form={form} errors={errors} customers={state.customers} onChange={state.updateField} onCustomerChange={state.updateCustomer} onSelectCustomer={state.selectCustomer} onBlurField={state.blurField} onCommitText={state.commitText} canSaveCustomer={state.canSaveCustomer} onSaveCustomer={() => void state.saveAsCustomer()} />
+          <ClienteCard form={form} errors={errors} customers={state.customers} onChange={state.updateField} onCustomerChange={state.updateCustomer} onSelectCustomer={state.selectCustomer} onBlurField={state.blurField} onCommitText={state.commitText} canSaveCustomer={state.canSaveCustomer} onSaveCustomer={() => void state.saveAsCustomer()} canUpdateCustomer={state.canUpdateCustomer} onUpdateCustomer={state.updateLinkedCustomer} />
           <VehiculoCard form={form} errors={errors} onChange={state.updateField} onBlurField={state.blurField} onCommitText={state.commitText} />
         </div>
         <RefaccionesCard form={form} errors={errors} suggestions={state.suggestions} totalParts={totals.subtotalRefacciones} onAdd={state.addItem} onUpdate={state.updateItem} onBlurItem={state.blurItem} onDelete={state.deleteItem} onApplyTemplate={state.applyTemplate} />
