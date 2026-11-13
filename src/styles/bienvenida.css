@@ -67,3 +67,36 @@
   .bv, .bv-brand, .bv-illus, .bv-step--a, .bv-step--b, .flota, .bv-glow { animation: none !important; }
   .bv-dot, .bv-card, .bv-chevron, .bv-back { transition: none !important; }
 }
+
+/* ---------- step 2a: workshop data ---------- */
+.bv-group { margin-top: 24px; overflow: hidden; border-radius: 12px; background: #fff; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .08), 0 1px 3px rgba(0, 0, 0, .05); }
+.bv-group .mac-row { min-height: 46px; }
+.bv-group > div:first-child .mac-row { border-top: 0; }
+.bv-group .mac-row-input { height: 46px; text-align: right; }
+.bv-group .mac-row-input::placeholder { color: var(--color-mac-placeholder); }
+.bv-row-label { width: 140px; flex: none; color: var(--color-mac-ink); font-size: 14px; }
+.bv-note { margin: 12px 4px 0; color: var(--color-mac-ink-2); font-size: 12.5px; }
+.bv-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 22px; }
+.bv-primary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 42px; padding: 0 22px; border: 0; border-radius: 11px; background: #CC4A0B; color: #fff; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(120, 40, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .18); transition: background-color 160ms ease, transform 120ms ease; }
+.bv-primary:hover:not(:disabled) { background: #B84209; }
+.bv-primary:active:not(:disabled) { transform: scale(.97); }
+.bv-primary:disabled { opacity: .6; cursor: default; }
+.bv-primary:focus-visible { --focus-ring: #1d1d1f; }
+
+/* ---------- step 3: done ---------- */
+.bv-done { text-align: center; }
+.bv-ok { position: relative; display: grid; place-items: center; width: 88px; height: 88px; margin: 0 auto 24px; border-radius: 50%; background: linear-gradient(135deg, #34C759, #22A447); box-shadow: 0 10px 28px rgba(34, 164, 71, .35); animation: bv-pop 600ms var(--ease-mac) both; }
+.bv-ok::before { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 3px solid rgba(52, 199, 89, .55); animation: bv-ring 1100ms ease-out 250ms both; }
+.bv-ok svg { position: relative; }
+.bv-ok path { stroke-dasharray: 40; stroke-dashoffset: 40; animation: bv-draw 500ms ease-out 450ms forwards; }
+.bv-done .bv-sub { margin-left: auto; margin-right: auto; max-width: 440px; }
+.bv-done .bv-primary { margin-top: 28px; }
+@keyframes bv-pop { 0% { transform: scale(.4); opacity: 0; } 60% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes bv-ring { from { transform: scale(1); opacity: .9; } to { transform: scale(1.9); opacity: 0; } }
+@keyframes bv-draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .bv-ok, .bv-ok::before { animation: none !important; }
+  .bv-ok::before { display: none; }
+  .bv-ok path { animation: none !important; stroke-dashoffset: 0; }
+  .bv-primary { transition: none !important; }
+}
