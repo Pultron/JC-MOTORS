@@ -27,7 +27,10 @@ export function NuevaCotizacionPage() {
     <form onSubmit={handleSubmit} noValidate className="flex flex-wrap items-start gap-6 px-8 pb-10 pt-4">
       <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-5">
         {!editId && <BorradoresPanel drafts={state.drafts} hasRecovery={Boolean(state.recovery)} onRecover={state.recoverTemporary} onDiscard={state.discardTemporary} onOpen={state.openDraft} onDelete={state.deleteDraft} activeId={activeDraft?.id} onLeave={() => void state.leaveDraft()} />}
-        {editId && quotationToEdit && <p className="flex items-center gap-2 text-xs font-medium text-mac-accent-text"><RotateCcw size={14} aria-hidden="true" />Editando cotización {quotationToEdit.folio}</p>}
+        {editId && quotationToEdit && <div role="status" data-testid="editando-cotizacion" className="flex items-center gap-3 rounded-[14px] border border-mac-accent bg-mac-tint px-4 py-3 shadow-mac-card">
+          <span aria-hidden="true" className="flex size-9 flex-none items-center justify-center rounded-full bg-mac-accent text-white"><RotateCcw size={17} /></span>
+          <div className="min-w-0"><p className="text-sm font-semibold leading-tight text-mac-ink">Editando cotización <span className="rounded-md bg-mac-accent px-2 py-0.5 text-[13px] text-white">{quotationToEdit.folio}</span></p><p className="mt-1 text-xs text-mac-ink-2">Los cambios se aplican al guardar.</p></div>
+        </div>}
         <div className="flex flex-wrap gap-5">
           <ClienteCard form={form} errors={errors} customers={state.customers} onChange={state.updateField} onCustomerChange={state.updateCustomer} onSelectCustomer={state.selectCustomer} onBlurField={state.blurField} onCommitText={state.commitText} />
           <VehiculoCard form={form} errors={errors} onChange={state.updateField} onBlurField={state.blurField} onCommitText={state.commitText} />
