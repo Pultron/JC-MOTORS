@@ -146,6 +146,31 @@ export async function startFresh(options: BootDeps = {}): Promise<void> {
   await installSqlite(current);
 }
 
+/**
+ * Welcome flow in Tauri: loads the (empty) snapshot and routes storage to SQLite so the welcome screens can save or
+ * restore, but writes NOTHING: `initialized` is only set when the user picks "Empezar de cero" (see `markFreshInitialized`).
+ */
+export async function prepareWelcome(options: BootDeps = {}): Promise<BootResult> {
+  const current = deps ?? resolveDeps(options);
+  deps = current;
+  try {
+    await installSqlite(current);
+    return { state: 'needs-welcome' };
+  } catch (error) {
+    setStorageOverride(undefined);
+    setActiveSqliteStorage(undefined);
+    return fallback(error);
+  }
+}
+
+/** The user chose "Empezar de cero": from now on this database counts as set up. SQLite is already installed. */
+export async function markFreshInitialized(options: BootDeps = {}): Promise<void> {
+  const current = deps ?? resolveDeps(options);
+  deps = current;
+  if (!current.tauri) return;
+  await current.db.markInitialized();
+}
+
 function showPendingToast(): void {
   try {
     const raw = globalThis.sessionStorage?.getItem(PENDING_TOAST_KEY);
@@ -165,6 +190,11 @@ export function queueToastAfterReload(notice: StorageNotice): void {
 
 /** Tareas de arranque que dependen del backend ya decidido. Llamar justo antes de montar la app. */
 export function finishBoot(result: BootResult, options: BootDeps = {}): void {
+  if (result.state === 'needs-welcome') {
+    // Nothing is written (no draft purge, no automatic copy) until the user chooses how to start.
+    showPendingToast();
+    return;
+  }
   const sqlite = result.state === 'ready';
   if (sqlite) {
     try { quoteDraftService.purgeStale(); } catch { /* Los borradores viejos se quedan hasta el siguiente arranque. */ }

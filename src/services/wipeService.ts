@@ -3,6 +3,7 @@
  * localStorage (actuales y anteriores) para que nada se vuelva a importar. Las preferencias de interfaz no se tocan.
  */
 import { queueToastAfterReload } from '../storage/dataBoot';
+import { clearWelcomeFlag } from './welcomeGate';
 import { getActiveSqliteStorage } from '../storage/sqliteStorage';
 import { APP_KEY_PREFIXES, BACKUP_PREFIX, LEGACY_KEY_MIGRATIONS, STORAGE_KEYS } from '../storage/storageKeys';
 import { isTauri, tauriDb } from '../storage/tauriDb';
@@ -166,10 +167,11 @@ export async function wipeAllData(options: { includeWorkshop: boolean }, deps: W
 export const DATOS_BORRADOS_TITLE = 'Datos borrados';
 export const DATOS_BORRADOS_DESCRIPTION = 'El sistema quedó limpio. La siguiente cotización será JC-0001.';
 
-/** Único punto de enganche tras un borrado exitoso: aviso diferido, ir a Inicio y recargar para releer todo limpio. */
+/** Single hook after a successful wipe: deferred toast, clear the first-run flag, go to the welcome and reload to re-read everything clean. */
 export function onDatosBorrados(): void {
   queueToastAfterReload({ level: 'success', title: DATOS_BORRADOS_TITLE, description: DATOS_BORRADOS_DESCRIPTION });
+  clearWelcomeFlag();
   if (typeof window === 'undefined') return;
-  window.location.hash = '#/';
+  window.location.hash = '#/bienvenida';
   window.location.reload();
 }

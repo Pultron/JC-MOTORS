@@ -20,6 +20,8 @@ export const STORAGE_KEYS = {
   /** Versión de esquema por dominio: {"quotations": 1}. Solo se normaliza y reescribe cuando es menor a la actual. */
   schema: 'jc-motors:meta:schema:v1',
   lastBackup: 'jc-motors:meta:last-backup:v1',
+  /** First-run flag: present once the welcome flow was completed (or silently set on an install that already had data). Lives in localStorage, never in SQLite. */
+  welcomeDone: 'jc-motors:welcome-done:v1',
 } as const;
 
 /** Claves que viajan en un archivo de respaldo. Borradores, autoguardado, copias de seguridad y metadatos no. */

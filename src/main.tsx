@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { WelcomeScreen } from './components/boot/WelcomeScreen';
-import { bootData, finishBoot, startFresh } from './storage/dataBoot';
+import { bootData, finishBoot, prepareWelcome } from './storage/dataBoot';
 import type { BootResult } from './storage/dataBoot';
 import { preloadPdfWhenIdle } from './utils/pdfPreload';
 import './styles.css';
@@ -19,10 +18,7 @@ async function launch(result: BootResult) {
   root.render(<React.StrictMode><App /></React.StrictMode>);
 }
 
-void bootData().then((result) => {
-  if (result.state !== 'needs-welcome') return launch(result);
-  root.render(<WelcomeScreen
-    onStartFresh={async () => { await startFresh(); await launch({ state: 'ready' }); }}
-    onRestored={() => window.location.reload()}
-  />);
-});
+// First run (empty database, nothing to migrate): SQLite is installed without writing anything and the router shows /bienvenida.
+void bootData()
+  .then((result) => (result.state === 'needs-welcome' ? prepareWelcome() : result))
+  .then(launch);
