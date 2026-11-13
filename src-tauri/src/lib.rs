@@ -3,7 +3,10 @@ pub mod db;
 pub mod error;
 pub mod files;
 pub mod migrate;
+pub mod share;
 pub mod store;
+#[cfg(test)]
+mod share_tests;
 #[cfg(test)]
 mod tests;
 
@@ -261,11 +264,70 @@ fn save_backup_json(
     save_file(&app, "Guardar respaldo de JC Motors", &folio, &bytes, "json", "Respaldo JC Motors")
 }
 
+/// Guarda el PDF a compartir en `<datos>/enviados/` y devuelve la ruta completa.
+#[tauri::command]
+async fn save_shared_pdf(app: tauri::AppHandle, filename_base: String, bytes: Vec<u8>) -> Result<String, String> {
+    let dir = share::shared_dir(&data_dir(&app)?);
+    let path = share::save_shared_pdf_in(&dir, &filename_base, &bytes).map_err(String::from)?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
+/// Pone el archivo (CF_HDROP) en el portapapeles para pegarlo en WhatsApp. Solo archivos de `enviados/`.
+#[tauri::command]
+async fn copy_file_to_clipboard(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let dir = share::shared_dir(&data_dir(&app)?);
+    let file = share::validate_shared_path(&dir, &path).map_err(String::from)?;
+    #[cfg(windows)]
+    {
+        let window = app.get_webview_window("main").ok_or("No se encontró la ventana principal.")?;
+        let hwnd = window.hwnd().map_err(|error| error.to_string())?;
+        share::put_file_on_clipboard(hwnd.0 as _, &file).map_err(String::from)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = file;
+        Err("Copiar al portapapeles solo está disponible en Windows.".to_string())
+    }
+}
+
+/// Abre el Explorador con el archivo seleccionado. Solo archivos de `enviados/`.
+#[tauri::command]
+async fn reveal_in_folder(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let dir = share::shared_dir(&data_dir(&app)?);
+    let file = share::validate_shared_path(&dir, &path).map_err(String::from)?;
+    share::reveal(&file).map_err(String::from)
+}
+
+#[tauri::command]
+async fn open_whatsapp(phone: String, text: String) -> Result<(), String> {
+    let url = share::whatsapp_url(&phone, &text).map_err(String::from)?;
+    share::open_url(&url).map_err(String::from)
+}
+
+#[tauri::command]
+async fn open_mailto(email: String, subject: String, body: String) -> Result<(), String> {
+    let url = share::mailto_url(&email, &subject, &body).map_err(String::from)?;
+    share::open_url(&url).map_err(String::from)
+}
+
+#[tauri::command]
+async fn open_gmail(email: String, subject: String, body: String) -> Result<(), String> {
+    let url = share::gmail_url(&email, &subject, &body).map_err(String::from)?;
+    share::open_url(&url).map_err(String::from)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
+        .setup(|app| {
+            // Limpieza de PDF compartidos con más de 30 días; los errores se ignoran.
+            if let Ok(dir) = data_dir(app.handle()) {
+                share::cleanup_shared_dir(&dir);
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             save_quotation_pdf,
             save_invoice_pdf,
@@ -281,7 +343,13 @@ pub fn run() {
             backup_export,
             backup_pick,
             backup_apply,
-            backup_discard
+            backup_discard,
+            save_shared_pdf,
+            copy_file_to_clipboard,
+            reveal_in_folder,
+            open_whatsapp,
+            open_mailto,
+            open_gmail
         ])
         .run(tauri::generate_context!())
         .expect("error while running JC Motors Cotizador");

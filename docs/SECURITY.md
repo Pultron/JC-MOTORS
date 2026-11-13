@@ -130,6 +130,25 @@ Notas de seguridad:
 - Los PDF y XML originales de facturas son archivos en `facturas/` dentro de la carpeta de datos; en la base solo quedan la ruta relativa y el SHA-256.
 - **Ganchos de prueba:** la variable de entorno `JCM_DATA_DIR` cambia la carpeta de datos (para pruebas aisladas), y `JCM_TEST_FAIL_MIGRATION` / `JCM_TEST_FAIL_RESTORE` simulan fallos. Los ganchos de fallo están **inertes** a menos que `JCM_DATA_DIR` también esté definida; un usuario normal nunca la define.
 
+### Comandos de compartir por WhatsApp / correo
+
+Se agregaron **solo** estos seis permisos (uno por comando). La CSP **no cambió**: no hay `fetch` nuevo ni acceso a Internet desde la página; todo viaja por el mismo canal IPC.
+
+| Permiso | Comando de Rust | Qué valida Rust |
+|---|---|---|
+| `allow-save-shared-pdf` | `save_shared_pdf(filenameBase, bytes)` | Bytes con `%PDF-` y máximo 25 MB. Nombre limpiado para Windows (quita `<>:"/|?*` y controles, puntos/espacios finales, nombres reservados `CON`, `NUL`, `COM1`…, máximo 120 caracteres; conserva acentos) y extensión `.pdf` forzada. Escribe de forma atómica **solo** en `<datos>/enviados/`; devuelve la ruta. |
+| `allow-copy-file-to-clipboard` | `copy_file_to_clipboard(path)` | La ruta debe resolver (`canonicalize`) a un `.pdf` regular, **hijo directo** de `enviados/`: rechaza `..`, rutas fuera de la carpeta, subcarpetas y enlaces simbólicos. Pone el archivo en el portapapeles como CF_HDROP (`DROPFILES`, ruta ancha, doble NUL) para pegarlo en WhatsApp. |
+| `allow-reveal-in-folder` | `reveal_in_folder(path)` | Misma validación de ruta. Lanza `explorer.exe` con `/select,"<ruta>"` directamente (sin `cmd` ni shell). |
+| `allow-open-whatsapp` | `open_whatsapp(phone, text)` | Teléfono de exactamente 10 dígitos (tolera espacios, guiones y paréntesis). URL `https://wa.me/52<10 dígitos>?text=<texto codificado>`. Texto máx. 4000 caracteres. |
+| `allow-open-mailto` | `open_mailto(email, subject, body)` | Correo ASCII validado (sin espacios, comas, saltos de línea ni `<>`). Asunto máx. 200, cuerpo máx. 4000 caracteres. URL `mailto:`. |
+| `allow-open-gmail` | `open_gmail(email, subject, body)` | Igual. URL `https://mail.google.com/mail/?view=cm&fs=1&to=…&su=…&body=…`. |
+
+**Por qué comandos propios y no `tauri-plugin-opener`.** El plugin expone `open_url`/`open_path` al WebView y la seguridad dependería de un *scope* de patrones; un error en un patrón abriría URL o rutas arbitrarias. Con comandos propios el WebView no puede entregar una URL ni una ruta libre: solo datos (teléfono, correo, texto), y Rust arma la URL con partes validadas, codifica el texto en porcentaje (UTF-8; saltos de línea, `$`, `#`, `&`, acentos) y verifica una última vez que el resultado empiece con `https://wa.me/52`, `mailto:` o `https://mail.google.com/mail/?view=cm`, sea ASCII sin espacios y mida ≤ 8000 caracteres. Se abre con `ShellExecuteW` (crate `windows-sys`, que ya formaba parte del árbol de dependencias de Tauri; solo Windows) con el manejador predeterminado del sistema: **sin `cmd /c start`** ni shell, así que ningún carácter de la URL se interpreta como comando. No se usa la API de WhatsApp Business, ni SMTP, ni bibliotecas no oficiales.
+
+**Limpieza.** Al iniciar la app, Rust borra los `*.pdf` de `enviados/` con más de 30 días (por fecha de modificación): sin recursión, sin tocar enlaces ni otros archivos, ignorando errores por archivo. No es un comando expuesto.
+
+**No hay** `opener:*`, `shell:*`, `fs:*`, `dialog:*` ni `core:*` en la capability. Lo verifica `tests/capabilitiesStatic.mjs` (parte de `npm test`) y, en la app compilada, `tests/tauriCapabilities.mjs` (los 6 comandos llegan a Rust; `plugin:opener|*` y `plugin:shell|*` quedan denegados).
+
 Principios:
 
 - **Sin acceso libre al disco.** No hay `fs:*`, `shell:*` ni `dialog:*` para el WebView. El diálogo «Guardar como» lo abre **Rust** (`tauri_plugin_dialog` se usa solo desde `lib.rs`), así que el JavaScript solo puede entregar bytes y un nombre; el usuario decide la ruta y la extensión se fuerza desde Rust. El nombre del archivo se limpia a caracteres ASCII seguros y 80 caracteres.
@@ -141,8 +160,8 @@ Principios:
 
 `tests/tauriCapabilities.mjs` invoca desde la página:
 
-- los 4 comandos propios → llegan al código de Rust (rechazan los datos de prueba a propósito antes de abrir el diálogo);
-- `plugin:dialog|open`, `plugin:dialog|save`, `plugin:fs|read_text_file`, `plugin:window|close`, `plugin:app|version`, `plugin:event|listen`, `plugin:path|resolve_directory` y un comando inexistente → **«not allowed by ACL»**.
+- los comandos propios (guardado y compartir) → llegan al código de Rust (rechazan los datos de prueba a propósito antes de abrir el diálogo, el portapapeles o cualquier programa);
+- `plugin:dialog|open`, `plugin:dialog|save`, `plugin:fs|read_text_file`, `plugin:window|close`, `plugin:app|version`, `plugin:event|listen`, `plugin:path|resolve_directory`, `plugin:opener|open_url`, `plugin:opener|open_path`, `plugin:shell|open` y un comando inexistente → **«not allowed by ACL»**.
 
 ## 3. Mensajes de error (#042)
 
@@ -156,10 +175,10 @@ Las pantallas y avisos no muestran textos técnicos. `src/utils/userMessage.ts` 
 
 ## 5. Cómo verificar después de cambiar algo
 
-1. `npm run build` y `npm test`.
+1. `npm run build`, `npm test` (incluye `tests/capabilitiesStatic.mjs`) y `cd src-tauri && cargo test`.
 2. Compilar: `cd src-tauri && npx tauri build --no-bundle`.
 3. Abrir el `.exe` con un **perfil de WebView2 aislado** (así nunca se tocan los datos reales del taller):
    `WEBVIEW2_USER_DATA_FOLDER=<carpeta temporal>` y `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9224`.
 4. `APP_URL=http://tauri.localhost CDP_PORT=9224 node --experimental-strip-types --loader ./tests/ts-loader.mjs tests/cspFlujos.mjs` → debe decir «SIN violaciones de CSP».
 5. `CDP_PORT=9224 node tests/tauriCapabilities.mjs`.
-6. Revisar a mano lo que depende del sistema operativo (guardar como, imprimir, instalador).
+6. Revisar a mano lo que depende del sistema operativo (guardar como, imprimir, instalador) y el compartir: copiar el PDF y pegarlo en WhatsApp, «Mostrar en carpeta» (Explorador con el archivo seleccionado) y abrir WhatsApp, el correo predeterminado y Gmail con acentos y saltos de línea.

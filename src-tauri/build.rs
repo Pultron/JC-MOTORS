@@ -19,6 +19,12 @@ fn main() {
                 "backup_pick",
                 "backup_apply",
                 "backup_discard",
+                "save_shared_pdf",
+                "copy_file_to_clipboard",
+                "reveal_in_folder",
+                "open_whatsapp",
+                "open_mailto",
+                "open_gmail",
             ]),
         ),
     )

@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main window: only the app's own commands (save-as, local database and backup). No core, fs, shell or dialog permissions are exposed to the webview.",
+  "description": "Main window: only the app's own commands (save-as, local database, backup and sharing). No core, fs, shell or dialog permissions are exposed to the webview.",
   "windows": ["main"],
   "permissions": [
     "allow-save-quotation-pdf",
@@ -18,6 +18,12 @@
     "allow-backup-export",
     "allow-backup-pick",
     "allow-backup-apply",
-    "allow-backup-discard"
+    "allow-backup-discard",
+    "allow-save-shared-pdf",
+    "allow-copy-file-to-clipboard",
+    "allow-reveal-in-folder",
+    "allow-open-whatsapp",
+    "allow-open-mailto",
+    "allow-open-gmail"
   ]
 }
