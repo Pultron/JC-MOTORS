@@ -163,3 +163,11 @@ test('backup: templates are exported and imported; old backups without them stay
   const bad = JSON.stringify({ app: 'jc-motors', schemaVersion: 1, exportedAt: '2026-01-01T00:00:00.000Z', claves: { [STORAGE_KEYS.templates]: '{oops' } });
   assert.throws(() => parseBackup(bad));
 });
+
+test('deriveTemplateName: first concept, plus how many more; empty without descriptions', async () => {
+  const { deriveTemplateName, TEMPLATE_NAME_MAX_LENGTH } = await import('../src/services/quoteTemplateService.ts');
+  assert.equal(deriveTemplateName([{ description: 'Cambio de llantas' }]), 'Cambio de llantas');
+  assert.equal(deriveTemplateName([{ description: '  ' }, { description: 'Balatas' }, { description: 'Disco' }]), 'Balatas + 1 más');
+  assert.equal(deriveTemplateName([{ description: '' }]), '');
+  assert.ok(deriveTemplateName([{ description: 'x'.repeat(200) }, { description: 'y' }]).length <= TEMPLATE_NAME_MAX_LENGTH);
+});

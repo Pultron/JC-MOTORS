@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { LayoutTemplate, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import type { QuoteDraftItem } from '../../models/quoteDraft';
-import { TEMPLATE_FAILURE_MESSAGES, TEMPLATE_NAME_MAX_LENGTH, quoteTemplateService, templateItemsFromForm } from '../../services/quoteTemplateService';
+import { TEMPLATE_FAILURE_MESSAGES, TEMPLATE_NAME_MAX_LENGTH, quoteTemplateService, deriveTemplateName, templateItemsFromForm } from '../../services/quoteTemplateService';
 import type { QuoteTemplate, QuoteTemplateItem } from '../../services/quoteTemplateService';
 import { MAX_CONCEPTS } from '../../services/quotationLayout';
 import { createId } from '../../utils/quotation';
@@ -151,7 +151,10 @@ export function TemplatesMenu({ items, onApply }: Props) {
       close(true);
     } else if (view.mode === 'edit') {
       const payload: QuoteTemplateItem[] = rows.map(({ description, type, quantity, unitPrice }) => ({ description, type, quantity, unitPrice }));
-      const result = view.id ? quoteTemplateService.update(view.id, name, payload) : quoteTemplateService.create(name, payload);
+      // The editor has no name field: the template is named after its first concept.
+      const autoName = deriveTemplateName(payload);
+      if (!autoName) { setError(TEMPLATE_FAILURE_MESSAGES['no-items']); return; }
+      const result = view.id ? quoteTemplateService.update(view.id, autoName, payload) : quoteTemplateService.create(autoName, payload);
       if (!result.ok) { setError(TEMPLATE_FAILURE_MESSAGES[result.reason]); return; }
       toast.success({ title: view.id ? 'Plantilla actualizada' : 'Plantilla guardada', description: `“${result.value.name}” tiene ${plural(result.value.items.length)}.` });
       setTemplates(quoteTemplateService.list());
@@ -216,24 +219,22 @@ export function TemplatesMenu({ items, onApply }: Props) {
           event.stopPropagation();
           submit();
         }} noValidate>
-          <label htmlFor={nameInputId} className="jc-tpl-label">Nombre</label>
-          <input id={nameInputId} data-autofocus data-testid="plantillas-nombre" className="jc-tpl-input" value={name} maxLength={TEMPLATE_NAME_MAX_LENGTH + 20} autoComplete="off" aria-required="true" aria-invalid={Boolean(error)} aria-describedby={error ? nameErrorId : undefined} onChange={(event) => { setName(event.target.value); if (error) setError(''); }} />
-          <FieldError id={nameErrorId} message={error} className="pt-1" />
+          {view.mode === 'save' && <>
+            <label htmlFor={nameInputId} className="jc-tpl-label">Nombre</label>
+            <input id={nameInputId} data-autofocus data-testid="plantillas-nombre" className="jc-tpl-input" value={name} maxLength={TEMPLATE_NAME_MAX_LENGTH + 20} autoComplete="off" aria-required="true" aria-invalid={Boolean(error)} aria-describedby={error ? nameErrorId : undefined} onChange={(event) => { setName(event.target.value); if (error) setError(''); }} />
+            <FieldError id={nameErrorId} message={error} className="pt-1" />
+          </>}
           {view.mode === 'edit' && <>
             <p className="jc-tpl-label jc-tpl-label--section">Conceptos</p>
             <div className="jc-tpl-rows" role="group" aria-label="Conceptos de la plantilla">
               {rows.map((row, index) => <div key={row.key} className="jc-tpl-concept" data-testid="plantilla-concepto">
-                <select className="jc-tpl-input jc-tpl-type" aria-label={`Tipo del concepto ${index + 1}`} value={row.type} onChange={(event) => updateRow(row.key, { type: event.target.value === 'labor' ? 'labor' : 'part' })}>
-                  <option value="part">Refacción</option>
-                  <option value="labor">Mano de obra</option>
-                </select>
-                <input data-tpl-desc={row.key} data-testid={`plantilla-descripcion-${index}`} className="jc-tpl-input jc-tpl-desc" aria-label={`Descripción del concepto ${index + 1}`} placeholder="Descripción" autoComplete="off" value={row.description} onChange={(event) => updateRow(row.key, { description: sanitizeSingleLine(event.target.value) })} />
-                <input data-testid={`plantilla-cantidad-${index}`} className="jc-tpl-input jc-tpl-qty tnum" type="number" min="1" step="1" aria-label={`Cantidad del concepto ${index + 1}`} value={row.quantity} onChange={(event) => updateRow(row.key, { quantity: event.target.value })} />
+                <input data-tpl-desc={row.key} data-autofocus={index === 0 ? true : undefined} data-testid={`plantilla-descripcion-${index}`} className="jc-tpl-input jc-tpl-desc" aria-label={`Descripción del concepto ${index + 1}`} placeholder="Descripción" autoComplete="off" value={row.description} onChange={(event) => updateRow(row.key, { description: sanitizeSingleLine(event.target.value) })} />
                 <div className="mac-money jc-tpl-money"><span aria-hidden="true">$</span><input data-testid={`plantilla-precio-${index}`} className="tnum" autoComplete="off" inputMode="decimal" aria-label={`Precio del concepto ${index + 1} (opcional)`} placeholder="Precio" value={row.unitPrice} onChange={(event) => updateRow(row.key, { unitPrice: sanitizeMoneyInput(event.target.value) })} /></div>
                 <button type="button" className="jc-tpl-icon jc-tpl-icon--danger" aria-label={`Quitar concepto ${index + 1}`} disabled={rows.length === 1} onClick={() => { setRows((current) => current.filter((item) => item.key !== row.key)); if (error) setError(''); }}><X size={14} aria-hidden="true" /></button>
               </div>)}
             </div>
             <button type="button" data-testid="plantillas-agregar-concepto" className="jc-tpl-action jc-tpl-action--inline" onClick={addRow}><Plus size={14} aria-hidden="true" />Agregar concepto</button>
+            <FieldError id={nameErrorId} message={error} className="pt-1" />
             <p className="jc-tpl-note">El precio es opcional; al usar la plantilla lo puedes cambiar en la cotización.</p>
           </>}
           {view.mode === 'save' && <p className="jc-tpl-note">Se guardan {plural(templateItemsFromForm(items).length)} con su descripción, cantidad y precio sugerido.</p>}

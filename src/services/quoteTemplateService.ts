@@ -81,6 +81,14 @@ export function checkTemplateName(name: string, existing: readonly QuoteTemplate
   return { ok: true, value: clean };
 }
 
+/** Name for a template built in the editor: the first concept's description, plus how many more it holds. */
+export function deriveTemplateName(items: readonly Pick<QuoteTemplateItem, 'description'>[]): string {
+  const filled = items.map((item) => sanitizeSingleLine(item.description)).filter(Boolean);
+  if (filled.length === 0) return '';
+  const suffix = filled.length > 1 ? ` + ${filled.length - 1} más` : '';
+  return `${filled[0].slice(0, TEMPLATE_NAME_MAX_LENGTH - suffix.length).trimEnd()}${suffix}`;
+}
+
 /** The concepts worth saving from the form: rows with a description. Quantity and price are kept as typed. */
 export function templateItemsFromForm(items: readonly Pick<QuoteDraftItem, 'description' | 'type' | 'quantity' | 'unitPrice'>[]): QuoteTemplateItem[] {
   return items

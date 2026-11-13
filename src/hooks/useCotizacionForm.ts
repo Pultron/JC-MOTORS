@@ -7,7 +7,6 @@ import { resolveCustomerSave } from '../services/customerMatching';
 import type { CustomerSaveAction } from '../services/customerMatching';
 import type { QuoteDraft, QuoteDraftItem, QuoteFormData } from '../models/quoteDraft';
 import type { CreateQuotationInput, Quotation } from '../models/quotation';
-import { frequentConcepts } from '../repositories/serviceFixtures';
 import { DraftStorageFullError, quoteDraftService } from '../services/quoteDraftService';
 import type { TemporaryQuoteDraft } from '../services/quoteDraftService';
 import { MAX_CONCEPTS } from '../services/quotationLayout';
@@ -170,10 +169,9 @@ export function useCotizacionForm() {
     setTouched((current) => keys.every((key) => current[key]) ? current : { ...current, ...Object.fromEntries(keys.map((key) => [key, true as const])) });
   }
 
-  const suggestions = useMemo(() => Array.from(new Set([
-    ...frequentConcepts.map((concept) => concept.description),
-    ...quotations.flatMap((quote) => quote.items.map((item) => item.description)),
-  ])).sort((a, b) => a.localeCompare(b, 'es-MX')), [quotations]);
+  const suggestions = useMemo(() => Array.from(new Set(
+    quotations.flatMap((quote) => quote.items.map((item) => item.description)),
+  )).sort((a, b) => a.localeCompare(b, 'es-MX')), [quotations]);
 
   useEffect(() => {
     if (!dirty || recovery || editId) return;
