@@ -29,8 +29,15 @@ interface Props {
 export function ClienteCard({ form, errors, customers, onChange, onCustomerChange, onSelectCustomer, onBlurField, onCommitText, canSaveCustomer, onSaveCustomer, canUpdateCustomer, onUpdateCustomer }: Props) {
   const navigate = useNavigate();
   const [pickerOpen, setPickerOpen] = useState(false);
-  const typed = form.customerName.trim().normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('es-MX');
-  const aliasMatch = !form.customerId && typed ? customers.find((customer) => customer.aliases.some((alias) => alias.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('es-MX') === typed)) : undefined;
+  const fold = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('es-MX').trim();
+  const typed = fold(form.customerName);
+  // Saved customers whose name starts with (or has a word starting with) what was typed, or whose nickname matches exactly.
+  const suggestions = !form.customerId && typed.length >= 2
+    ? customers.filter((customer) => {
+      const name = fold(customer.name);
+      return name.startsWith(typed) || name.split(/\s+/).some((word) => word.startsWith(typed)) || customer.aliases.some((alias) => fold(alias).startsWith(typed));
+    }).slice(0, 3)
+    : [];
   const phoneId = useId();
   const emailId = useId();
   const contact = { telefono: form.phone, correo: form.email };
@@ -44,10 +51,10 @@ export function ClienteCard({ form, errors, customers, onChange, onCustomerChang
           <Search size={14} aria-hidden="true" />Buscar
         </button>} />
       <SearchCombobox label="Nombre" required testId="cliente-nombre" value={form.customerName} options={customers.map((customer) => ({ value: customer.id, label: customer.name, detail: customer.phone, badges: customer.aliases }))} onChange={onCustomerChange} onSelect={onSelectCustomer} error={errors.customerName} onCommit={() => onCommitText('customerName')} manualOpen open={pickerOpen} onOpenChange={setPickerOpen} actionLabel="Crear nuevo cliente" onAction={() => navigate('/clientes')} />
-      {aliasMatch && <button type="button" className="cli-alias-suggest mac-press" data-testid="cliente-sugerencia-apodo" onClick={() => onSelectCustomer(aliasMatch.id)}>
+      {suggestions.map((customer) => <button key={customer.id} type="button" className="cli-alias-suggest mac-press" data-testid="cliente-sugerencia" onClick={() => onSelectCustomer(customer.id)}>
         <Sparkles size={14} aria-hidden="true" />
-        <span>¿Es <strong>{aliasMatch.name}</strong>? Autocompletar datos</span>
-      </button>}
+        <span>¿Es <strong>{customer.name}</strong>? Autocompletar datos</span>
+      </button>)}
       <FormRow label="Teléfono" htmlFor={phoneId} optional={phoneOptional} error={errors.phone}>
         <PhoneInput id={phoneId} data-testid="cliente-telefono" className="mac-row-input" aria-invalid={Boolean(errors.phone)} aria-describedby={describedByFor(phoneId, errors.phone, phoneOptional)} value={form.phone} onValueChange={(value) => onChange('phone', value)} onBlur={() => onBlurField('phone')} />
       </FormRow>

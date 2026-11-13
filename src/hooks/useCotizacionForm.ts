@@ -206,11 +206,8 @@ export function useCotizacionForm() {
   function updateCustomer(raw: string) {
     const value = stripLineBreaks(raw);
     customerNameEdited.current = true;
-    // Only the full name autofills; a nickname is offered as an opt-in suggestion in ClienteCard.
-    const match = customers.find((customer) => normalize(customer.name) === normalize(value));
-    setForm((current) => match ? {
-      ...current, customerId: match.id, customerName: match.name, phone: formatPhone(match.phone), email: match.email ?? '',
-    } : { ...current, customerId: '', customerName: value, ...(current.customerId ? { phone: '', email: '' } : {}) });
+    // Nothing autofills while typing: matching saved customers are offered as an opt-in suggestion in ClienteCard.
+    setForm((current) => ({ ...current, customerId: '', customerName: value, ...(current.customerId ? { phone: '', email: '' } : {}) }));
     setDirty(true);
   }
 
