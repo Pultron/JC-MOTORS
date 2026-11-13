@@ -22,3 +22,18 @@
 /* Unsaved-changes bar: fixed to the bottom of the content area (clear of the fixed sidebar on wide screens). */
 .taller-actions { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
 @media print { .taller-actions { display: none; } }
+
+/* Danger zone: separated from the other cards, tokens only. */
+.respaldo-danger { margin-top: 20px; }
+.respaldo-danger-label { margin: 0 0 8px 4px; color: var(--color-mac-danger); font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.respaldo-danger-card { box-shadow: inset 0 0 0 1px var(--color-mac-danger-bg); }
+.respaldo-danger-icon { display: flex; width: 32px; height: 32px; flex: none; align-items: center; justify-content: center; border-radius: 8px; background: var(--color-mac-danger-bg); color: var(--color-mac-danger); }
+.mac-dialog .mac-btn:disabled, .respaldo-danger .mac-btn:disabled { cursor: not-allowed; opacity: .5; }
+
+/* Body of the wipe confirmation dialog (inside .mac-dialog, which is centered). */
+.mac-dialog-content { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; text-align: left; }
+.wipe-check { display: flex; align-items: flex-start; gap: 10px; color: var(--color-mac-ink); font-size: 13px; line-height: 1.4; cursor: pointer; }
+.wipe-check input { flex: none; width: 16px; height: 16px; margin-top: 2px; accent-color: var(--color-mac-danger); }
+.wipe-field { display: flex; flex-direction: column; gap: 6px; color: var(--color-mac-ink); font-size: 13px; font-weight: 500; }
+.wipe-field .mac-fill-input { width: 100%; }
+.wipe-field .mac-fill-input:focus-visible { outline: 2px solid var(--color-mac-danger); outline-offset: 2px; }

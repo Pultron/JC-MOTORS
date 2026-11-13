@@ -7,6 +7,7 @@ import { Segmented } from '../components/newQuote/primitives/Segmented';
 import { Card } from '../components/newQuote/primitives/Card';
 import { CardHeader } from '../components/newQuote/primitives/CardHeader';
 import { useToast } from '../components/ui/Toast';
+import { WipeDangerZone } from '../components/respaldo/WipeDangerZone';
 import { useConfirm } from '../hooks/useConfirm';
 import {
   BackupError, applyBackup, backupFileName, buildBackup, formatSummary, markBackupExported, parseBackup, readLastBackupAt,
@@ -170,6 +171,8 @@ function JsonBackupPage() {
           </div>
         </>}
       </Card>
+
+      <WipeDangerZone disabled={busy} onBusyChange={setBusy} />
     </div>
   </div>;
 }

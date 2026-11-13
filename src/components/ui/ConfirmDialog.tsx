@@ -35,11 +35,15 @@ interface ConfirmDialogProps extends ConfirmOptions {
   secondaryLabel?: string;
   /** Se llama una sola vez, cuando termina la animación de salida. */
   onResolve: (result: ChoiceResult) => void;
+  /** Optional extra body (form fields, checkboxes) drawn between the description and the buttons. */
+  content?: ReactNode;
+  /** Disables the confirm button and makes Enter a no-op until the content is valid. */
+  confirmDisabled?: boolean;
 }
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function ConfirmDialog({ title, description, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', tone = 'primary', icon, secondaryLabel, onResolve }: ConfirmDialogProps) {
+export function ConfirmDialog({ title, description, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', tone = 'primary', icon, secondaryLabel, onResolve, content, confirmDisabled = false }: ConfirmDialogProps) {
   const [phase, setPhase] = useState<Phase>('in');
   const phaseRef = useRef<Phase>('in');
   const result = useRef<ChoiceResult>('cancel');
@@ -47,6 +51,8 @@ export function ConfirmDialog({ title, description, confirmLabel = 'Confirmar', 
   const confirmRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const descriptionId = useId();
+  const confirmDisabledRef = useRef(confirmDisabled);
+  confirmDisabledRef.current = confirmDisabled;
 
   const finish = useCallback((choice: ChoiceResult) => {
     if (phaseRef.current === 'out') return;
@@ -62,7 +68,12 @@ export function ConfirmDialog({ title, description, confirmLabel = 'Confirmar', 
     const opener = openerRef.current;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    confirmRef.current?.focus();
+    // Con confirmar deshabilitado, el foco va al campo marcado (o al primer control) en vez de a un botón inactivo.
+    const dialog = dialogRef.current;
+    const initial = confirmRef.current && !confirmRef.current.disabled
+      ? confirmRef.current
+      : dialog?.querySelector<HTMLElement>('[data-autofocus]') ?? dialog?.querySelector<HTMLElement>(FOCUSABLE);
+    initial?.focus();
     return () => {
       document.body.style.overflow = previousOverflow;
       if (opener?.isConnected) opener.focus();
@@ -84,7 +95,7 @@ export function ConfirmDialog({ title, description, confirmLabel = 'Confirmar', 
         const targetId = (event.target as HTMLElement).dataset?.testid;
         if (targetId === 'confirm-cancel' || targetId === 'confirm-secondary') return;
         event.preventDefault();
-        finish('primary');
+        if (!confirmDisabledRef.current) finish('primary');
         return;
       }
       if (event.key === 'Tab') {
@@ -146,10 +157,11 @@ export function ConfirmDialog({ title, description, confirmLabel = 'Confirmar', 
         </span>
         <h2 id={titleId}>{title}</h2>
         <p id={descriptionId} className="mac-dialog-description">{description}</p>
+        {content && <div className="mac-dialog-content">{content}</div>}
         <div className="mac-dialog-actions">
           {secondaryLabel && <button type="button" data-testid="confirm-secondary" className="mac-btn mac-btn-secondary" onClick={() => finish('secondary')}>{secondaryLabel}</button>}
           <button type="button" data-testid="confirm-cancel" className="mac-btn mac-btn-secondary" onClick={() => finish('cancel')}>{cancelLabel}</button>
-          <button ref={confirmRef} type="button" data-testid="confirm-accept" className={`mac-btn ${isDanger ? 'mac-btn-danger' : 'mac-btn-primary'}`} autoFocus onClick={() => finish('primary')}>{confirmLabel}</button>
+          <button ref={confirmRef} type="button" data-testid="confirm-accept" className={`mac-btn ${isDanger ? 'mac-btn-danger' : 'mac-btn-primary'}`} autoFocus disabled={confirmDisabled} onClick={() => finish('primary')}>{confirmLabel}</button>
         </div>
       </div>
     </div>,

@@ -3,6 +3,7 @@ import { Download, HardDrive, RefreshCw, Upload } from 'lucide-react';
 import { Card } from '../components/newQuote/primitives/Card';
 import { CardHeader } from '../components/newQuote/primitives/CardHeader';
 import { RestoreFlow } from '../components/boot/RestoreFlow';
+import { WipeDangerZone } from '../components/respaldo/WipeDangerZone';
 import { useToast } from '../components/ui/Toast';
 import { formatBytes, formatLastBackup } from '../storage/backupFormat';
 import { formatSummary, markBackupExported, readLastBackupAt, summarizeCurrent } from '../storage/backupService';
@@ -83,6 +84,8 @@ export function SqliteBackupPage() {
           <Upload size={12} className="mr-1 inline" aria-hidden="true" />Se hace una copia al día al abrir el sistema y se conservan las 7 más recientes.
         </p>
       </Card>
+
+      <WipeDangerZone disabled={busy} onBusyChange={setBusy} />
     </div>
   </div>;
 }
