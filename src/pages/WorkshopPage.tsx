@@ -169,7 +169,7 @@ export function WorkshopPage() {
 
   return <div ref={pageRef} className="respaldo-page">
     <h1 className="sr-only">Datos del taller</h1>
-    <div className="mx-auto flex w-full max-w-[760px] flex-col gap-5 px-5 pt-6 sm:px-8" style={{ paddingBottom: dirty ? 96 : 40 }}>
+    <div className="mx-auto flex w-full max-w-[760px] flex-col gap-5 px-5 pt-6 sm:px-8" style={{ paddingBottom: 40 }}>
       <Card as="section">
         <CardHeader icon={<Store size={18} />} title="Datos del taller" subtitle="Aparecen en el encabezado y el pie de la cotización en PDF." />
         <FormRow label="Nombre" htmlFor={ids.nombre} required error={errors.nombre}>
@@ -224,11 +224,9 @@ export function WorkshopPage() {
         </div>
       </Card>
     </div>
-    {dirty && <div role="region" aria-label="Cambios sin guardar" data-testid="taller-savebar" className="taller-savebar">
-      <span className="taller-savebar-dot" aria-hidden="true" />
-      <p className="taller-savebar-text">Tienes cambios sin guardar</p>
-      <button type="button" data-testid="taller-discard" className="taller-link" onClick={discard}>Descartar</button>
-      <button type="button" data-testid="taller-save" className="mac-btn mac-btn-primary" onClick={() => void save()}>Guardar cambios</button>
-    </div>}
+    <div className="taller-actions">
+      <button type="button" data-testid="taller-discard" className="taller-link" disabled={!dirty} onClick={discard}>Descartar</button>
+      <button type="button" data-testid="taller-save" className="mac-btn mac-btn-primary" disabled={!dirty} onClick={() => void save()}>Guardar cambios</button>
+    </div>
   </div>;
 }

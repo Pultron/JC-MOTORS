@@ -8,9 +8,9 @@
 .respaldo-label { width: 120px; flex: none; font-size: 14px; color: var(--color-mac-ink); }
 .respaldo-value { min-width: 0; flex: 1; overflow-wrap: anywhere; font-size: 14px; color: var(--color-mac-ink-2); }
 .respaldo-hint { border-top: 1px solid var(--color-mac-separator); padding: 10px 16px 0; font-size: 13px; color: var(--color-mac-ink-2); }
-.taller-link { border: 0; background: none; padding: 2px 0; color: var(--color-mac-ink-2); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.taller-link:hover:not(:disabled) { color: var(--color-mac-ink); }
-.taller-link:disabled { opacity: .5; cursor: default; }
+.taller-link { border: 0; background: none; padding: 4px 2px; color: var(--color-mac-accent-text); font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; }
+.taller-link:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
+.taller-link:disabled { opacity: .45; cursor: default; }
 .taller-link:focus-visible { outline: 2px solid var(--color-mac-accent); outline-offset: 2px; border-radius: 4px; }
 /* Message preview: WhatsApp-style bubble (tint of the success token) and an email box. */
 .taller-bubble { max-width: 420px; padding: 9px 12px; border-radius: 4px 14px 14px 14px; background: color-mix(in srgb, var(--color-mac-success) 14%, white); color: var(--color-mac-ink); font-size: 14px; line-height: 20px; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -20,10 +20,5 @@
 .taller-mail-body { padding: 10px 12px; color: var(--color-mac-ink); font-size: 14px; line-height: 20px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* Unsaved-changes bar: fixed to the bottom of the content area (clear of the fixed sidebar on wide screens). */
-.taller-savebar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 40; display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 12px 20px; border-top: .5px solid var(--color-mac-separator); background: rgb(255 255 255 / 92%); backdrop-filter: blur(16px) saturate(1.6); box-shadow: 0 -4px 18px rgb(0 0 0 / 6%); animation: tallerBarIn 180ms ease-out both; }
-@media (min-width: 1024px) { .taller-savebar { left: 264px; } }
-.taller-savebar-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: #ff9500; }
-.taller-savebar-text { margin: 0 auto 0 0; color: var(--color-mac-ink); font-size: 13px; font-weight: 500; }
-@keyframes tallerBarIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .taller-savebar { animation: none; } }
-@media print { .taller-savebar { display: none; } }
+.taller-actions { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
+@media print { .taller-actions { display: none; } }
