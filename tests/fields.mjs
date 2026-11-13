@@ -1,15 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  MAX_YEAR, MIN_YEAR, PHONE_REQUIRED, PLATES_MIN_LENGTH, formatPhone, normalizeEmail, normalizePhone, normalizePlates,
+  CONTACT_REQUIRED_MESSAGE, MAX_YEAR, MIN_YEAR, PLATES_MIN_LENGTH, formatPhone, normalizeEmail, normalizePhone, normalizePlates,
   parseDecimalStrict, phoneForStorage, sanitizeSingleLine, stripLineBreaks, validateEmail, validatePhone, validatePlates,
-  validateQuantity, validateYear,
+  validateQuantity, validateYear, contactStatus, hasContactMedium, showOptionalHint, validateContact,
 } from '../src/validation/fields.ts';
 
 test('constants', () => {
   assert.equal(MIN_YEAR, 1980);
   assert.equal(MAX_YEAR, new Date().getFullYear() + 1);
-  assert.equal(PHONE_REQUIRED, false);
   assert.equal(PLATES_MIN_LENGTH, 3);
 });
 
@@ -101,4 +100,43 @@ test('#005 phone paste and input helpers', async () => {
   assert.equal(sanitizePhoneInput('123456789000000'), '1234567890');
   assert.equal(sanitizePhoneInput('(667) 351-88069'), '(667) 351-8806');
   assert.equal(sanitizePhoneInput('66a7-3b'), '667-3');
+});
+
+test('validateContact: both empty fails on both fields with the shared message', () => {
+  for (const input of [{ telefono: '', correo: '' }, { telefono: '  ', correo: ' ' }, { telefono: '()', correo: '' }]) {
+    const result = validateContact(input);
+    assert.equal(result.telefono.ok, false);
+    assert.equal(result.correo.ok, false);
+    assert.equal(result.telefono.mensaje, CONTACT_REQUIRED_MESSAGE);
+    assert.equal(result.correo.mensaje, 'Agrega un teléfono o un correo');
+  }
+});
+
+test('validateContact: only a valid phone, or only a valid email, is enough', () => {
+  const phoneOnly = validateContact({ telefono: '(667) 351-8806', correo: '' });
+  assert.equal(phoneOnly.telefono.ok && phoneOnly.correo.ok, true);
+  const emailOnly = validateContact({ telefono: '', correo: 'ana@correo.com' });
+  assert.equal(emailOnly.telefono.ok && emailOnly.correo.ok, true);
+});
+
+test('validateContact: an incomplete phone is not a medium and keeps its own error', () => {
+  const result = validateContact({ telefono: '66735', correo: '' });
+  assert.equal(result.telefono.mensaje, 'Faltan 5 dígitos (lleva 5 de 10).');
+  assert.equal(result.correo.ok, true);
+  assert.equal(hasContactMedium({ telefono: '66735', correo: '' }), false);
+  const badEmail = validateContact({ telefono: '', correo: 'foo' });
+  assert.equal(badEmail.correo.ok, false);
+  assert.notEqual(badEmail.correo.mensaje, CONTACT_REQUIRED_MESSAGE);
+  assert.equal(hasContactMedium({ telefono: '66735', correo: 'ana@correo.com' }), true);
+});
+
+test('contactStatus and showOptionalHint: "Opcional" only after the other field is a valid medium', () => {
+  assert.deepEqual(contactStatus({ telefono: '', correo: '' }), { telefono: false, correo: false });
+  assert.equal(showOptionalHint('telefono', { telefono: '', correo: '' }), false);
+  assert.equal(showOptionalHint('correo', { telefono: '', correo: '' }), false);
+  assert.equal(showOptionalHint('correo', { telefono: '(667) 351-8806', correo: '' }), true);
+  assert.equal(showOptionalHint('telefono', { telefono: '', correo: 'ana@correo.com' }), true);
+  assert.equal(showOptionalHint('correo', { telefono: '66735', correo: '' }), false, 'incomplete phone is not a medium');
+  assert.equal(showOptionalHint('telefono', { telefono: '', correo: 'foo' }), false, 'invalid email is not a medium');
+  assert.equal(showOptionalHint('correo', { telefono: '6673518806', correo: 'ana@correo.com' }), false, 'filled field never shows it');
 });

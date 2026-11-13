@@ -247,7 +247,8 @@ export function useCotizacionForm() {
 
   /** Blur: marks the field as touched (errors start showing) and applies its normalization. */
   function blurField(key: 'phone' | 'email' | 'plates' | 'laborAmount') {
-    touch(key);
+    // An empty phone/email is only reported on submit ("Agrega un teléfono o un correo"), not just for tabbing through.
+    if (!((key === 'phone' || key === 'email') && form[key] === '')) touch(key);
     if (key === 'email' || key === 'plates') {
       setForm((current) => {
         const clean = key === 'email' ? normalizeEmail(sanitizeSingleLine(current.email)) : normalizePlates(current.plates);
@@ -357,7 +358,7 @@ export function useCotizacionForm() {
     // Customer side effects are applied only after the quote is saved.
     let customerAction: CustomerSaveAction | null = null;
     if (!clean.customerId) {
-      customerAction = await resolveCustomerSave(customers, { name: clean.customerName, phone: clean.phone }, askDuplicateCustomer);
+      customerAction = await resolveCustomerSave(customers, { name: clean.customerName, phone: clean.phone, email: clean.email }, askDuplicateCustomer);
       if (customerAction.action === 'cancel') return;
       if (customerAction.action !== 'create') clean.customerId = customerAction.customer.id;
     }

@@ -6,7 +6,7 @@ import { MAX_YEAR, MIN_YEAR } from '../src/validation/fields.ts';
 
 const totals = { subtotalRefacciones: 100, subtotalManoObra: 0, laborDiscount: 0, subtotalNeto: 100, ivaAmount: 16, total: 116 };
 const baseForm = (overrides = {}) => ({
-  customerId: '', customerName: 'Ana', phone: '', email: '', make: 'Nissan', model: 'Versa', year: '', plates: 'ABC-123-A',
+  customerId: '', customerName: 'Ana', phone: '(667) 351-8806', email: '', make: 'Nissan', model: 'Versa', year: '', plates: 'ABC-123-A',
   items: [{ id: 'a', type: 'part', description: 'Filtro', quantity: '1', unitPrice: '100' }],
   laborAmount: '', laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true, validityDays: '15', publicNotes: '', customerNotes: '',
   ...overrides,
@@ -98,4 +98,19 @@ test('#012 plates: required, min 3 chars, saved uppercase, letters/digits/hyphen
   assert.ok(validateQuoteForm(baseForm({ plates: 'ABC#123' }), totals).plates);
   assert.equal(sanitizePlatesInput('abc#-12 3\t'), 'ABC-12 3 ');
   assert.equal(buildQuotationInput(normalizeQuoteForm(baseForm({ plates: ' abc-123-a ' }))).vehicle.plates, 'ABC-123-A');
+});
+
+test('contact: neither phone nor email fails on both; either one alone passes; legacy data is only checked on save', () => {
+  const both = validateQuoteForm(baseForm({ phone: '', email: '' }), totals);
+  assert.equal(both.phone, 'Agrega un teléfono o un correo');
+  assert.equal(both.email, 'Agrega un teléfono o un correo');
+  assert.deepEqual(validateQuoteForm(baseForm({ phone: '', email: 'ana@correo.com' }), totals), {});
+  assert.deepEqual(validateQuoteForm(baseForm({ phone: '6673518806', email: '' }), totals), {});
+  const incomplete = validateQuoteForm(baseForm({ phone: '66735', email: '' }), totals);
+  assert.match(incomplete.phone, /Faltan/);
+  assert.equal(incomplete.email, undefined);
+  assert.ok(validateQuoteForm(baseForm({ phone: '', email: 'foo' }), totals).email);
+  // A legacy customer (no phone, no email) selected in a new quotation does not crash; saving then requires contact.
+  const legacy = validateQuoteForm(baseForm({ customerId: 'legacy', phone: '', email: '' }), totals);
+  assert.ok(legacy.phone && legacy.email);
 });

@@ -3,11 +3,11 @@ import { useChoice } from '../components/ui/ChoiceDialog';
 import type { CustomerProfile } from '../models/quotation';
 import type { DuplicateChoice } from '../services/customerMatching';
 
-/** Returns the question shown when a customer with the same name but another phone already exists. */
+/** Returns the question shown when a customer with the same name but other contact data already exists. */
 export function useDuplicateCustomerPrompt(): (existing: CustomerProfile) => Promise<DuplicateChoice> {
   const choose = useChoice();
   return useCallback((existing) => choose<DuplicateChoice>({
-    title: `Ya existe «${existing.name}» con otro teléfono`,
+    title: `Ya existe «${existing.name}» con otros datos de contacto`,
     description: '¿Es el mismo cliente?',
     dismissValue: 'cancel',
     choices: [

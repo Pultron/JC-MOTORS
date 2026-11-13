@@ -18,7 +18,6 @@ export type DecimalResult =
 
 export const MIN_YEAR = 1980;
 export const MAX_YEAR = new Date().getFullYear() + 1;
-export const PHONE_REQUIRED = false;
 export const PHONE_DIGITS = 10;
 export const PLATES_MIN_LENGTH = 3;
 export const PHONE_MAX_LENGTH = 15;
@@ -72,7 +71,7 @@ export function phoneForStorage(text: string): string {
   return digits.length === PHONE_DIGITS ? digits : text.trim();
 }
 
-export function validatePhone(text: string, required: boolean = PHONE_REQUIRED): FieldResult {
+export function validatePhone(text: string, required: boolean = false): FieldResult {
   if (!/^[\d\s()+-]*$/.test(text)) return fail('El teléfono solo puede llevar números, espacios, paréntesis, + y -.');
   const digits = normalizePhone(text);
   if (digits.length === 0) return required ? fail('Escribe un teléfono de 10 dígitos.') : OK;
@@ -98,6 +97,54 @@ export function validateEmail(text: string): FieldResult {
   if (!email) return OK;
   if (/\s/.test(email) || !/^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(email)) return fail('Escribe un correo válido, por ejemplo nombre@dominio.com.');
   return OK;
+}
+
+// ---- Contact (phone or email) ----------------------------------------------------------------
+
+export const CONTACT_REQUIRED_MESSAGE = 'Agrega un teléfono o un correo';
+
+export interface ContactInput { telefono: string; correo: string }
+export interface ContactResult { telefono: FieldResult; correo: FieldResult }
+export interface ContactStatus {
+  /** The phone is complete and valid, so it counts as a contact medium. An incomplete phone does not. */
+  telefono: boolean;
+  /** The email is non-empty and valid. */
+  correo: boolean;
+}
+
+/** Which of the two fields currently counts as a valid contact medium. */
+export function contactStatus({ telefono, correo }: ContactInput): ContactStatus {
+  return {
+    telefono: normalizePhone(telefono).length > 0 && validatePhone(telefono).ok,
+    correo: normalizeEmail(correo).length > 0 && validateEmail(correo).ok,
+  };
+}
+
+/** True when at least one of phone/email is a valid contact medium. */
+export function hasContactMedium(input: ContactInput): boolean {
+  const status = contactStatus(input);
+  return status.telefono || status.correo;
+}
+
+/**
+ * Single rule for "at least one contact medium". A field's own error (incomplete phone, invalid email) always wins;
+ * both empty marks both fields with the same message. Never touches stored data: legacy customers without contact
+ * are only held to this when they are edited or used in a new quotation.
+ */
+export function validateContact(input: ContactInput): ContactResult {
+  const telefono = validatePhone(input.telefono);
+  const correo = validateEmail(input.correo);
+  const bothEmpty = telefono.ok && correo.ok && normalizePhone(input.telefono) === '' && normalizeEmail(input.correo) === '';
+  if (bothEmpty) return { telefono: fail(CONTACT_REQUIRED_MESSAGE), correo: fail(CONTACT_REQUIRED_MESSAGE) };
+  return { telefono, correo };
+}
+
+/** "Opcional" shows on a field only when the other one is already a valid medium and this one is empty. */
+export function showOptionalHint(field: 'telefono' | 'correo', input: ContactInput): boolean {
+  const status = contactStatus(input);
+  const other = field === 'telefono' ? status.correo : status.telefono;
+  const empty = field === 'telefono' ? input.telefono === '' : input.correo === '';
+  return other && empty;
 }
 
 // ---- Plates ----------------------------------------------------------------------------------

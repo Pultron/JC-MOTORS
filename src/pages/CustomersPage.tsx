@@ -16,7 +16,7 @@ import { withShortcutHint } from '../utils/shortcuts';
 import { focusFirstInvalid } from '../utils/focusFirstInvalid';
 import {
   PHONE_DIGITS, formatPhone, normalizeEmail, normalizePhone, phoneForStorage,
-  sanitizeSingleLine, stripLineBreaks, validateEmail, validatePhone,
+  sanitizeSingleLine, stripLineBreaks, showOptionalHint, validateContact,
 } from '../validation/fields';
 import '../styles/clientes.css';
 
@@ -117,8 +117,11 @@ export function CustomersPage() {
     if (focusRequest > 0) focusFirstInvalid();
   }, [focusRequest]);
 
-  const phoneError = touched.phone ? validatePhone(draft.phone).mensaje : undefined;
-  const emailError = touched.email ? validateEmail(draft.email).mensaje : undefined;
+  const contactCheck = validateContact({ telefono: draft.phone, correo: draft.email });
+  const phoneError = touched.phone ? contactCheck.telefono.mensaje : undefined;
+  const emailError = touched.email ? contactCheck.correo.mensaje : undefined;
+  const phoneOptional = showOptionalHint('telefono', { telefono: draft.phone, correo: draft.email });
+  const emailOptional = showOptionalHint('correo', { telefono: draft.phone, correo: draft.email });
 
   // Deep link from the global search: ?cliente=<id> opens that customer for editing, once.
   const linkedId = params.get('cliente');
@@ -239,9 +242,8 @@ export function CustomersPage() {
     setError('');
 
     const name = nameEdited.current ? titleCaseName(draft.name) : sanitizeSingleLine(draft.name);
-    const phoneValid = validatePhone(draft.phone).ok;
-    const emailValid = validateEmail(sanitizeSingleLine(draft.email)).ok;
-    if (!name || !phoneValid || !emailValid) {
+    const contact = validateContact({ telefono: draft.phone, correo: sanitizeSingleLine(draft.email) });
+    if (!name || !contact.telefono.ok || !contact.correo.ok) {
       if (!name) setError('Escribe el nombre del cliente.');
       setTouched({ phone: true, email: true });
       setFocusRequest((current) => current + 1);
@@ -273,7 +275,7 @@ export function CustomersPage() {
       flashRow(editingId, 'edit');
       toast.success({ title: 'Cliente actualizado', description: `Se actualizaron los datos de ${name}.` });
     } else {
-      const decision = await resolveCustomerSave(customers, { name, phone: input.phone }, askDuplicateCustomer);
+      const decision = await resolveCustomerSave(customers, { name, phone: input.phone, email: input.email ?? '' }, askDuplicateCustomer);
       if (decision.action === 'cancel') return; // The form stays as the user left it.
       if (decision.action === 'reuse') {
         flashRow(decision.customer.id, 'edit');
@@ -332,18 +334,18 @@ export function CustomersPage() {
               <div className="cli-row" data-invalid={phoneError ? 'true' : undefined}>
                 <label htmlFor="cli-phone" className="cli-label">Teléfono</label>
                 <div className="cli-field">
-                  <PhoneInput id="cli-phone" data-testid="cli-phone" className="cli-input" value={draft.phone} onValueChange={changePhone} onBlur={blurPhone} aria-invalid={phoneError ? 'true' : undefined} aria-describedby={[errorIdFor('cli-phone', phoneError), 'cli-phone-optional'].filter(Boolean).join(' ')} />
+                  <PhoneInput id="cli-phone" data-testid="cli-phone" className="cli-input" value={draft.phone} onValueChange={changePhone} onBlur={blurPhone} aria-invalid={phoneError ? 'true' : undefined} aria-describedby={[errorIdFor('cli-phone', phoneError), phoneOptional ? 'cli-phone-optional' : ''].filter(Boolean).join(' ') || undefined} />
                   <FieldError id="cli-phone-error" message={phoneError} />
                 </div>
-                {draft.phone === '' && <span id="cli-phone-optional" className="cli-aux">Opcional</span>}
+                {phoneOptional && <span id="cli-phone-optional" className="cli-aux">Opcional</span>}
               </div>
               <div className="cli-row" data-invalid={emailError ? 'true' : undefined}>
                 <label htmlFor="cli-email" className="cli-label">Correo</label>
                 <div className="cli-field">
-                  <EmailInput id="cli-email" data-testid="cli-email" anchorSelector=".cli-field" className="cli-input" value={draft.email} onValueChange={(email) => setDraft((current) => ({ ...current, email: stripLineBreaks(email) }))} onBlur={blurEmail} aria-invalid={emailError ? 'true' : undefined} aria-describedby={[errorIdFor('cli-email', emailError), 'cli-email-optional'].filter(Boolean).join(' ')} autoComplete="off" />
+                  <EmailInput id="cli-email" data-testid="cli-email" anchorSelector=".cli-field" className="cli-input" value={draft.email} onValueChange={(email) => setDraft((current) => ({ ...current, email: stripLineBreaks(email) }))} onBlur={blurEmail} aria-invalid={emailError ? 'true' : undefined} aria-describedby={[errorIdFor('cli-email', emailError), emailOptional ? 'cli-email-optional' : ''].filter(Boolean).join(' ') || undefined} autoComplete="off" />
                   <FieldError id="cli-email-error" message={emailError} />
                 </div>
-                {draft.email === '' && <span id="cli-email-optional" className="cli-aux">Opcional</span>}
+                {emailOptional && <span id="cli-email-optional" className="cli-aux">Opcional</span>}
               </div>
               <div className="cli-row cli-row--chips">
                 <label htmlFor="cli-alias-input" className="cli-label">Apodos</label>
@@ -359,6 +361,7 @@ export function CustomersPage() {
                 {aliases.length === 0 && aliasText === '' && <span id="cli-alias-optional" className="cli-aux">Opcional</span>}
               </div>
             </div>
+            <p id="cli-contact-help" className="cli-note" data-testid="cli-contact-help">Captura al menos un medio de contacto: teléfono o correo.</p>
             <p id="cli-alias-help" className="cli-note">Separa los apodos con Enter o coma.</p>
 
             <div className="cli-foot">
