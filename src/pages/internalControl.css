@@ -190,3 +190,14 @@ body:has(.profit-page) main { max-width: 1800px; padding: 30px 26px 26px; }
 .profit-items .profit-labor-row td:last-child { padding-right: 8px; border-radius: 0 8px 8px 0; color: var(--green); }
 .profit-items .profit-labor-row small { color: #0b4a8f; opacity: .75; font-weight: 500; }
 .profit-labor-lock { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; background: #d6e8ff; font-size: 11px; white-space: nowrap; }
+
+/* Profitability table: fixed column rhythm so numbers, status and action line up. */
+.profit-table { table-layout: auto; }
+.profit-table th, .profit-table td { vertical-align: middle; }
+.profit-table th:nth-child(1), .profit-table td:nth-child(1) { width: 88px; }
+.profit-table th:nth-child(n+3):nth-child(-n+6), .profit-table td:nth-child(n+3):nth-child(-n+6) { width: 108px; padding-left: 14px; padding-right: 14px; }
+.profit-table th:nth-child(6), .profit-table td:nth-child(6) { padding-right: 24px; color: var(--ink-2); }
+.profit-table th:nth-child(7), .profit-table td:nth-child(7) { width: 128px; text-align: center; padding-left: 12px; padding-right: 12px; }
+.profit-table th:nth-child(8), .profit-table td:nth-child(8) { width: 124px; text-align: right; padding-left: 12px; padding-right: 16px; }
+.profit-table td:nth-child(3), .profit-table td:nth-child(4) { color: var(--ink-2); }
+.profit-table td:nth-child(5) { font-weight: 700; }
