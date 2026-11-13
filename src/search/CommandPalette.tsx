@@ -55,6 +55,15 @@ function PaletteDialog({ opener, onClose }: { opener: HTMLElement | null; onClos
     };
   }, [opener]);
 
+  // Esc must close even when focus was lost (e.g. after clicking an empty area of the panel).
+  useEffect(() => {
+    const onDocumentKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); }
+    };
+    document.addEventListener('keydown', onDocumentKeyDown);
+    return () => document.removeEventListener('keydown', onDocumentKeyDown);
+  }, [onClose]);
+
   // Newest first, like Historial: the palette is about getting back to recent work.
   const data = useMemo(() => ({
     quotations: [...quotations].sort((x, y) => y.createdAt.localeCompare(x.createdAt)),
@@ -129,7 +138,7 @@ function PaletteDialog({ opener, onClose }: { opener: HTMLElement | null; onClos
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
-          <kbd className="pal-esc" aria-hidden="true">Esc</kbd>
+          <button type="button" className="pal-esc" data-testid="palette-close" aria-label="Cerrar búsqueda" onClick={onClose}>Esc</button>
         </div>
 
         <span className="pal-live" aria-live="polite">{trimmed && flat.length > 0 ? `${flat.length} resultados` : ''}</span>
