@@ -443,3 +443,7 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .mac-option-search input, .new-quotation-page .mac-option-search input:focus-visible { outline: none !important; box-shadow: none !important; }
 .mac-option-search input::-webkit-search-cancel-button { display: none; }
 .mac-option-search:focus-within { box-shadow: 0 0 0 2px var(--color-mac-accent); }
+
+.cli-save-customer { display: flex; width: 100%; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border: 0; border-top: 1px solid rgb(60 60 67 / 12%); background: var(--color-mac-tint); color: var(--color-mac-accent-text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.cli-save-customer:hover { background: var(--color-mac-accent); color: #fff; }
+.cli-saved-customer { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0; padding: 9px 16px; border-top: 1px solid rgb(60 60 67 / 12%); color: #0c6a2f; background: #eaf7ee; font-size: 13px; font-weight: 600; }

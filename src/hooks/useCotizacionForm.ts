@@ -9,7 +9,7 @@ import { useDuplicateCustomerPrompt } from './useDuplicateCustomerPrompt';
 import { resolveCustomerSave } from '../services/customerMatching';
 import type { CustomerSaveAction } from '../services/customerMatching';
 import type { QuoteDraft, QuoteDraftItem, QuoteFormData } from '../models/quoteDraft';
-import type { CreateQuotationInput, Quotation } from '../models/quotation';
+import type { CreateQuotationInput, CustomerProfile, Quotation } from '../models/quotation';
 import { DraftStorageFullError, quoteDraftService } from '../services/quoteDraftService';
 import type { TemporaryQuoteDraft } from '../services/quoteDraftService';
 import { MAX_CONCEPTS } from '../services/quotationLayout';
@@ -363,6 +363,28 @@ export function useCotizacionForm() {
     return Object.keys(next).length === 0;
   }
 
+  /** Customer details are complete and valid, but the person is not saved in Clientes yet. */
+  const canSaveCustomer = !form.customerId && form.customerName.trim() !== '' && (form.phone.trim() !== '' || form.email.trim() !== '')
+    && !allErrors.customerName && !allErrors.phone && !allErrors.email;
+
+  /** Explicit opt-in: stores the typed customer in Clientes and links the quotation to it. */
+  async function saveAsCustomer() {
+    if (!canSaveCustomer) return;
+    const clean = normalizeQuoteForm(form);
+    const action = await resolveCustomerSave(customers, { name: clean.customerName, phone: clean.phone, email: clean.email }, askDuplicateCustomer);
+    if (action.action === 'cancel') return;
+    let saved: CustomerProfile;
+    if (action.action === 'create') {
+      saved = createCustomer({ name: clean.customerName.trim(), phone: phoneForStorage(clean.phone), ...(clean.email.trim() ? { email: clean.email.trim() } : {}), aliases: [] });
+    } else {
+      saved = action.customer;
+      if (action.action === 'updatePhone') updateStoredCustomer(saved.id, { name: saved.name, phone: action.phone, ...(saved.email ? { email: saved.email } : {}), aliases: saved.aliases });
+    }
+    setForm((current) => ({ ...current, customerId: saved.id }));
+    setDirty(true);
+    toast.success({ title: 'Cliente guardado', description: `${saved.name} ya está en Clientes.` });
+  }
+
   async function submit() {
     const clean = normalizeQuoteForm(form);
     if (!validate(clean)) {
@@ -388,9 +410,8 @@ export function useCotizacionForm() {
         toast.warning({ title: 'Cotización no editable', description: 'Esta cotización ya no está pendiente y no se puede editar.' });
         return;
       }
-      if (customerAction?.action === 'create') {
-        createCustomer({ name: clean.customerName.trim(), phone: phoneForStorage(clean.phone), ...(clean.email.trim() ? { email: clean.email.trim() } : {}), aliases: [] });
-      } else if (customerAction?.action === 'updatePhone') {
+      // A new customer is never saved implicitly: the user opts in with "Guardar como cliente frecuente".
+      if (customerAction?.action === 'updatePhone') {
         const { customer, phone } = customerAction;
         updateStoredCustomer(customer.id, { name: customer.name, phone, ...(customer.email ? { email: customer.email } : {}), aliases: customer.aliases });
       }
@@ -515,7 +536,7 @@ export function useCotizacionForm() {
     editId, quotationToEdit, drafts, activeDraft, recovery,
     isLoadingEdit: Boolean(editId) && (!editReady || loadedEditId.current !== editId || isLoading),
     isSaved: !dirty && (Boolean(activeDraft) || Boolean(editId)),
-    updateField, blurField, commitText, blurItem, updateCustomer, selectCustomer, addItem, applyTemplate, updateItem, deleteItem, setLaborAmount,
+    updateField, blurField, commitText, blurItem, updateCustomer, selectCustomer, canSaveCustomer, saveAsCustomer, addItem, applyTemplate, updateItem, deleteItem, setLaborAmount,
     submit, saveDraft, clearForm, leaveDraft, openDraft, deleteDraft, recoverTemporary, discardTemporary,
   };
 }
