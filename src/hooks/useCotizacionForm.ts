@@ -300,7 +300,16 @@ export function useCotizacionForm() {
   function updateItem(id: string, key: keyof Omit<QuoteDraftItem, 'id' | 'type'>, value: string) {
     const next = key === 'description' ? stripLineBreaks(value) : value;
     setForm((current) => {
-      const items = current.items.map((item) => item.id === id ? { ...item, [key]: next } as QuoteDraftItem : item);
+      const items = current.items.map((item) => {
+        if (item.id !== id) return item;
+        const updated = { ...item, [key]: next } as QuoteDraftItem;
+        // Picking (or typing) a saved concept also brings its price, unless the user already set one.
+        if (key === 'description' && item.unitPrice.trim() === '') {
+          const saved = savedConcepts.flatMap((concept) => concept.items).find((candidate) => candidate.unitPrice.trim() !== '' && normalize(candidate.description) === normalize(next));
+          if (saved) updated.unitPrice = saved.unitPrice;
+        }
+        return updated;
+      });
       return { ...current, items };
     });
     setDirty(true);

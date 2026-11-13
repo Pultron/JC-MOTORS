@@ -63,7 +63,7 @@ export function RefaccionesCard({ form, errors, suggestions, totalParts, onAdd, 
     {errors.items && <p role="alert" className="border-t border-mac-separator px-4 py-2 text-xs font-medium text-mac-danger">{errors.items}</p>}
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-mac-separator px-4">
       <div className="flex flex-wrap items-center gap-x-3">
-        <button type="button" data-testid="refaccion-agregar" disabled={atLimit} aria-describedby={atLimit ? "limite-conceptos" : undefined} className="mac-press flex h-11 items-center gap-1.5 rounded-lg px-1 text-sm font-semibold text-mac-accent-text hover:text-mac-accent-hover disabled:cursor-not-allowed disabled:opacity-50" onClick={() => onAdd()}><Plus size={16} aria-hidden="true" />Agregar refacción</button>
+        <button type="button" data-testid="refaccion-agregar" disabled={atLimit} aria-describedby={atLimit ? "limite-conceptos" : undefined} className="mac-press flex h-11 items-center gap-1.5 rounded-lg px-1 text-sm font-semibold text-mac-accent-text hover:text-mac-accent-hover disabled:cursor-not-allowed disabled:opacity-50" onClick={() => onAdd()}><Plus size={16} aria-hidden="true" />Agregar concepto</button>
         {atLimit && <p id="limite-conceptos" data-testid="limite-conceptos" className="text-xs font-medium text-mac-danger">{CONCEPT_LIMIT_MESSAGE}</p>}
       </div>
       <p className="text-sm text-mac-ink-2">Total refacciones <strong data-testid="refacciones-total" className="tnum ml-1.5 font-bold text-mac-ink">{formatMoney(totalParts)}</strong></p>
