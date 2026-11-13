@@ -7,7 +7,7 @@ export interface QuotationRepository {
   update(id: string, input: CreateQuotationInput): Promise<Quotation | undefined>;
   approve(id: string): Promise<Quotation | undefined>;
   cancel(id: string): Promise<Quotation | undefined>;
-  deleteCancelled(id: string): Promise<Quotation | undefined>;
+  deletePermanently(id: string): Promise<Quotation | undefined>;
   /** Records that the quotation was handed to WhatsApp/email. Allowed in any status. */
   markShared(id: string, via: ShareMedium): Promise<Quotation | undefined>;
   /** Updates only the customer's phone/email on the quotation (used when the contact is completed at share time). */

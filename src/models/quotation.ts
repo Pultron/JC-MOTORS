@@ -3,6 +3,10 @@ export type ShareMedium = 'whatsapp' | 'email';
 export type QuotationStatus = 'Pendiente' | 'Aprobada' | 'Cancelada' | 'Vencida';
 
 /** Estados terminales: una cotización aprobada, cancelada o vencida ya no admite cambios. */
+/** Statuses whose quotations may be deleted permanently (closed without becoming a job). */
+export const DELETABLE_STATUSES: readonly QuotationStatus[] = ['Cancelada', 'Vencida'];
+export const isDeletableStatus = (status: QuotationStatus): boolean => DELETABLE_STATUSES.includes(status);
+
 export const TERMINAL_STATUSES: readonly QuotationStatus[] = ['Aprobada', 'Cancelada', 'Vencida'];
 export type QuotationItemType = 'labor' | 'part';
 export type DiscountType = 'percentage' | 'fixed';

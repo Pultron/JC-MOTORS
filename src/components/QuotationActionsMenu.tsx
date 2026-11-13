@@ -1,5 +1,6 @@
 import { Ban, Check, Download, FileText, LockKeyhole, Mail, MessageCircle, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import { isDeletableStatus } from '../models/quotation';
 import type { Quotation, ShareMedium } from '../models/quotation';
 import { useShareQuotation } from '../store/ShareContext';
 import { MacMenu } from './ui/MacMenu';
@@ -67,7 +68,7 @@ function buildMenuItems({ quotation, navigate, onOpenPdf, onDownloadPdf, onAppro
     if (onCancel) items.push({ key: 'cancel', label: 'Cancelar cotización', icon: Ban, tone: 'danger', separatorBefore: !onApprove, onSelect: () => onCancel(quotation) });
   }
 
-  if (quotation.status === 'Cancelada' && onDelete) {
+  if (isDeletableStatus(quotation.status) && onDelete) {
     items.push({ key: 'delete', label: 'Eliminar permanentemente', icon: Trash2, tone: 'danger', separatorBefore: true, onSelect: () => onDelete(quotation) });
   }
 

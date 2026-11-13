@@ -14,7 +14,7 @@ interface QuotationContextValue {
   updateQuotation: (id: string, input: CreateQuotationInput) => Promise<Quotation | undefined>;
   approveQuotation: (id: string) => Promise<Quotation | undefined>;
   cancelQuotation: (id: string) => Promise<Quotation | undefined>;
-  deleteCancelledQuotation: (id: string) => Promise<boolean>;
+  deleteQuotationPermanently: (id: string) => Promise<boolean>;
   /** Records the share silently (no toast: the share sheet is the feedback). */
   markQuotationShared: (id: string, via: ShareMedium) => Promise<Quotation | undefined>;
   /** Completes the customer's phone/email on the quotation itself; returns the updated quotation. */
@@ -92,8 +92,8 @@ export function QuotationProvider({ children }: { children: ReactNode }) {
     return quotation;
   }, [toast]);
 
-  const deleteCancelledQuotation = useCallback(async (id: string) => {
-    const quotation = await quotationService.deleteCancelled(id);
+  const deleteQuotationPermanently = useCallback(async (id: string) => {
+    const quotation = await quotationService.deletePermanently(id);
     if (!quotation) return false;
     setQuotations(await quotationService.list());
     toast.success({ title: 'Cotización eliminada', description: `La cotización ${quotation.folio} se eliminó permanentemente.` });
@@ -121,11 +121,11 @@ export function QuotationProvider({ children }: { children: ReactNode }) {
       updateQuotation,
       approveQuotation,
       cancelQuotation,
-      deleteCancelledQuotation,
+      deleteQuotationPermanently,
       markQuotationShared,
       updateQuotationContact,
     }),
-    [quotations, isLoading, getQuotation, createQuotation, updateQuotation, approveQuotation, cancelQuotation, deleteCancelledQuotation, markQuotationShared, updateQuotationContact],
+    [quotations, isLoading, getQuotation, createQuotation, updateQuotation, approveQuotation, cancelQuotation, deleteQuotationPermanently, markQuotationShared, updateQuotationContact],
   );
 
   return <QuotationContext.Provider value={value}>{children}</QuotationContext.Provider>;

@@ -11,7 +11,7 @@ import { QuotationPdfDialog } from '../QuotationPdfDialog';
 import { ShareStatusLine } from '../share/ShareStatusLine';
 import { countPendingUnshared, pendingUnsharedText } from '../../services/shareFilter';
 import { StatusBadge } from '../StatusBadge';
-import { useCancelledQuotationDeletion } from '../../hooks/useCancelledQuotationDeletion';
+import { useQuotationDeletion } from '../../hooks/useQuotationDeletion';
 import { useQuotationActions } from '../../hooks/useQuotationActions';
 import { useQuotationPdfDownload } from '../../hooks/useQuotationPdfDownload';
 import type { PublicQuotation, QuotationStatus } from '../../models/quotation';
@@ -42,7 +42,7 @@ export function QuotesTable() {
   const [flashId, setFlashId] = useState<string | null>(null);
   const [pdfTarget, setPdfTarget] = useState<PublicQuotation | null>(null);
   const { requestApprove, requestCancel } = useQuotationActions((updated) => setFlashId(updated.id));
-  const { requestDelete } = useCancelledQuotationDeletion();
+  const { requestDelete } = useQuotationDeletion();
   const downloadPdf = useQuotationPdfDownload();
 
   const sortedQuotations = useMemo(

@@ -13,7 +13,7 @@ import { QuotationActionsMenu } from '../components/QuotationActionsMenu';
 import { QuotationPdfDialog } from '../components/QuotationPdfDialog';
 import { ShareStatusLine } from '../components/share/ShareStatusLine';
 import { useQuotationActions } from '../hooks/useQuotationActions';
-import { useCancelledQuotationDeletion } from '../hooks/useCancelledQuotationDeletion';
+import { useQuotationDeletion } from '../hooks/useQuotationDeletion';
 import { useQuotationPdfDownload } from '../hooks/useQuotationPdfDownload';
 import type { PublicQuotation, QuotationStatus } from '../models/quotation';
 import { useQuotations } from '../store/QuotationContext';
@@ -39,7 +39,7 @@ export function HistoryPage() {
   const navigate = useNavigate();
   const { quotations, isLoading } = useQuotations();
   const { requestApprove, requestCancel } = useQuotationActions();
-  const { requestDelete } = useCancelledQuotationDeletion();
+  const { requestDelete } = useQuotationDeletion();
   const downloadPdf = useQuotationPdfDownload();
   // Search, status and page live in the URL so "back" from a quotation restores the same view.
   const [params, setParams] = useSearchParams();

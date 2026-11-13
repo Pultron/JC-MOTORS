@@ -8,6 +8,7 @@ import type {
   QuotationStatus,
   Vehicle,
 } from '../models/quotation';
+import { isDeletableStatus } from '../models/quotation';
 import { buildQuotationItems, calculateQuotationTotals, createId, roundCurrency, validateDiscount } from '../utils/quotation';
 import type { QuotationRepository } from './QuotationRepository';
 import { ensureQuotationFolioAtLeast, nextFolio, reservedDraftFolios } from '../services/folioService';
@@ -192,10 +193,10 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
     return cloneQuotation(updated);
   }
 
-  async deleteCancelled(id: string): Promise<Quotation | undefined> {
+  async deletePermanently(id: string): Promise<Quotation | undefined> {
     const quotations = this.readAll();
     const quotation = quotations.find((entry) => entry.id === id);
-    if (!quotation || quotation.status !== 'Cancelada') return undefined;
+    if (!quotation || !isDeletableStatus(quotation.status)) return undefined;
 
     this.writeAll(quotations.filter((entry) => entry.id !== id));
     return cloneQuotation(quotation);
