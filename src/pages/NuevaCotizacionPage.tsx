@@ -5,7 +5,6 @@ import { ClienteCard } from '../components/newQuote/ClienteCard';
 import { DetallesCard } from '../components/newQuote/DetallesCard';
 import { RefaccionesCard } from '../components/newQuote/RefaccionesCard';
 import { ResumenCard } from '../components/newQuote/ResumenCard';
-import { SaveStatusBadge } from '../components/newQuote/SaveStatusBadge';
 import { VehiculoCard } from '../components/newQuote/VehiculoCard';
 import { useCotizacionForm } from '../hooks/useCotizacionForm';
 
@@ -22,9 +21,8 @@ export function NuevaCotizacionPage() {
 
   return <div className="new-quotation-page">
     <h1 className="sr-only">Nueva cotización</h1>
-    <div className="flex justify-end px-8 pt-6"><SaveStatusBadge saved={state.isSaved} /></div>
     {!editId && <span role="status" className="sr-only">{saveState === 'saving' ? 'Guardando…' : saveState === 'saved' ? 'Guardado automáticamente' : 'Guardado automático'}</span>}
-    <form onSubmit={handleSubmit} noValidate className="flex flex-wrap items-start gap-6 px-8 pb-10 pt-4">
+    <form onSubmit={handleSubmit} noValidate className="flex flex-wrap items-start gap-6 px-8 pb-10 pt-6">
       <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-5">
         {!editId && <BorradoresPanel drafts={state.drafts} hasRecovery={Boolean(state.recovery)} onRecover={state.recoverTemporary} onDiscard={state.discardTemporary} onOpen={state.openDraft} onDelete={state.deleteDraft} activeId={activeDraft?.id} onLeave={() => void state.leaveDraft()} />}
         {editId && quotationToEdit && <div role="status" data-testid="editando-cotizacion" className="flex items-center gap-3 rounded-[14px] border border-mac-accent bg-mac-tint px-4 py-3 shadow-mac-card">
