@@ -440,5 +440,6 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 
 .mac-option-search { display: flex; align-items: center; gap: 8px; margin: 2px 2px 6px; padding: 0 10px; height: 34px; border-radius: 10px; background: rgb(118 118 128 / 12%); color: var(--color-mac-ink-2); }
 .mac-option-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--color-mac-ink); font: inherit; font-size: 14px; }
+.mac-option-search input, .new-quotation-page .mac-option-search input:focus-visible { outline: none !important; box-shadow: none !important; }
 .mac-option-search input::-webkit-search-cancel-button { display: none; }
 .mac-option-search:focus-within { box-shadow: 0 0 0 2px var(--color-mac-accent); }
