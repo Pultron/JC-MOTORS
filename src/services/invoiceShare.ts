@@ -1,6 +1,5 @@
 import type { Invoice } from '../models/invoice';
 import type { CustomerProfile } from '../models/quotation';
-import { base64ToBytes } from '../utils/base64';
 import { formatearFolio } from '../utils/invoiceFormat';
 import { customersNamed } from './customerMatching';
 import { hasEmailMedium, hasWhatsAppMedium, sanitizeFileBase } from './shareQuotation';
@@ -31,12 +30,4 @@ export function resolveInvoiceContact(invoice: Pick<Invoice, 'receptor'>, custom
     contact: { phone: withPhone?.phone ?? '', email: withEmail?.email ?? '' },
     ...(named[0] ? { customer: named[0] } : {}),
   };
-}
-
-export type InvoiceAttachment = { bytes: Uint8Array; ext: 'pdf' | 'xml' };
-
-/** The original file the invoice was imported from (PDF or XML), decoded. Throws when the stored copy is empty or unreadable. */
-export function invoiceAttachment(invoice: Pick<Invoice, 'archivoOriginal' | 'archivoTipo'>): InvoiceAttachment {
-  if (!invoice.archivoOriginal) throw new Error('La factura no conserva el archivo original.');
-  return { bytes: base64ToBytes(invoice.archivoOriginal), ext: invoice.archivoTipo === 'pdf' ? 'pdf' : 'xml' };
 }

@@ -10,7 +10,7 @@ import { LocalStorageInvoiceRepository, INVOICES_STORAGE_KEY } from '../src/repo
 import {
   DEFAULT_INVOICE_MESSAGE_TEMPLATE, INVOICE_MESSAGE_VARIABLES, buildInvoiceShareMessage, buildInvoiceShareSubject, previewInvoiceMessage, renderTemplate,
 } from '../src/services/shareMessage.ts';
-import { invoiceAttachment, invoiceFilenameBase, resolveInvoiceContact } from '../src/services/invoiceShare.ts';
+import { invoiceFilenameBase, resolveInvoiceContact } from '../src/services/invoiceShare.ts';
 import { sanitizeFileBase } from '../src/services/shareQuotation.ts';
 import { shareLineText } from '../src/services/shareStatus.ts';
 
@@ -83,15 +83,6 @@ test('contact resolution takes each medium from the first same-name customer tha
   const found = resolveInvoiceContact(invoice(), customers);
   assert.equal(found.customer.id, 'a');
   assert.deepEqual(found.contact, { phone: '6671234567', email: '' });
-});
-
-test('the attachment is the original file with its own extension; no original -> error', () => {
-  const xml = invoiceAttachment(invoice());
-  assert.equal(xml.ext, 'xml');
-  assert.equal(Buffer.from(xml.bytes).toString(), '<?xml version="1.0"?><a/>');
-  const pdf = invoiceAttachment(invoice({ archivoTipo: 'pdf', archivoOriginal: Buffer.from('%PDF-1.4').toString('base64') }));
-  assert.equal(pdf.ext, 'pdf');
-  assert.throws(() => invoiceAttachment(invoice({ archivoOriginal: '' })), /archivo original/);
 });
 
 test('markShared records channel and time; old invoices and unknown ids are safe; bad stored values are dropped', async () => {

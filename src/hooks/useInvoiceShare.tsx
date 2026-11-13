@@ -6,7 +6,8 @@ import { useToast } from '../components/ui/Toast';
 import { loadBusinessInfo } from '../config/businessInfo';
 import type { Invoice } from '../models/invoice';
 import type { ShareMedium } from '../models/quotation';
-import { invoiceAttachment, invoiceFilenameBase, resolveInvoiceContact } from '../services/invoiceShare';
+import { generarFacturaPdf } from '../services/invoicePdf';
+import { invoiceFilenameBase, resolveInvoiceContact } from '../services/invoiceShare';
 import { buildInvoiceShareMessage } from '../services/shareMessage';
 import {
   copyFileToClipboard, decideShareStep, hasMedium, nativeInvoke, openGmail, openShareLink, openShareUrlInBrowser, otherMedium,
@@ -14,6 +15,7 @@ import {
 } from '../services/shareQuotation';
 import type { ShareContact } from '../services/shareQuotation';
 import { useCustomers } from '../store/CustomerContext';
+import { warnIfLogoMissing } from '../utils/pdfAssetsCore';
 import { savePdfFile } from '../utils/savePdfFile';
 import { normalizeEmail, phoneForStorage } from '../validation/fields';
 
@@ -33,7 +35,7 @@ export interface InvoiceShare {
 }
 
 /**
- * Shares an invoice's ORIGINAL file (PDF or XML) like quotations are shared: the file goes to the clipboard, WhatsApp / the
+ * Shares the invoice's designed PDF (the same one "Descargar PDF" generates) like quotations are shared: the file goes to the clipboard, WhatsApp / the
  * mail client opens with the message, and the share is recorded. Contact data comes from the Cliente matching the receptor.
  */
 export function useInvoiceShare(markShared: (uuid: string, via: ShareMedium) => Promise<unknown>): InvoiceShare {
@@ -55,25 +57,22 @@ export function useInvoiceShare(markShared: (uuid: string, via: ShareMedium) => 
       let path: string | null = null;
       let clipboardOk = true;
       let opened = false;
-      let ext: 'pdf' | 'xml' = invoice.archivoTipo === 'pdf' ? 'pdf' : 'xml';
-
+      // Always the app's designed invoice PDF (logo and layout), the same one "Descargar PDF" produces.
       try {
-        const attachment = invoiceAttachment(invoice);
-        ext = attachment.ext;
+        const { file, logoError } = await generarFacturaPdf(invoice);
+        warnIfLogoMissing({ logoError }, toast);
         if (invoke) {
-          path = await saveSharedFile(invoke, attachment.bytes, invoiceFilenameBase(invoice), attachment.ext);
+          path = await saveSharedFile(invoke, new Uint8Array(await file.arrayBuffer()), invoiceFilenameBase(invoice), 'pdf');
         } else {
-          const type = attachment.ext === 'pdf' ? 'application/pdf' : 'application/xml';
-          const name = `${invoiceFilenameBase(invoice)}.${attachment.ext}`;
-          await savePdfFile(new File([attachment.bytes], name, { type }), invoiceFilenameBase(invoice), attachment.ext === 'pdf' ? 'save_invoice_pdf' : 'save_invoice_xml');
+          await savePdfFile(file, invoiceFilenameBase(invoice), 'save_invoice_pdf');
         }
       } catch (cause) {
         console.error('[compartir] factura', cause);
-        toast.error({ title: 'No se pudo preparar la factura', description: 'Inténtalo de nuevo. Si sigue igual, usa «Ver original» y envíala manualmente.' });
+        toast.error({ title: 'No se pudo preparar la factura', description: 'Inténtalo de nuevo. Si sigue igual, usa «Descargar PDF» y envíala manualmente.' });
         return;
       }
 
-      const fileLabel = ext === 'pdf' ? 'PDF' : 'XML';
+      const fileLabel = 'PDF';
       if (invoke && path) {
         try {
           await copyFileToClipboard(invoke, path);

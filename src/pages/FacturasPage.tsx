@@ -259,8 +259,8 @@ export function FacturasPage() {
                       className="fac-btn-secondary"
                       data-testid={`invoice-share-${medium}`}
                       data-available={available ? 'true' : 'false'}
-                      disabled={share.busy || !selected.archivoOriginal}
-                      title={!selected.archivoOriginal ? 'La factura no conserva el archivo original.' : available ? undefined : medium === 'whatsapp' ? 'Sin teléfono registrado: te lo pediremos.' : 'Sin correo registrado: te lo pediremos.'}
+                      disabled={share.busy}
+                      title={available ? undefined : medium === 'whatsapp' ? 'Sin teléfono registrado: te lo pediremos.' : 'Sin correo registrado: te lo pediremos.'}
                       onClick={() => share.shareInvoice(selected, medium)}
                     >
                       {share.busy ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Icon size={15} aria-hidden="true" />}
