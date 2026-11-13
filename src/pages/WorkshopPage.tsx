@@ -225,7 +225,7 @@ export function WorkshopPage() {
       </Card>
     </div>
     <div className="taller-actions">
-      <button type="button" data-testid="taller-discard" className="taller-link" disabled={!dirty} onClick={discard}>Descartar</button>
+      <button type="button" data-testid="taller-discard" className="mac-btn mac-btn-secondary" disabled={!dirty} onClick={discard}>Descartar</button>
       <button type="button" data-testid="taller-save" className="mac-btn mac-btn-primary" disabled={!dirty} onClick={() => void save()}>Guardar cambios</button>
     </div>
   </div>;
