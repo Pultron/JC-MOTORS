@@ -88,10 +88,10 @@
 .profit-table strong, .profit-table .profit-folio { color: var(--ink); font-weight: 600; }
 .profit-vehicle { display: block; color: var(--ink-2); font-size: 12px; margin-top: 2px; }
 .profit-table tr { cursor: pointer; transition: background-color .18s; }
-.profit-table tbody tr:hover { background: rgba(60, 60, 67, .04); }
+.profit-table tbody tr, .profit-table tbody tr:hover { background: #fff; }
 .profit-table tr.is-selected { background: rgba(204, 74, 11, .06); }
 .profit-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
-.profit-badge-complete { background: #e8f5ec; color: var(--green); }
+.profit-badge-complete { background: #c9eed6; color: #0c6a2f; }
 .profit-badge-incomplete { background: #fff4d6; color: #8a5a00; }
 .profit-badge-pending { background: rgba(118, 118, 128, .14); color: var(--ink-2); }
 :is(.profit-page, .fac-page, .hi-page) .profit-outline { border: 1px solid rgba(204, 74, 11, .6); background: white; color: var(--orange); border-radius: 8px; padding: 0 12px; height: 32px; font-size: 12px; font-weight: 500; white-space: nowrap; }
