@@ -84,11 +84,16 @@ export interface ShareMessage {
   subject: string;
 }
 
+/** Email subject: "Cotización JC-0005 · JC Motors". */
+export function buildShareSubject(folio: string, businessName: string): string {
+  return `Cotización ${folio} · ${businessName}`;
+}
+
 export function buildShareMessage(quotation: PublicQuotation, business: Pick<BusinessInfo, 'nombre' | 'telefonos' | 'mensajeClientes'>): ShareMessage {
   const template = business.mensajeClientes?.trim() ? business.mensajeClientes : DEFAULT_MESSAGE_TEMPLATE;
   return {
     text: renderTemplate(template, messageValues(quotation, business)),
-    subject: `Cotización ${quotation.folio} · ${business.nombre}`,
+    subject: buildShareSubject(quotation.folio, business.nombre),
   };
 }
 

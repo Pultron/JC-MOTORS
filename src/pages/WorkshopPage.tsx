@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { focusFirstInvalid } from '../utils/focusFirstInvalid';
 import { MessageSquareText, Store } from 'lucide-react';
 import { Card } from '../components/newQuote/primitives/Card';
@@ -12,10 +12,13 @@ import {
 } from '../config/businessInfo';
 import type { BusinessInfo } from '../config/businessInfo';
 import { useConfirm } from '../hooks/useConfirm';
-import { DEFAULT_MESSAGE_TEMPLATE, MESSAGE_VARIABLES, previewMessage } from '../services/shareMessage';
-import { applyDatos, toFormValues, validateWorkshopForm } from '../services/workshopForm';
+import { DEFAULT_MESSAGE_TEMPLATE, EXAMPLE_VALUES, MESSAGE_VARIABLES, buildShareSubject, previewMessage } from '../services/shareMessage';
+import { applyDatos, insertAtCursor, toFormValues, validateWorkshopForm } from '../services/workshopForm';
 import type { WorkshopFormErrors, WorkshopFormValues } from '../services/workshopForm';
 import '../styles/respaldo.css';
+
+/** The counter only appears when the message nears the limit. */
+const MESSAGE_COUNTER_FROM = 700;
 
 export function WorkshopPage() {
   const toast = useToast();
@@ -26,22 +29,31 @@ export function WorkshopPage() {
   const [values, setValues] = useState<WorkshopFormValues>(() => toFormValues(base));
   const [errors, setErrors] = useState<WorkshopFormErrors>({});
   const messageId = useId();
+  const messageCounterId = `${messageId}-counter`;
   const messageRef = useRef<HTMLTextAreaElement>(null);
   const message = values.mensaje;
   const messageDirty = message.trim() !== (base.mensajeClientes ?? DEFAULT_MESSAGE_TEMPLATE);
   const messageTooLong = message.length > MESSAGE_MAX;
+  const [previewMode, setPreviewMode] = useState<'whatsapp' | 'correo'>('whatsapp');
+  const preview = previewMessage(message);
   const setMessage = (mensaje: string | ((current: string) => string)) => setValues((current) => ({ ...current, mensaje: typeof mensaje === 'function' ? mensaje(current.mensaje) : mensaje }));
+
+  // The caret is restored after React re-renders the controlled textarea (which would otherwise move it to the end).
+  const pendingCaret = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const caret = pendingCaret.current;
+    const area = messageRef.current;
+    pendingCaret.current = null;
+    if (caret === null || !area) return;
+    area.focus();
+    area.setSelectionRange(caret, caret);
+  }, [values.mensaje]);
 
   function insertVariable(key: string) {
     const area = messageRef.current;
-    const token = `{${key}}`;
-    const start = area?.selectionStart ?? message.length;
-    const end = area?.selectionEnd ?? message.length;
-    setMessage((current) => (current.slice(0, start) + token + current.slice(end)).slice(0, MESSAGE_MAX + token.length));
-    window.requestAnimationFrame(() => {
-      area?.focus();
-      area?.setSelectionRange(start + token.length, start + token.length);
-    });
+    const result = insertAtCursor(message, area?.selectionStart ?? message.length, area?.selectionEnd ?? message.length, `{${key}}`);
+    pendingCaret.current = result.caret;
+    setMessage(result.text);
   }
 
   function handleSaveMessage() {
@@ -80,6 +92,15 @@ export function WorkshopPage() {
     } catch {
       toast.error({ title: 'No se pudo guardar', description: 'El almacenamiento está lleno o no está disponible. Tus datos anteriores no se modificaron.' });
     }
+  }
+
+  async function handleResetMessage() {
+    const accepted = await confirm({
+      title: '¿Restablecer el mensaje original?',
+      description: 'El texto del editor volverá al mensaje que trae la app. No se guarda hasta que pulses Guardar mensaje.',
+      confirmLabel: 'Restablecer',
+    });
+    if (accepted) setMessage(DEFAULT_MESSAGE_TEMPLATE);
   }
 
   async function handleReset() {
@@ -125,21 +146,32 @@ export function WorkshopPage() {
         <CardHeader icon={<MessageSquareText size={18} />} title="Mensaje para clientes" subtitle="Texto que acompaña la cotización al enviarla por WhatsApp o correo." />
         <div className="px-4 pb-2">
           <label htmlFor={messageId} className="sr-only">Mensaje para clientes</label>
-          <textarea ref={messageRef} id={messageId} data-testid="taller-mensaje" rows={6} className="w-full resize-y rounded-lg border border-mac-separator bg-white px-3 py-2 text-sm leading-5 text-mac-ink" aria-invalid={messageTooLong} value={message} onChange={(event) => setMessage(event.target.value)} />
-          <div className="mt-1 flex justify-between text-[12px] text-mac-ink-2">
-            <span role={messageTooLong ? 'alert' : undefined} className={messageTooLong ? 'text-red-600' : undefined}>{messageTooLong ? `Máximo ${MESSAGE_MAX} caracteres.` : 'Las variables se reemplazan al enviar.'}</span>
-            <span>{message.length}/{MESSAGE_MAX}</span>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Variables disponibles">
+          <textarea ref={messageRef} id={messageId} data-testid="taller-mensaje" rows={6} className="w-full resize-y rounded-lg border border-mac-separator bg-white px-3 py-2 text-sm leading-5 text-mac-ink" aria-invalid={messageTooLong} aria-describedby={messageCounterId} value={message} onChange={(event) => setMessage(event.target.value)} />
+          {message.length > MESSAGE_COUNTER_FROM && <p id={messageCounterId} data-testid="taller-mensaje-contador" role={messageTooLong ? 'alert' : undefined} className={`mt-1 text-right text-[12px] ${messageTooLong ? 'font-medium text-mac-danger' : 'text-mac-ink-2'}`}>{message.length} / {MESSAGE_MAX}{messageTooLong ? ' · Reduce el mensaje para guardarlo.' : ''}</p>}
+          <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Variables disponibles">
             {MESSAGE_VARIABLES.map((variable) => (
-              <button key={variable.key} type="button" title={variable.description} data-testid={`taller-variable-${variable.key}`} className="rounded-md bg-mac-tint px-2 py-1 text-[12px] font-medium text-mac-accent-text" onClick={() => insertVariable(variable.key)}>{`{${variable.key}}`}</button>
+              <button key={variable.key} type="button" title={variable.description} data-testid={`taller-variable-${variable.key}`} className="rounded-md bg-mac-tint px-2 py-1 text-[12px] font-medium text-mac-accent-text" onMouseDown={(event) => event.preventDefault()} onClick={() => insertVariable(variable.key)}>{`{${variable.key}}`}</button>
             ))}
           </div>
+          <p className="mt-1.5 text-[12px] text-mac-ink-2">Toca para insertar</p>
         </div>
-        <p className="respaldo-hint">Vista previa con datos de ejemplo</p>
-        <pre data-testid="taller-mensaje-preview" className="mx-4 mb-3 mt-2 whitespace-pre-wrap rounded-lg bg-slate-50 px-3 py-2 font-sans text-sm leading-5 text-mac-ink">{previewMessage(message)}</pre>
-        <div className="flex justify-end gap-3 px-4 py-3">
-          <button type="button" data-testid="taller-mensaje-reset" className="mac-btn mac-btn-secondary" disabled={message === DEFAULT_MESSAGE_TEMPLATE} onClick={() => setMessage(DEFAULT_MESSAGE_TEMPLATE)}>Restablecer mensaje original</button>
+        <div className="flex items-center justify-between gap-3 border-t border-mac-separator px-4 pt-3">
+          <p className="text-[13px] text-mac-ink-2">Vista previa con datos de ejemplo</p>
+          <div className="mac-segment flex" role="group" aria-label="Formato de la vista previa">
+            <button type="button" data-testid="taller-preview-whatsapp" aria-pressed={previewMode === 'whatsapp'} onClick={() => setPreviewMode('whatsapp')}>WhatsApp</button>
+            <button type="button" data-testid="taller-preview-correo" aria-pressed={previewMode === 'correo'} onClick={() => setPreviewMode('correo')}>Correo</button>
+          </div>
+        </div>
+        <div data-testid="taller-mensaje-preview" data-mode={previewMode} className="px-4 pb-3 pt-3" aria-live="polite">
+          {previewMode === 'whatsapp'
+            ? <div className="taller-bubble">{preview}</div>
+            : <div className="taller-mail">
+              <p className="taller-mail-subject"><span>Asunto</span>{buildShareSubject(EXAMPLE_VALUES.folio, EXAMPLE_VALUES.taller)}</p>
+              <div className="taller-mail-body">{preview}</div>
+            </div>}
+        </div>
+        <div className="flex items-center justify-between gap-3 px-4 pb-3">
+          <button type="button" data-testid="taller-mensaje-reset" className="taller-link" disabled={message === DEFAULT_MESSAGE_TEMPLATE} onClick={() => void handleResetMessage()}>Restablecer mensaje original</button>
           <button type="button" data-testid="taller-mensaje-save" className="mac-btn mac-btn-primary" disabled={!messageDirty || messageTooLong} onClick={handleSaveMessage}>Guardar mensaje</button>
         </div>
       </Card>

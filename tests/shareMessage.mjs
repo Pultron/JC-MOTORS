@@ -78,3 +78,9 @@ test('preview uses the example data and every variable has an example', () => {
   assert.equal(MESSAGE_VARIABLES.length, 7);
   for (const variable of MESSAGE_VARIABLES) assert.ok(variable.example && variable.description);
 });
+
+test('buildShareSubject matches the subject of the built message', async () => {
+  const { buildShareSubject } = await import('../src/services/shareMessage.ts');
+  assert.equal(buildShareSubject('JC-0005', 'JC MOTORS'), 'Cotización JC-0005 · JC MOTORS');
+  assert.equal(buildShareMessage(quotation(), business).subject, buildShareSubject('JC-0005', 'JC Motors'));
+});

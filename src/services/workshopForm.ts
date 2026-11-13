@@ -87,3 +87,11 @@ export function validateWorkshopForm(values: WorkshopFormValues): WorkshopFormEr
   }
   return errors;
 }
+
+/** Replaces the selection [selStart, selEnd) with `insert` and returns the new text and the caret right after it. */
+export function insertAtCursor(text: string, selStart: number, selEnd: number, insert: string): { text: string; caret: number } {
+  const clamp = (value: number) => Math.min(Math.max(Number.isFinite(value) ? value : text.length, 0), text.length);
+  const start = Math.min(clamp(selStart), clamp(selEnd));
+  const end = Math.max(clamp(selStart), clamp(selEnd));
+  return { text: text.slice(0, start) + insert + text.slice(end), caret: start + insert.length };
+}

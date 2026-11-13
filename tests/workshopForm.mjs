@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DEFAULT_BUSINESS_INFO } from '../src/config/businessInfo.ts';
 import { DEFAULT_MESSAGE_TEMPLATE } from '../src/services/shareMessage.ts';
-import { applyDatos, isDirty, joinAddress, splitAddress, toFormValues, validateWorkshopForm } from '../src/services/workshopForm.ts';
+import { applyDatos, insertAtCursor, isDirty, joinAddress, splitAddress, toFormValues, validateWorkshopForm } from '../src/services/workshopForm.ts';
 
 test('splitAddress: two lines, old single line, extra lines and CRLF', () => {
   assert.deepEqual(splitAddress('Av. Río #1\nCol. Morelos'), { calle: 'Av. Río #1', colonia: 'Col. Morelos' });
@@ -50,4 +50,13 @@ test('isDirty ignores whitespace, phone format and the default message', () => {
   assert.equal(isDirty(saved, { ...saved, correo: '' }), true);
   assert.equal(isDirty(saved, { ...saved, mensaje: 'otro' }), true);
   assert.equal(isDirty(saved, { ...saved, telefono: '(667) 351-8807' }), true);
+});
+
+test('insertAtCursor inserts at the caret, replaces a selection and clamps bad offsets', () => {
+  assert.deepEqual(insertAtCursor('Hola ', 5, 5, '{nombre}'), { text: 'Hola {nombre}', caret: 13 });
+  assert.deepEqual(insertAtCursor('Hola mundo', 5, 10, '{nombre}'), { text: 'Hola {nombre}', caret: 13 });
+  assert.deepEqual(insertAtCursor('ac', 1, 1, 'b'), { text: 'abc', caret: 2 });
+  assert.deepEqual(insertAtCursor('abc', 2, 0, 'X'), { text: 'Xc', caret: 1 });
+  assert.deepEqual(insertAtCursor('abc', 99, 99, 'X'), { text: 'abcX', caret: 4 });
+  assert.deepEqual(insertAtCursor('', 0, 0, '{a}'), { text: '{a}', caret: 3 });
 });
