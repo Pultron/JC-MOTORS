@@ -8,7 +8,7 @@ import { setStorageOverride } from '../src/storage/safeStorage.ts';
 import { createInvoiceRepository } from '../src/repositories/repositoryFactory.ts';
 import { LocalStorageInvoiceRepository, INVOICES_STORAGE_KEY } from '../src/repositories/LocalStorageInvoiceRepository.ts';
 import {
-  DEFAULT_INVOICE_MESSAGE_TEMPLATE, INVOICE_MESSAGE_VARIABLES, buildInvoiceShareMessage, buildInvoiceShareSubject, previewInvoiceMessage, renderTemplate,
+  DEFAULT_INVOICE_MESSAGE_TEMPLATE, INVOICE_MESSAGE_VARIABLES, greetingName, buildInvoiceShareMessage, buildInvoiceShareSubject, previewInvoiceMessage, renderTemplate,
 } from '../src/services/shareMessage.ts';
 import { invoiceFilenameBase, resolveInvoiceContact } from '../src/services/invoiceShare.ts';
 import { sanitizeFileBase } from '../src/services/shareQuotation.ts';
@@ -31,19 +31,21 @@ test('default invoice template is the agreed text, byte for byte', () => {
 
 test('the invoice message fills every variable', () => {
   const { text, subject } = buildInvoiceShareMessage(invoice(), business);
-  assert.equal(text, ['Hola Refaccionaria, te comparto tu factura 0042 de JC Motors.', 'Total: $4,350.00', 'Cualquier duda, estamos a tus órdenes.', 'JC Motors · (667) 351-8806'].join('\n'));
+  assert.equal(text, ['Hola Refaccionaria El Águila, te comparto tu factura 0042 de JC Motors.', 'Total: $4,350.00', 'Cualquier duda, estamos a tus órdenes.', 'JC Motors · (667) 351-8806'].join('\n'));
   assert.equal(subject, 'Factura 0042 · JC Motors');
   assert.equal(buildInvoiceShareSubject(7, 'X'), 'Factura 0007 · X');
 });
 
-test('the greeting prefers the matched customer name and keeps normal casing', () => {
-  assert.match(buildInvoiceShareMessage(invoice(), business, 'María José Pérez').text, /^Hola María,/);
-  assert.match(buildInvoiceShareMessage(invoice({ receptor: { ...invoice().receptor, nombre: 'Juan Pérez' } }), business).text, /^Hola Juan,/);
+test('the greeting prefers the matched customer name, keeps normal casing and follows the person/company rule', () => {
+  const person = { ...invoice().receptor, rfc: 'PESM900101AAA' };
+  assert.match(buildInvoiceShareMessage(invoice({ receptor: person }), business, 'María Pérez Soto').text, /^Hola María Pérez,/);
+  assert.match(buildInvoiceShareMessage(invoice({ receptor: { ...person, nombre: 'Juan Pérez' } }), business).text, /^Hola Juan Pérez,/);
+  assert.match(buildInvoiceShareMessage(invoice({ receptor: { ...person, nombre: 'VIRIDIANA ISABEL LOPEZ NAVARRO' } }), business).text, /^Hola Viridiana Lopez,/);
 });
 
 test('a custom template wins; blank falls back; unknown and quotation-only variables stay intact', () => {
   assert.equal(buildInvoiceShareMessage(invoice(), { ...business, mensajeFacturas: 'Factura {folio} {vehiculo} {x}' }).text, 'Factura 0042 {vehiculo} {x}');
-  assert.match(buildInvoiceShareMessage(invoice(), { ...business, mensajeFacturas: '   ' }).text, /^Hola Refaccionaria, te comparto tu factura/);
+  assert.match(buildInvoiceShareMessage(invoice(), { ...business, mensajeFacturas: '   ' }).text, /^Hola Refaccionaria El Águila, te comparto tu factura/);
   assert.equal(buildInvoiceShareMessage(invoice(), { ...business, mensajeClientes: 'cotización {folio}' }).text.includes('cotización'), false, 'the quotation template is never used for invoices');
 });
 
@@ -114,4 +116,18 @@ test('markShared goes through the sqlite-routed storage and waits for its confir
   fake.state.failApply = true;
   await assert.rejects(repo.markShared('u-42', 'whatsapp'), /disco lleno/);
   assert.equal((await repo.getById('u-42')).sharedVia, 'email', 'a rejected write is not kept');
+});
+
+test('greeting name: person = one given name + paternal surname; company = trade name without legal form', () => {
+  assert.equal(greetingName('VIRIDIANA ISABEL LOPEZ NAVARRO', 'LONV971113DT7'), 'Viridiana Lopez');
+  assert.equal(greetingName('JUAN CARLOS LARA VIDAÑO', 'LAVJ030214Q21'), 'Juan Lara');
+  assert.equal(greetingName('ANA PEREZ', 'PEAA900101AAA'), 'Ana Perez');
+  assert.equal(greetingName('MARCO', 'MAAA900101AAA'), 'Marco');
+  assert.equal(greetingName('JUAN DE LA CRUZ LOPEZ', 'JCLA900101AAA'), 'Juan de la Cruz');
+  assert.equal(greetingName('MEGANIS MECANIZACION', 'MME141128EY7'), 'Meganis Mecanizacion');
+  assert.equal(greetingName('REFACCIONARIA EL ÁGUILA SA DE CV', 'AAA010101AAA'), 'Refaccionaria El Águila');
+  // Without a usable RFC the name itself decides.
+  assert.equal(greetingName('REFACCIONARIA EL ÁGUILA S.A. DE C.V.', ''), 'Refaccionaria El Águila');
+  assert.equal(greetingName('Marco Antonio Ruiz Soto', ''), 'Marco Ruiz');
+  assert.equal(greetingName('  ', ''), '');
 });

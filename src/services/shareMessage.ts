@@ -124,12 +124,54 @@ export const INVOICE_EXAMPLE_VALUES: Readonly<Record<string, string>> = Object.f
   Object.fromEntries(INVOICE_MESSAGE_VARIABLES.map((variable) => [variable.key, variable.example])),
 );
 
-/** "JUAN PÉREZ" -> "Juan": CFDI names are usually all caps, which reads as shouting in a greeting. */
-function greetingName(fullName: string): string {
-  const first = firstName(fullName);
-  return first && first === first.toLocaleUpperCase('es-MX') && first !== first.toLocaleLowerCase('es-MX')
-    ? first.charAt(0) + first.slice(1).toLocaleLowerCase('es-MX')
-    : first;
+const SMALL_WORDS = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'e', 'en', 'van', 'von', 'da', 'di']);
+const SURNAME_PARTICLES = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'san', 'santa', 'mc', 'mac', 'van', 'von', 'da', 'di']);
+/** Legal-form endings that read badly in a greeting ("S.A. DE C.V.", "S DE RL", "SAPI DE CV", ...). */
+const LEGAL_SUFFIX = /(?:\s+|,\s*)(?:s\.?\s?a\.?\s?p\.?\s?i\.?(?:\s+de\s+c\.?\s?v\.?)?|s\.?\s?a\.?\s?s\.?|s\.?\s?a\.?(?:\s+de\s+c\.?\s?v\.?)?|s\.?\s?de\s+r\.?\s?l\.?(?:\s+de\s+c\.?\s?v\.?)?|s\.?\s?c\.?|a\.?\s?c\.?|s\.?\s?en\s+c\.?)\s*$/i;
+const COMPANY_WORDS = /(?:s\.?a\.?\s?de\s?c\.?v\.?|s\.?\s?de\s?r\.?l\.?|sapi|sas|s\.?a\.?p\.?i\.?|asociaci[oó]n|sociedad|corporaci[oó]n|grupo|refaccionaria|transportes|servicios|distribuidora|comercializadora|constructora)/i;
+
+const lower = (word: string) => word.toLocaleLowerCase('es-MX');
+const capitalize = (word: string) => (word ? word.charAt(0).toLocaleUpperCase('es-MX') + lower(word.slice(1)) : word);
+const isShouting = (text: string) => text === text.toLocaleUpperCase('es-MX') && text !== text.toLocaleLowerCase('es-MX');
+/** Title case only when the source is all caps (CFDI names); text typed in normal case is left alone. */
+const softCase = (words: string[], keepSmall: boolean) => words.map((word, index) => (
+  !isShouting(word) && words.some((other) => !isShouting(other)) ? word : keepSmall && index > 0 && SMALL_WORDS.has(lower(word)) ? lower(word) : capitalize(word)
+));
+
+/** RFC with 12 characters belongs to a company, 13 to a person; without a usable RFC the name itself is inspected. */
+function isCompany(fullName: string, rfc?: string): boolean {
+  const length = (rfc ?? '').replace(/\s+/g, '').length;
+  if (length === 12) return true;
+  if (length === 13) return false;
+  return LEGAL_SUFFIX.test(fullName) || COMPANY_WORDS.test(fullName);
+}
+
+/**
+ * Name for the greeting. People: one given name and one (paternal) surname — "VIRIDIANA ISABEL LOPEZ NAVARRO" -> "Viridiana Lopez".
+ * Companies: the trade name without its legal form — "REFACCIONARIA EL ÁGUILA SA DE CV" -> "Refaccionaria El Águila".
+ * Mexican names are given names first and two surnames last, so with 3+ words the paternal surname is the second to last
+ * (extended to the left over particles such as "de la").
+ */
+export function greetingName(fullName: string, rfc?: string): string {
+  const clean = fullName.replace(/\s+/g, ' ').trim();
+  if (!clean) return '';
+  if (isCompany(clean, rfc)) {
+    const trade = clean.replace(LEGAL_SUFFIX, '').trim() || clean;
+    return softCase(trade.split(' '), true).join(' ');
+  }
+  const words = clean.split(' ');
+  if (words.length === 1) return softCase(words, false)[0];
+  let picked: string[];
+  if (words.length === 2) {
+    picked = [words[0], words[1]];
+  } else {
+    let end = words.length - 2;
+    if (SURNAME_PARTICLES.has(lower(words[end]))) end = words.length - 1;
+    let start = end;
+    while (start > 1 && SURNAME_PARTICLES.has(lower(words[start - 1]))) start -= 1;
+    picked = [words[0], ...words.slice(start, end + 1)];
+  }
+  return softCase(picked, true).join(' ');
 }
 
 /** Total as the SAT wrote it ("$4,350.00"), with the currency code when it is not pesos. */
@@ -145,7 +187,7 @@ export function invoiceMessageValues(
   contactName?: string,
 ): Record<'nombre' | 'folio' | 'taller' | 'total' | 'telefono_taller', string> {
   return {
-    nombre: greetingName(contactName?.trim() || invoice.receptor.nombre),
+    nombre: greetingName(contactName?.trim() || invoice.receptor.nombre, invoice.receptor.rfc),
     folio: formatearFolio(invoice.folio),
     taller: business.nombre,
     total: invoiceTotalText(invoice),
