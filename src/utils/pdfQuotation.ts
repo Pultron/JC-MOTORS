@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import type { PublicQuotation } from '../models/quotation';
 import {
   BAND_BOTTOM, BAND_TOP, BULLET_INDENT, CARD_LABEL_W, COND_TITLE_H, CONT_HEADER, CONTENT_W, FOOTER_ICON_OFFSET, LINE, MARGIN_X,
-  PAGE_H, PAGE_W, cardWidth, conditionsWidth, customerRows, headerHeight, layoutFooterContacts, mm, planificar, pt,
+  PAGE_H, PAGE_W, cardWidth, conditionsWidth, customerRows, headerHeight, isPairedLaborRow, layoutFooterContacts, mm, planificar, pt,
   rowTextWidth, validUntil, vehicleRows,
 } from '../services/quotationLayout';
 import type { Blocks, CardRowData, Mode, Sheet } from '../services/quotationLayout';
@@ -20,7 +20,7 @@ const C = {
   navy: '#13294B', orange: '#F97316', orangeDark: '#C2410C', orangeLight: '#FF8A3D',
   text: '#13294B', text2: '#2B3B52', muted: '#4B5B70',
   card: '#F3F6FA', line: '#E3E9F1', sep: '#D5DEEA',
-  obsBg: '#FFF7ED', laborBg: '#FFF3E8', laborBadge: '#FDE3CF', green: '#1B7A3E', white: '#FFFFFF',
+  obsBg: '#FFF7ED', laborBg: '#FFF3E8', laborBadge: '#FDE3CF', pairBg: '#FFF4EA', pairTag: '#9A3412', green: '#1B7A3E', white: '#FFFFFF',
 } as const;
 
 const RIGHT = PAGE_W - MARGIN_X;
@@ -231,6 +231,20 @@ function drawSectionTitle(page: Page, title: string, size: number, y: number): n
   return y + height + 10;
 }
 
+/** The "↳" mark drawn as lines (the Inter font has no glyph for it): down from the service, then right with an arrow head. */
+function drawCornerArrow(page: Page, x: number, centerY: number, size: number): void {
+  const top = centerY - size * 0.6;
+  const bottom = centerY + size * 0.3;
+  const right = x + size;
+  const doc = page.doc;
+  doc.setDrawColor(C.orange);
+  doc.setLineWidth(mm(1.4));
+  doc.line(mm(x), mm(top), mm(x), mm(bottom));
+  doc.line(mm(x), mm(bottom), mm(right), mm(bottom));
+  doc.line(mm(right - size * 0.35), mm(bottom - size * 0.3), mm(right), mm(bottom));
+  doc.line(mm(right - size * 0.35), mm(bottom + size * 0.3), mm(right), mm(bottom));
+}
+
 function drawTable(page: Page, mode: Mode, sheet: Sheet, y: number): number {
   const rowsH = sheet.altos.reduce((total, value) => total + value, 0);
   const radius = 10;
@@ -251,20 +265,24 @@ function drawTable(page: Page, mode: Mode, sheet: Sheet, y: number): number {
     const height = sheet.altos[index];
     page.font({ size: mode.rowFont });
     const isLabor = item.type === 'labor';
+    // Labor printed under its own service gets the per-service look; an old quotation's loose labor row keeps the original one.
+    const paired = isPairedLaborRow(sheet.filas, index);
     const isLast = index === sheet.filas.length - 1;
     const lines = page.doc.splitTextToSize(item.description || '—', mm(rowTextWidth(mode))) as string[];
     const textTop = rowY + (height - lines.length * mode.rowFont * LINE) / 2;
-    const textX = MARGIN_X + (isLabor ? 20 : 16);
+    const textX = MARGIN_X + (paired ? 40 : isLabor ? 20 : 16);
     if (isLabor) {
       // Labor rows get a peach background and an orange edge; the last row must follow the table's rounded corners.
+      const background = paired ? C.pairBg : C.laborBg;
       if (isLast) {
-        page.rect(MARGIN_X, rowY, CONTENT_W, height, C.laborBg, radius);
-        page.rect(MARGIN_X, rowY, CONTENT_W, radius, C.laborBg);
+        page.rect(MARGIN_X, rowY, CONTENT_W, height, background, radius);
+        page.rect(MARGIN_X, rowY, CONTENT_W, radius, background);
       } else {
-        page.rect(MARGIN_X, rowY, CONTENT_W, height, C.laborBg);
+        page.rect(MARGIN_X, rowY, CONTENT_W, height, background);
       }
-      page.rect(MARGIN_X, rowY, 4, height - (isLast ? radius * 0.6 : 0), C.orange);
+      page.rect(MARGIN_X, rowY, paired ? 3 : 4, height - (isLast ? radius * 0.6 : 0), C.orange);
     }
+    if (paired) drawCornerArrow(page, MARGIN_X + 18, rowY + height / 2, mode.rowFont * 0.8);
     page.text(lines, textX, textTop, { size: mode.rowFont, color: C.text });
     if (isLabor) {
       const badgeFont = Math.max(7, mode.rowFont * 0.7);
@@ -273,12 +291,14 @@ function drawTable(page: Page, mode: Mode, sheet: Sheet, y: number): number {
       const badgeX = textX + page.width(lines[0], { size: mode.rowFont }) + 10;
       const badgeY = textTop + (mode.rowFont * LINE - badgeH) / 2;
       page.rect(badgeX, badgeY, badgeW, badgeH, C.laborBadge, 3);
-      page.middle('M.O.', badgeX + badgeW / 2, badgeY, badgeH, { size: badgeFont, bold: true, color: C.orangeDark, align: 'center' });
+      page.middle('M.O.', badgeX + badgeW / 2, badgeY, badgeH, { size: badgeFont, bold: true, color: paired ? C.pairTag : C.orangeDark, align: 'center' });
     }
     page.middle(String(item.quantity), qtyX + mode.colQty / 2, rowY, height, { size: mode.rowFont, color: C.text, align: 'center' });
     page.middle(formatMoney(item.saleUnitPrice, 'pdf'), priceEnd - 16, rowY, height, { size: mode.rowFont, color: C.text2, align: 'right' });
     page.middle(formatMoney(item.amount, 'pdf'), RIGHT - 16, rowY, height, { size: mode.rowFont, bold: true, color: isLabor ? C.orangeDark : C.navy, align: 'right' });
-    if (index < sheet.filas.length - 1) page.hline(MARGIN_X, RIGHT, rowY + height, C.line);
+    // Dividers separate groups only: none between a service and its own labor line.
+    const nextIsItsLabor = index < sheet.filas.length - 1 && isPairedLaborRow(sheet.filas, index + 1);
+    if (index < sheet.filas.length - 1 && !nextIsItsLabor) page.hline(MARGIN_X, RIGHT, rowY + height, C.line);
     rowY += height;
   });
   page.stroke(MARGIN_X, y, CONTENT_W, mode.headH + rowsH, C.line, 1, radius);

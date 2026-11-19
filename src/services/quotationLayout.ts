@@ -330,25 +330,49 @@ export function planificar(doc: MeasureDoc, quotation: PublicQuotation): Plan {
   const tallest = [...altos].sort((a, b) => b - a).slice(0, minLast);
   const blocks = describe(doc, quotation, mode, sum(tallest));
   const capUltima = PAGE_H - fijoUltima(blocks, mode);
+  // A service and its labor line are one block: they always share a sheet.
+  const groups = groupRows(items);
+  const groupHeights = groups.map((group) => sum(altos.slice(group.start, group.end)));
   const hojas: Sheet[] = [];
-  let i = 0;
+  let gi = 0;
 
   while (true) {
+    const first = groups[gi]?.start ?? items.length;
     // The final sheet is never empty: with <= minLast rows left they all go on it, so it cannot hold only totals and signature.
-    if (altos.length - i <= minLast || sum(altos.slice(i)) <= capUltima) {
-      hojas.push({ filas: items.slice(i), altos: altos.slice(i), final: true });
+    if (items.length - first <= minLast || sum(altos.slice(first)) <= capUltima) {
+      hojas.push({ filas: items.slice(first), altos: altos.slice(first), final: true });
       break;
     }
     const cap = PAGE_H - (hojas.length === 0 ? fijoPrimera(blocks, mode) : fijoIntermedia(blocks, mode));
     let n = 0;
     let usado = 0;
-    while (i + n < altos.length && usado + altos[i + n] <= cap) usado += altos[i + n++];
+    while (gi + n < groups.length && usado + groupHeights[gi + n] <= cap) usado += groupHeights[gi + n++];
     // Keep at least MIN_LAST_SHEET_ROWS rows for the last sheet so it never carries only totals and signature.
-    n = Math.max(1, Math.min(n, altos.length - i - minLast));
-    hojas.push({ filas: items.slice(i, i + n), altos: altos.slice(i, i + n), final: false });
-    i += n;
+    while (n > 1 && items.length - groups[gi + n - 1].end < minLast) n -= 1;
+    n = Math.max(1, n);
+    const end = groups[gi + n - 1].end;
+    hojas.push({ filas: items.slice(first, end), altos: altos.slice(first, end), final: false });
+    gi += n;
   }
   return { modo: mode, blocks, hojas };
+}
+
+export interface RowGroup { start: number; end: number }
+
+/** True when `item` is the labor line of the service printed right before it. */
+export function isPairedLaborRow(items: PublicQuotation['items'], index: number): boolean {
+  const item = items[index];
+  return index > 0 && item.type === 'labor' && Boolean(item.parentId) && items[index - 1].id === item.parentId && items[index - 1].type !== 'labor';
+}
+
+/** Rows that must never be split across sheets: a service followed by its own labor line. Every other row is a group of one. */
+export function groupRows(items: PublicQuotation['items']): RowGroup[] {
+  const groups: RowGroup[] = [];
+  items.forEach((_, index) => {
+    if (isPairedLaborRow(items, index)) groups[groups.length - 1].end = index + 1;
+    else groups.push({ start: index, end: index + 1 });
+  });
+  return groups;
 }
 
 // ---------------------------------------------------------------- footer contacts
