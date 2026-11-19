@@ -7,6 +7,7 @@ import { STORAGE_KEYS } from '../storage/storageKeys';
 import { createId } from '../utils/quotation';
 import { sanitizeMoneyInput, sanitizeSingleLine } from '../validation/fields';
 import { MAX_CONCEPTS } from './quotationLayout';
+import { LABOR_DESCRIPTION } from './quoteLaborRows';
 
 export const TEMPLATE_NAME_MAX_LENGTH = 60;
 /** Fired on `window` after the saved concepts change, so the description suggestions can refresh. */
@@ -18,7 +19,12 @@ export interface QuoteTemplateItem {
   type: QuotationItemType;
   quantity: string;
   unitPrice: string;
+  /** The service's own labor line. Like `unitPrice` it is only a suggestion (may be empty). Absent when the concept has no labor. */
+  labor?: { unitPrice: string };
 }
+
+/** Rows a template adds to a quotation: every concept plus its labor line. */
+export const templateRowCount = (items: readonly Pick<QuoteTemplateItem, 'labor'>[]): number => items.reduce((count, item) => count + (item.labor ? 2 : 1), 0);
 
 export interface QuoteTemplate {
   id: string;
@@ -50,19 +56,34 @@ const compareKey = (name: string) => name.normalize('NFD').replace(/[̀-ͯ]/g, '
 
 function toItem(value: unknown): QuoteTemplateItem | null {
   if (!value || typeof value !== 'object') return null;
-  const { description, type, quantity, unitPrice } = value as Record<string, unknown>;
+  const { description, type, quantity, unitPrice, labor } = value as Record<string, unknown>;
   if (typeof description !== 'string') return null;
   const cleanDescription = sanitizeSingleLine(description);
   if (!cleanDescription) return null;
+  const laborPrice = labor && typeof labor === 'object' ? (labor as Record<string, unknown>).unitPrice : undefined;
   return {
     description: cleanDescription,
     type: type === 'labor' ? 'labor' : 'part',
     quantity: typeof quantity === 'string' && quantity.trim() ? quantity.trim() : '1',
     unitPrice: typeof unitPrice === 'string' ? sanitizeMoneyInput(unitPrice).trim() : '',
+    // Labor belongs to a service: a labor-type concept never carries one of its own.
+    ...(labor && typeof labor === 'object' && type !== 'labor' ? { labor: { unitPrice: typeof laborPrice === 'string' ? sanitizeMoneyInput(laborPrice).trim() : '' } } : {}),
   };
 }
 
-const cleanItems = (items: readonly QuoteTemplateItem[]) => items.map(toItem).filter((item): item is QuoteTemplateItem => item !== null).slice(0, MAX_CONCEPTS);
+/** Valid concepts in order, never more than MAX_CONCEPTS rows (labor lines count). A concept whose pair would not fit is left out. */
+function cleanItems(items: readonly QuoteTemplateItem[]): QuoteTemplateItem[] {
+  const clean: QuoteTemplateItem[] = [];
+  let rows = 0;
+  for (const item of items.map(toItem)) {
+    if (!item) continue;
+    const needed = item.labor ? 2 : 1;
+    if (rows + needed > MAX_CONCEPTS) break;
+    clean.push(item);
+    rows += needed;
+  }
+  return clean;
+}
 
 function toTemplate(value: unknown): QuoteTemplate | null {
   if (!value || typeof value !== 'object') return null;
@@ -91,10 +112,14 @@ export function deriveTemplateName(items: readonly Pick<QuoteTemplateItem, 'desc
   return `${filled[0].slice(0, TEMPLATE_NAME_MAX_LENGTH - suffix.length).trimEnd()}${suffix}`;
 }
 
-/** The concepts worth saving from the form: rows with a description. Quantity and price are kept as typed. */
-export function templateItemsFromForm(items: readonly Pick<QuoteDraftItem, 'description' | 'type' | 'quantity' | 'unitPrice'>[]): QuoteTemplateItem[] {
+/** The concepts worth saving from the form: rows with a description, each with the labor line under it. Quantity and price are kept as typed. */
+export function templateItemsFromForm(items: readonly Pick<QuoteDraftItem, 'id' | 'description' | 'type' | 'quantity' | 'unitPrice' | 'parentId'>[]): QuoteTemplateItem[] {
   return items
-    .map((item) => toItem({ description: sanitizeSingleLine(item.description), type: item.type, quantity: item.quantity, unitPrice: item.unitPrice }))
+    .filter((item) => !(item.type === 'labor' && item.parentId && items.some((other) => other.id === item.parentId)))
+    .map((item) => {
+      const labor = item.type === 'labor' ? undefined : items.find((other) => other.type === 'labor' && other.parentId === item.id);
+      return toItem({ description: sanitizeSingleLine(item.description), type: item.type, quantity: item.quantity, unitPrice: item.unitPrice, ...(labor ? { labor: { unitPrice: labor.unitPrice } } : {}) });
+    })
     .filter((item): item is QuoteTemplateItem => item !== null);
 }
 
@@ -108,15 +133,27 @@ export interface AppendResult {
 const isBlankRow = (item: QuoteDraftItem) => !item.description.trim() && !item.unitPrice.trim();
 
 /**
- * Appends the template's concepts to the existing ones (editable copies with fresh ids), never going over `cap`.
- * A lone untouched blank row is the form's placeholder, so it makes room instead of staying as an empty concept.
+ * Appends the template's concepts to the existing ones (editable copies with fresh ids and fresh parentIds), never going over `cap`.
+ * A concept and its labor line go in together or not at all. Old templates with a labor-type concept attach it to the service above it
+ * when that service has none. A lone untouched blank row is the form's placeholder, so it makes room instead of staying as an empty concept.
  */
 export function appendTemplateItems(existing: readonly QuoteDraftItem[], template: Pick<QuoteTemplate, 'items'>, cap = MAX_CONCEPTS, newId: () => string = createId): AppendResult {
   const base = existing.length === 1 && isBlankRow(existing[0]) ? [] : [...existing];
-  const room = Math.max(0, cap - base.length);
-  const taken = template.items.slice(0, room);
-  const items = [...base, ...taken.map((item): QuoteDraftItem => ({ id: newId(), type: item.type, description: item.description, quantity: item.quantity, unitPrice: item.unitPrice }))];
-  return { items: items.length > 0 ? items : [...existing], added: taken.length, skipped: template.items.length - taken.length };
+  const items = [...base];
+  let added = 0;
+  for (const concept of template.items) {
+    const needed = concept.labor ? 2 : 1;
+    if (items.length + needed > cap) break;
+    const id = newId();
+    const last = items.at(-1);
+    // Legacy labor-type concept (no link of its own): it hangs under the service just before it, if that one is still free.
+    const attachTo = concept.type === 'labor' && items.length > base.length && last && last.type === 'part' && !items.some((row) => row.type === 'labor' && row.parentId === last.id) ? last.id : undefined;
+    items.push({ id, type: concept.type, description: concept.description, quantity: concept.quantity, unitPrice: concept.unitPrice, ...(attachTo ? { parentId: attachTo } : {}) });
+    if (concept.labor) items.push({ id: newId(), type: 'labor', description: LABOR_DESCRIPTION, quantity: '1', unitPrice: concept.labor.unitPrice, parentId: id });
+    added += needed;
+  }
+  const total = templateRowCount(template.items);
+  return { items: items.length > 0 ? items : [...existing], added, skipped: total - added };
 }
 
 function persist(templates: QuoteTemplate[]): TemplateFailure | null {

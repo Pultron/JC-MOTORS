@@ -255,7 +255,7 @@ export function useCotizacionForm() {
   /** Appends the template's concepts (editable copies) without exceeding the concept cap. */
   function applyTemplate(template: QuoteTemplate) {
     const result = appendTemplateItems(form.items, template, MAX_CONCEPTS);
-    const total = template.items.length;
+    const total = result.added + result.skipped;
     if (result.added === 0) {
       toast.warning({ title: 'No se agregaron conceptos', description: `La cotización ya tiene el máximo de ${MAX_CONCEPTS} conceptos.` });
       return;

@@ -424,6 +424,13 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .jc-tpl-concept .jc-tpl-qty { flex: 0 0 64px; padding: 0 6px; }
 .jc-tpl-concept .jc-tpl-money { flex: 0 0 110px; height: 36px; }
 .jc-tpl-concept .jc-tpl-icon:disabled { opacity: 0.4; cursor: not-allowed; }
+.jc-tpl-labor { flex: 1 0 100%; display: flex; align-items: center; gap: 6px; margin-left: 10px; padding: 3px 4px 3px 8px; border-left: 3px solid var(--color-mac-accent); border-radius: 4px; background: #fff8f2; }
+.jc-tpl-labor-arrow { flex: none; color: var(--color-mac-accent); }
+.jc-tpl-labor-name { flex: 1 1 auto; font-size: 13px; color: var(--jc-pop-ink-2); }
+.jc-tpl-labor .jc-tpl-money { flex: 0 0 110px; height: 36px; }
+.jc-tpl-labor-add { flex: 1 0 100%; display: flex; align-items: center; gap: 4px; margin-left: 18px; padding: 2px 4px; border: 0; background: transparent; color: var(--color-mac-accent-text); font-size: 12px; font-weight: 600; text-align: left; cursor: pointer; }
+.jc-tpl-labor-add:hover { color: var(--color-mac-accent-hover); }
+.jc-tpl-labor-add:focus-visible { outline: 2px solid var(--color-mac-accent); outline-offset: 1px; border-radius: 4px; }
 .jc-tpl-money > input { color: var(--jc-pop-ink); outline: none; }
 .jc-tpl-action--inline { width: auto; margin-top: 8px; padding-inline: 0; }
 .jc-tpl-action--inline:hover { background: transparent; text-decoration: underline; }

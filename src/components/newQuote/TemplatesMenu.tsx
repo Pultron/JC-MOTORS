@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { LayoutTemplate, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
-import { TEMPLATE_FAILURE_MESSAGES, quoteTemplateService, deriveTemplateName } from '../../services/quoteTemplateService';
+import { CornerDownRight, LayoutTemplate, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { TEMPLATE_FAILURE_MESSAGES, quoteTemplateService, deriveTemplateName, templateRowCount } from '../../services/quoteTemplateService';
 import type { QuoteTemplate, QuoteTemplateItem } from '../../services/quoteTemplateService';
 import { MAX_CONCEPTS } from '../../services/quotationLayout';
 import { createId } from '../../utils/quotation';
@@ -60,10 +60,16 @@ export function TemplatesMenu({ onApply }: Props) {
   }
 
   function addRow() {
-    if (rows.length >= MAX_CONCEPTS) { setError(`Un concepto guardado admite máximo ${MAX_CONCEPTS} líneas.`); return; }
+    if (templateRowCount(rows) >= MAX_CONCEPTS) { setError(`Un concepto guardado admite máximo ${MAX_CONCEPTS} líneas.`); return; }
     const row = blankRow();
     setRows((current) => [...current, row]);
     setFocusRow(row.key);
+  }
+
+  function addLaborTo(key: string) {
+    if (templateRowCount(rows) >= MAX_CONCEPTS) { setError(`Un concepto guardado admite máximo ${MAX_CONCEPTS} líneas.`); return; }
+    updateRow(key, { labor: { unitPrice: '' } });
+    setFocusRow(`labor:${key}`);
   }
 
   function close(restoreFocus: boolean) {
@@ -92,7 +98,7 @@ export function TemplatesMenu({ onApply }: Props) {
   // A newly added editor row takes focus on its description and scrolls into view.
   useEffect(() => {
     if (!focusRow) return;
-    const field = panelRef.current?.querySelector<HTMLElement>(`[data-tpl-desc="${focusRow}"]`);
+    const field = panelRef.current?.querySelector<HTMLElement>(`[data-tpl-desc="${focusRow}"]`) ?? panelRef.current?.querySelector<HTMLElement>(`[data-tpl-labor="${focusRow.replace('labor:', '')}"]`);
     field?.focus();
     field?.scrollIntoView({ block: 'nearest' });
     setFocusRow(null);
@@ -131,7 +137,7 @@ export function TemplatesMenu({ onApply }: Props) {
 
   function submit() {
     if (view.mode === 'edit') {
-      const payload: QuoteTemplateItem[] = rows.map(({ description, type, quantity, unitPrice }) => ({ description, type, quantity, unitPrice }));
+      const payload: QuoteTemplateItem[] = rows.map(({ description, type, quantity, unitPrice, labor }) => ({ description, type, quantity, unitPrice, ...(labor ? { labor } : {}) }));
       // The editor has no name field: the template is named after its first concept.
       const autoName = deriveTemplateName(payload);
       if (!autoName) { setError(TEMPLATE_FAILURE_MESSAGES['no-items']); return; }
@@ -204,6 +210,14 @@ export function TemplatesMenu({ onApply }: Props) {
                 <input data-tpl-desc={row.key} data-autofocus={index === 0 ? true : undefined} data-testid={`plantilla-descripcion-${index}`} className="jc-tpl-input jc-tpl-desc" aria-label={`Descripción del concepto ${index + 1}`} placeholder="Descripción" autoComplete="off" value={row.description} onChange={(event) => updateRow(row.key, { description: stripLineBreaks(event.target.value) })} onBlur={() => updateRow(row.key, { description: sanitizeSingleLine(row.description) })} />
                 <div className="mac-money jc-tpl-money"><span aria-hidden="true">$</span><input data-testid={`plantilla-precio-${index}`} className="tnum" autoComplete="off" inputMode="decimal" aria-label={`Precio del concepto ${index + 1} (opcional)`} placeholder="Precio" value={row.unitPrice} onChange={(event) => updateRow(row.key, { unitPrice: sanitizeMoneyInput(event.target.value) })} /></div>
                 <button type="button" className="jc-tpl-icon jc-tpl-icon--danger" aria-label={`Quitar concepto ${index + 1}`} disabled={rows.length === 1} onClick={() => { setRows((current) => current.filter((item) => item.key !== row.key)); if (error) setError(''); }}><X size={14} aria-hidden="true" /></button>
+                {row.type === 'labor' ? null : row.labor
+                  ? <div className="jc-tpl-labor" data-testid={`plantilla-mano-obra-${index}`} role="group" aria-label={`Mano de obra de ${row.description.trim() || `concepto ${index + 1}`}`}>
+                    <CornerDownRight size={14} aria-hidden="true" className="jc-tpl-labor-arrow" />
+                    <span className="jc-tpl-labor-name">Mano de obra</span>
+                    <div className="mac-money jc-tpl-money"><span aria-hidden="true">$</span><input data-tpl-labor={row.key} data-testid={`plantilla-mano-obra-precio-${index}`} className="tnum" autoComplete="off" inputMode="decimal" aria-label={`Precio de la mano de obra del concepto ${index + 1} (opcional)`} placeholder="Precio" value={row.labor.unitPrice} onChange={(event) => updateRow(row.key, { labor: { unitPrice: sanitizeMoneyInput(event.target.value) } })} /></div>
+                    <button type="button" data-testid={`plantilla-mano-obra-quitar-${index}`} className="jc-tpl-icon jc-tpl-icon--danger" aria-label={`Quitar mano de obra del concepto ${index + 1}`} onClick={() => updateRow(row.key, { labor: undefined })}><X size={14} aria-hidden="true" /></button>
+                  </div>
+                  : <button type="button" data-testid={`plantilla-mano-obra-agregar-${index}`} className="jc-tpl-labor-add" aria-label={`Agregar mano de obra al concepto ${index + 1}`} onClick={() => addLaborTo(row.key)}><Plus size={12} aria-hidden="true" />Mano de obra de este servicio</button>}
               </div>)}
             </div>
             <button type="button" data-testid="plantillas-agregar-concepto" className="jc-tpl-action jc-tpl-action--inline" onClick={addRow}><Plus size={14} aria-hidden="true" />Agregar concepto</button>
