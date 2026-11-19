@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { shouldBlockNavigation } from '../services/workshopForm';
 import { FileText, LoaderCircle } from 'lucide-react';
-import { useParams } from 'react-router';
+import { useBlocker, useParams } from 'react-router';
 import { useToast } from '../components/ui/Toast';
 import { useConfirm } from '../hooks/useConfirm';
 import { PeriodFilter, ProfitSummaryCards, QuoteProfitabilityTable } from '../components/internalControl/ProfitOverview';
@@ -50,25 +51,26 @@ export function InternalControlPage() {
   useEffect(() => {
     if (!dirty && !busy) return;
     const beforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
-    const currentUrl = window.location.href;
-    const historyNavigation = (event: PopStateEvent) => {
-      if (window.location.href === currentUrl) return;
-      const destination = window.location.href;
-      event.stopImmediatePropagation();
-      window.history.pushState(null, '', currentUrl);
-      guard(() => { window.location.href = destination; });
-    };
-    const navigate = (event: MouseEvent) => {
-      const anchor = (event.target as Element).closest('a');
-      if (!anchor || anchor.href === location.href || event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) return;
-      event.preventDefault(); event.stopPropagation();
-      guard(() => { window.location.href = anchor.href; });
-    };
     window.addEventListener('beforeunload', beforeUnload);
-    window.addEventListener('popstate', historyNavigation, true);
-    document.addEventListener('click', navigate, true);
-    return () => { window.removeEventListener('beforeunload', beforeUnload); window.removeEventListener('popstate', historyNavigation, true); document.removeEventListener('click', navigate, true); };
-  }, [dirty, busy, guard]);
+    return () => window.removeEventListener('beforeunload', beforeUnload);
+  }, [dirty, busy]);
+
+  // Router-level navigation guard: no manual history/click interception.
+  const guardRef = useRef({ dirty, busy });
+  guardRef.current = { dirty, busy };
+  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
+    (guardRef.current.dirty || guardRef.current.busy) && shouldBlockNavigation(true, currentLocation, nextLocation));
+  const askingRef = useRef(false);
+  useEffect(() => {
+    if (blocker.state !== 'blocked' || askingRef.current) return;
+    if (guardRef.current.busy) { blocker.reset(); return; }
+    askingRef.current = true;
+    void confirm({ title: 'Cambios sin guardar', description: 'Hay gastos que todavía no has guardado. ¿Quieres descartarlos y continuar?', confirmLabel: 'Descartar cambios', tone: 'danger' })
+      .catch(() => false)
+      .then(accepted => { askingRef.current = false; if (accepted) blocker.proceed(); else blocker.reset(); });
+    // The prompt reads everything through refs, so only the blocker state drives this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blocker.state]);
 
   const recordMap = useMemo(() => new Map(records.map(r => [r.quoteId, r])), [records]);
   const periodRows = useMemo(() => quotations.filter(q => isInRange(q, range))
@@ -81,6 +83,13 @@ export function InternalControlPage() {
       && normalize([quote.folio, quote.customer.name, quote.vehicle.make, quote.vehicle.model, quote.vehicle.year, quote.vehicle.plates].join(' ')).includes(term));
   }, [periodRows, search, status]);
   const selected = quotations.find(q => q.id === selectedId && q.status === 'Aprobada');
+
+  // The detail panel can unmount without reporting (quotation no longer approved,
+  // list refreshed on focus). Stale dirty/busy flags would keep the navigation
+  // guard active and swallow every sidebar click.
+  useEffect(() => {
+    if (!selected && (dirty || busy)) { setDirty(false); setBusy(false); }
+  }, [selected, dirty, busy]);
 
   const clearSelection = () => { setSelectedId(undefined); setDirty(false); };
   return <div className="profit-page">

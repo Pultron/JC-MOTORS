@@ -119,8 +119,51 @@ function MoneyInput({ value, onChange, label }: { value: string; onChange: (valu
   return <span className="profit-money"><span aria-hidden="true">$</span><input aria-label={label} aria-invalid={invalid} inputMode="decimal" autoComplete="off" type="text" value={display} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onChange={e => onChange(e.target.value)} /></span>;
 }
 
+/** `value` is always the cost PER UNIT (what is stored). In "Total" mode the user types the whole amount and it is converted. */
 export function InternalItemCostRow({ item, value, onChange }: { item: QuoteProfit['items'][number]; value: string; onChange: (value: string) => void }) {
-  return <tr><td>{item.description}{item.quantity !== 1 && <small>{item.quantity} unidades · costo por unidad</small>}</td><td>{formatMoney(item.customerTotalCents / 100)}</td><td><MoneyInput value={value} onChange={onChange} label={`Costo pagado por unidad: ${item.description}`} />{item.quantity !== 1 && item.actualTotalCostCents !== null && <small>Total: {formatMoney(item.actualTotalCostCents / 100)}</small>}</td><td className={item.profitCents === null ? '' : profitColor(item.profitCents)}>{item.profitCents === null ? '—' : formatMoney(item.profitCents / 100)}</td></tr>;
+  const multi = item.quantity !== 1;
+  const [mode, setMode] = useState<'unit' | 'total'>('unit');
+  const [totalText, setTotalText] = useState('');
+
+  const switchMode = (next: 'unit' | 'total') => {
+    if (next === mode) return;
+    if (next === 'total') {
+      let cents: number | null = null;
+      try { cents = parseCents(value); } catch { cents = null; }
+      setTotalText(cents === null ? '' : (cents * item.quantity / 100).toFixed(2));
+    }
+    setMode(next);
+  };
+
+  const changeTotal = (text: string) => {
+    setTotalText(text);
+    let cents: number | null;
+    try { cents = parseCents(text); } catch { onChange(text); return; } // invalid text surfaces the normal validation error
+    onChange(cents === null ? '' : (Math.round(cents / item.quantity) / 100).toFixed(2));
+  };
+
+  const unitCents = Math.round(item.customerTotalCents / item.quantity);
+  const inexact = item.actualTotalCostCents !== null && mode === 'total' && totalText !== '' && (() => {
+    try { return parseCents(totalText) !== item.actualTotalCostCents; } catch { return false; }
+  })();
+  let unitCostCents: number | null = null;
+  try { unitCostCents = parseCents(value); } catch { unitCostCents = null; }
+
+  return <tr>
+    <td>{item.description}{multi && <small>{item.quantity} unidades</small>}</td>
+    <td>{formatMoney(item.customerTotalCents / 100)}{multi && <small>{formatMoney(unitCents / 100)} c/u</small>}</td>
+    <td>
+      {multi && <span className="profit-mode" role="group" aria-label={`Cómo capturar el costo: ${item.description}`}>
+        <button type="button" aria-pressed={mode === 'unit'} onClick={() => switchMode('unit')}>Por unidad</button>
+        <button type="button" aria-pressed={mode === 'total'} onClick={() => switchMode('total')}>Total</button>
+      </span>}
+      {mode === 'total' && multi
+        ? <MoneyInput value={totalText} onChange={changeTotal} label={`Costo total pagado por las ${item.quantity} unidades: ${item.description}`} />
+        : <MoneyInput value={value} onChange={onChange} label={multi ? `Costo pagado por unidad: ${item.description}` : `Costo pagado: ${item.description}`} />}
+      {multi && unitCostCents !== null && item.actualTotalCostCents !== null && <small>{item.quantity} × {formatMoney(unitCostCents / 100)} = {formatMoney(item.actualTotalCostCents / 100)}{inexact ? ' (redondeado)' : ''}</small>}
+    </td>
+    <td className={item.profitCents === null ? '' : profitColor(item.profitCents)}>{item.profitCents === null ? '—' : formatMoney(item.profitCents / 100)}</td>
+  </tr>;
 }
 
 export function AdditionalExpensesSection({ expenses, onChange, onRemove }: { expenses: ExpenseDraft[]; onChange: (expenses: ExpenseDraft[]) => void; onRemove: (id: string) => void }) {

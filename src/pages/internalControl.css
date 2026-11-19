@@ -114,6 +114,9 @@
 .profit-items td:first-child, .profit-items th:first-child { padding-left: 0; }
 .profit-items td:last-child, .profit-items th:last-child { padding-right: 0; text-align: right; white-space: nowrap; }
 .profit-items small { display: block; font-size: 10px; color: var(--ink-2); margin-top: 4px; }
+.profit-mode { display: inline-flex; margin-bottom: 6px; padding: 2px; border-radius: 8px; background: #e9ecf1; }
+.profit-mode button { border: 0; background: transparent; padding: 3px 9px; border-radius: 6px; font-size: 11px; color: var(--ink-2); cursor: pointer; }
+.profit-mode button[aria-pressed="true"] { background: #fff; color: inherit; font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
 .profit-money { position: relative; display: block; min-width: 96px; }
 .profit-money > span { position: absolute; left: 10px; top: 0; line-height: 36px; font-size: 12px; color: var(--ink-2); pointer-events: none; }
 .profit-money input { width: 100%; padding-left: 22px; font-size: 13px; text-align: left; }
