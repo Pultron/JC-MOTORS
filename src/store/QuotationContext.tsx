@@ -13,7 +13,8 @@ interface QuotationContextValue {
   createQuotation: (input: CreateQuotationInput) => Promise<Quotation>;
   updateQuotation: (id: string, input: CreateQuotationInput) => Promise<Quotation | undefined>;
   approveQuotation: (id: string) => Promise<Quotation | undefined>;
-  cancelQuotation: (id: string) => Promise<Quotation | undefined>;
+  /** Approved quotations need a reason; pending ones may omit it. Rejects (and changes nothing) if the write fails. */
+  cancelQuotation: (id: string, reason?: string) => Promise<Quotation | undefined>;
   deleteQuotationPermanently: (id: string) => Promise<boolean>;
   /** Records the share silently (no toast: the share sheet is the feedback). */
   markQuotationShared: (id: string, via: ShareMedium) => Promise<Quotation | undefined>;
@@ -84,11 +85,14 @@ export function QuotationProvider({ children }: { children: ReactNode }) {
     return quotation;
   }, [toast]);
 
-  const cancelQuotation = useCallback(async (id: string) => {
-    const quotation = await quotationService.cancel(id);
+  const cancelQuotation = useCallback(async (id: string, reason?: string) => {
+    const quotation = await quotationService.cancel(id, reason);
     if (!quotation) return undefined;
     setQuotations(await quotationService.list());
-    toast.warning({ title: 'Cotización cancelada', description: `La cotización ${quotation.folio} fue cancelada.` });
+    toast.warning({
+      title: 'Cotización cancelada',
+      description: quotation.statusBeforeCancel === 'Aprobada' ? `${quotation.folio} salió de Control interno.` : `La cotización ${quotation.folio} fue cancelada.`,
+    });
     return quotation;
   }, [toast]);
 

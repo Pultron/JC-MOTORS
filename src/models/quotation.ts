@@ -2,6 +2,12 @@ export type ShareMedium = 'whatsapp' | 'email';
 
 export type QuotationStatus = 'Pendiente' | 'Aprobada' | 'Cancelada' | 'Vencida';
 
+/** Statuses a quotation can be cancelled from. */
+export type CancellableStatus = 'Pendiente' | 'Aprobada';
+
+/** Longest cancellation reason (after trimming) that is accepted and stored. */
+export const MAX_CANCELLATION_REASON = 120;
+
 /** Estados terminales: una cotización aprobada, cancelada o vencida ya no admite cambios. */
 /** Statuses whose quotations may be deleted permanently (closed without becoming a job). */
 export const DELETABLE_STATUSES: readonly QuotationStatus[] = ['Cancelada', 'Vencida'];
@@ -67,6 +73,12 @@ export interface Quotation {
   /** ISO time at which the app launched WhatsApp/email for this quotation (record only; never part of PublicQuotation). */
   sharedAt?: string;
   sharedVia?: ShareMedium;
+  /** Why the quotation was cancelled. Required when an approved quotation is cancelled; may be absent on older records. */
+  cancellationReason?: string;
+  /** ISO time of the cancellation. Absent on quotations cancelled before this field existed. */
+  cancelledAt?: string;
+  /** Status the quotation had when it was cancelled. */
+  statusBeforeCancel?: CancellableStatus;
 }
 
 export interface CreateQuotationInput {

@@ -8,7 +8,8 @@ import type {
   QuotationStatus,
   Vehicle,
 } from '../models/quotation';
-import { isDeletableStatus } from '../models/quotation';
+import { isDeletableStatus, MAX_CANCELLATION_REASON } from '../models/quotation';
+import { UserMessageError } from '../utils/userMessage';
 import { buildQuotationItems, calculateQuotationTotals, createId, roundCurrency, validateDiscount } from '../utils/quotation';
 import type { QuotationRepository } from './QuotationRepository';
 import { ensureQuotationFolioAtLeast, nextFolio, reservedDraftFolios } from '../services/folioService';
@@ -159,12 +160,23 @@ export class LocalStorageQuotationRepository implements QuotationRepository {
     return cloneQuotation(approved);
   }
 
-  async cancel(id: string): Promise<Quotation | undefined> {
+  async cancel(id: string, reason?: string): Promise<Quotation | undefined> {
     const quotations = this.readAll();
     const quotation = quotations.find((entry) => entry.id === id);
-    if (!quotation || quotation.status !== 'Pendiente') return undefined;
+    if (!quotation || (quotation.status !== 'Pendiente' && quotation.status !== 'Aprobada')) return undefined;
 
-    const cancelled: Quotation = { ...quotation, status: 'Cancelada' };
+    // Validate everything before the single write, so a rejected cancellation changes nothing.
+    const trimmed = (reason ?? '').trim();
+    if (quotation.status === 'Aprobada' && !trimmed) throw new UserMessageError('Escribe el motivo de la cancelación.');
+    if (trimmed.length > MAX_CANCELLATION_REASON) throw new UserMessageError(`El motivo no puede pasar de ${MAX_CANCELLATION_REASON} caracteres.`);
+
+    const cancelled: Quotation = {
+      ...quotation,
+      status: 'Cancelada',
+      cancelledAt: new Date().toISOString(),
+      statusBeforeCancel: quotation.status,
+      ...(trimmed ? { cancellationReason: trimmed } : {}),
+    };
     this.writeAll(quotations.map((entry) => entry.id === id ? cancelled : entry));
     return cloneQuotation(cancelled);
   }
@@ -315,6 +327,17 @@ function normalizeQuotation(value: LegacyQuotation, index: number): Quotation {
     status,
     ...(status === 'Aprobada' ? { approvedAt: value.approvedAt ?? createdAt } : {}),
     ...(typeof value.sharedAt === 'string' && (value.sharedVia === 'whatsapp' || value.sharedVia === 'email') ? { sharedAt: value.sharedAt, sharedVia: value.sharedVia } : {}),
+    ...(status === 'Cancelada' ? cancellationFields(value) : {}),
+  };
+}
+
+/** Keeps the cancellation record when valid; quotations cancelled before it existed simply have none of these fields. */
+function cancellationFields(value: LegacyQuotation): Pick<Quotation, 'cancellationReason' | 'cancelledAt' | 'statusBeforeCancel'> {
+  const reason = typeof value.cancellationReason === 'string' ? value.cancellationReason.trim() : '';
+  return {
+    ...(reason ? { cancellationReason: reason } : {}),
+    ...(typeof value.cancelledAt === 'string' && Number.isFinite(Date.parse(value.cancelledAt)) ? { cancelledAt: value.cancelledAt } : {}),
+    ...(value.statusBeforeCancel === 'Aprobada' || value.statusBeforeCancel === 'Pendiente' ? { statusBeforeCancel: value.statusBeforeCancel } : {}),
   };
 }
 
