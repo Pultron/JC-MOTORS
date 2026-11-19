@@ -106,3 +106,16 @@ test('the normalizer keeps cancellation fields, leaves old cancelled quotations 
   assert.equal('cancellationReason' in normB, false);
   assert.equal('cancelledAt' in normB, false);
 });
+
+test('backup and restore round-trip the cancellation fields byte for byte', async () => {
+  const { applyBackup, buildBackup, parseBackup, serializeBackup } = await import('../src/storage/backupService.ts');
+  const repo = new LocalStorageQuotationRepository();
+  const q = await approved(repo);
+  const cancelled = await repo.cancel(q.id, 'Se hará una cotización nueva');
+  const before = mem.data.get(STORAGE_KEYS.quotations);
+  const file = serializeBackup(buildBackup(new Date('2026-11-06T12:00:00')));
+  mem.data.clear();
+  applyBackup(parseBackup(file), 'replace');
+  assert.equal(mem.data.get(STORAGE_KEYS.quotations), before);
+  assert.deepEqual(await new LocalStorageQuotationRepository().getById(q.id), cancelled);
+});

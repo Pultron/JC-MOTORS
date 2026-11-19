@@ -11,7 +11,7 @@ import { filterByShare, SHARE_FILTERS, SHARE_FILTER_LABEL, shareFilterEmptyTitle
 import type { ShareFilter } from '../services/shareFilter';
 import { QuotationActionsMenu } from '../components/QuotationActionsMenu';
 import { QuotationPdfDialog } from '../components/QuotationPdfDialog';
-import { ShareStatusLine } from '../components/share/ShareStatusLine';
+import { QuotationRowSubline } from '../components/share/QuotationRowSubline';
 import { useQuotationActions } from '../hooks/useQuotationActions';
 import { useQuotationDeletion } from '../hooks/useQuotationDeletion';
 import { useQuotationPdfDownload } from '../hooks/useQuotationPdfDownload';
@@ -214,7 +214,7 @@ export function HistoryPage() {
                       >
                         <td className="hi-folio">{quotation.folio}</td>
                         <td className="hi-date">{formatDate(quotation.createdAt, 'medium')}</td>
-                        <td className="hi-client"><span className="hi-client-name" aria-hidden="true" title={quotation.customer.name}>{quotation.customer.name}</span><ShareStatusLine record={quotation} customerName={quotation.customer.name} /></td>
+                        <td className="hi-client"><span className="hi-client-name" aria-hidden="true" title={quotation.customer.name}>{quotation.customer.name}</span><QuotationRowSubline quotation={quotation} /></td>
                         <td className="hi-vehicle">{quotation.vehicle.make} {quotation.vehicle.model}</td>
                         <td><span className="hi-badge" data-status={quotation.status} data-testid="hi-badge"><i aria-hidden="true" />{quotation.status}</span></td>
                         <td className="hi-right hi-total">{formatMoney(total)}</td>

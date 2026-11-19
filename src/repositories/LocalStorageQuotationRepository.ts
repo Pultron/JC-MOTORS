@@ -326,6 +326,8 @@ function normalizeQuotation(value: LegacyQuotation, index: number): Quotation {
     customerNotes: typeof value.customerNotes === 'string' ? value.customerNotes : '',
     status,
     ...(status === 'Aprobada' ? { approvedAt: value.approvedAt ?? createdAt } : {}),
+    // A quotation cancelled after approval keeps the moment it was approved.
+    ...(status === 'Cancelada' && typeof value.approvedAt === 'string' ? { approvedAt: value.approvedAt } : {}),
     ...(typeof value.sharedAt === 'string' && (value.sharedVia === 'whatsapp' || value.sharedVia === 'email') ? { sharedAt: value.sharedAt, sharedVia: value.sharedVia } : {}),
     ...(status === 'Cancelada' ? cancellationFields(value) : {}),
   };

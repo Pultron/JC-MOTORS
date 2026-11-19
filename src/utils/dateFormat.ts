@@ -61,6 +61,18 @@ function formatSharedShort(date: Date, now: Date): string {
   return `${dayMonth}${year}, ${formatTime12(date)}`;
 }
 
+/** "18 nov" — day and short month, no year. */
+export function formatDayMonth(value: string | Date): string {
+  const date = parseDate(value);
+  return date ? SHARED_DAY_MONTH.format(date).replace(/\./g, '') : '';
+}
+
+/** "18 nov 2026, 11:40 p.m." — always includes the year (used where the record is read long after it happened). */
+export function formatDayMonthYearTime(value: string | Date): string {
+  const date = parseDate(value);
+  return date ? `${formatDayMonth(date)} ${SHARED_YEAR.format(date)}, ${formatTime12(date)}` : '';
+}
+
 /** `now` only matters for 'sharedShort' (current-year check); it is a parameter so tests stay deterministic. */
 export function formatDate(value: string | Date, variant: DateVariant = 'short', now: Date = new Date()): string {
   const date = parseDate(value);

@@ -14,6 +14,21 @@ export interface ConfirmOptions {
 
 export type ConfirmFn = (options: ConfirmOptions) => Promise<boolean>;
 
+/** A destructive confirmation that also asks for a short, mandatory free-text reason. */
+export interface ReasonPromptOptions extends ConfirmOptions {
+  /** Extra paragraph drawn above the field (for example a warning about the current state of the record). */
+  note?: string;
+  reasonLabel: string;
+  maxLength: number;
+  /** Quick suggestions drawn as buttons; tapping one fills the field. */
+  suggestions?: readonly string[];
+}
+
+/** Resolves with the trimmed, non-blank reason when confirmed, or null when the dialog is dismissed. */
+export type ReasonPromptFn = (options: ReasonPromptOptions) => Promise<string | null>;
+
+export const ReasonPromptContext = createContext<ReasonPromptFn | null>(null);
+
 export const ConfirmContext = createContext<ConfirmFn | null>(null);
 
 /** Result of a three-button dialog. Escape, the backdrop and the middle "stay" button all resolve to 'cancel'. */
@@ -92,8 +107,11 @@ export function ConfirmDialog({ title, description, confirmLabel = 'Confirmar', 
       }
       if (event.key === 'Enter' && !event.repeat) {
         // Sobre Cancelar, Enter activa ese botón; en cualquier otro lugar confirma.
-        const targetId = (event.target as HTMLElement).dataset?.testid;
+        const target = event.target as HTMLElement;
+        const targetId = target.dataset?.testid;
         if (targetId === 'confirm-cancel' || targetId === 'confirm-secondary') return;
+        // Buttons inside the body (suggestion chips) keep their native Enter behavior.
+        if (target.closest?.('[data-enter-native]')) return;
         event.preventDefault();
         if (!confirmDisabledRef.current) finish('primary');
         return;
@@ -187,7 +205,58 @@ export function ConfirmDialog({ title, description, confirmLabel = 'Confirmar', 
 interface PendingRequest {
   options: ConfirmOptions;
   secondaryLabel?: string;
-  resolve: (result: ChoiceResult) => void;
+  reasonPrompt?: ReasonPromptOptions;
+  resolve: (result: ChoiceResult, reason?: string) => void;
+}
+
+/** Wraps the confirm dialog with the reason field; confirm stays disabled until the trimmed reason is not empty. */
+function ReasonDialog({ prompt, onResolve }: { prompt: ReasonPromptOptions; onResolve: (result: ChoiceResult, reason?: string) => void }) {
+  const [reason, setReason] = useState('');
+  const reasonRef = useRef('');
+  const inputId = useId();
+  const { note, reasonLabel, maxLength, suggestions = [], ...options } = prompt;
+
+  function change(value: string) {
+    const next = value.slice(0, maxLength);
+    reasonRef.current = next;
+    setReason(next);
+  }
+
+  const content = (
+    <div className="cancel-dialog-body">
+      {note && <p className="cancel-dialog-note" data-testid="reason-note">{note}</p>}
+      <label className="cancel-dialog-field" htmlFor={inputId}>
+        <span>{reasonLabel}</span>
+        <input
+          id={inputId}
+          data-autofocus
+          data-testid="reason-input"
+          className="mac-fill-input"
+          type="text"
+          value={reason}
+          maxLength={maxLength}
+          autoComplete="off"
+          onChange={(event) => change(event.target.value)}
+        />
+      </label>
+      {suggestions.length > 0 && (
+        <div className="cancel-dialog-chips" role="group" aria-label="Sugerencias de motivo">
+          {suggestions.map((suggestion) => (
+            <button key={suggestion} type="button" data-enter-native data-testid="reason-chip" className="cancel-dialog-chip" onClick={() => change(suggestion)}>{suggestion}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <ConfirmDialog
+      {...options}
+      content={content}
+      confirmDisabled={reason.trim() === ''}
+      onResolve={(result) => onResolve(result, reasonRef.current.trim())}
+    />
+  );
 }
 
 /** Monta un único diálogo y expone confirm() (boolean) y choose() (tres botones) como promesas. */
@@ -195,31 +264,39 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [request, setRequest] = useState<PendingRequest | null>(null);
   const requestRef = useRef<PendingRequest | null>(null);
 
-  const open = useCallback((options: ConfirmOptions, secondaryLabel?: string) => new Promise<ChoiceResult>((resolve) => {
+  const open = useCallback((options: ConfirmOptions, secondaryLabel?: string, reasonPrompt?: ReasonPromptOptions) => new Promise<{ result: ChoiceResult; reason?: string }>((resolve) => {
     // Un segundo diálogo mientras hay uno abierto se rechaza (cancel) para no apilar diálogos.
     if (requestRef.current) {
-      resolve('cancel');
+      resolve({ result: 'cancel' });
       return;
     }
-    requestRef.current = { options, secondaryLabel, resolve };
+    requestRef.current = { options, secondaryLabel, reasonPrompt, resolve: (result, reason) => resolve({ result, reason }) };
     setRequest(requestRef.current);
   }), []);
 
-  const confirm = useCallback<ConfirmFn>(async (options) => (await open(options)) === 'primary', [open]);
-  const choose = useCallback<ChooseFn>(({ secondaryLabel, ...options }) => open(options, secondaryLabel), [open]);
+  const confirm = useCallback<ConfirmFn>(async (options) => (await open(options)).result === 'primary', [open]);
+  const choose = useCallback<ChooseFn>(async ({ secondaryLabel, ...options }) => (await open(options, secondaryLabel)).result, [open]);
+  const promptReason = useCallback<ReasonPromptFn>(async (prompt) => {
+    const { result, reason } = await open(prompt, undefined, prompt);
+    return result === 'primary' && reason ? reason : null;
+  }, [open]);
 
-  const handleResolve = useCallback((result: ChoiceResult) => {
+  const handleResolve = useCallback((result: ChoiceResult, reason?: string) => {
     const current = requestRef.current;
     requestRef.current = null;
     setRequest(null);
-    current?.resolve(result);
+    current?.resolve(result, reason);
   }, []);
 
   return (
     <ConfirmContext.Provider value={confirm}>
       <ChooseContext.Provider value={choose}>
-        {children}
-        {request && <ConfirmDialog {...request.options} secondaryLabel={request.secondaryLabel} onResolve={handleResolve} />}
+        <ReasonPromptContext.Provider value={promptReason}>
+          {children}
+          {request && (request.reasonPrompt
+            ? <ReasonDialog prompt={request.reasonPrompt} onResolve={handleResolve} />
+            : <ConfirmDialog {...request.options} secondaryLabel={request.secondaryLabel} onResolve={handleResolve} />)}
+        </ReasonPromptContext.Provider>
       </ChooseContext.Provider>
     </ConfirmContext.Provider>
   );

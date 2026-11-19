@@ -442,6 +442,21 @@ textarea.mac-row-input { padding: 12px 0; line-height: 20px; }
 .share-line-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .share-line-icon { flex: none; }
 
+/* Cancelled quotations: gray subline in the tables (replaces the share line there) and a notice in the detail header. */
+.cancelled-line { color: var(--color-mac-ink-2); }
+.cancelled-notice { margin: 4px 0 0; font-size: 13px; font-weight: 500; color: var(--color-mac-ink-2); }
+
+/* Reason dialog body (cancel an approved quotation). */
+.cancel-dialog-body { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; text-align: left; }
+.cancel-dialog-note { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--color-mac-danger-bg); color: var(--color-mac-ink); font-size: 13px; line-height: 1.4; }
+.cancel-dialog-field { display: flex; flex-direction: column; gap: 6px; color: var(--color-mac-ink); font-size: 13px; font-weight: 500; }
+.cancel-dialog-field .mac-fill-input { width: 100%; }
+.cancel-dialog-field .mac-fill-input:focus-visible { outline: 2px solid var(--color-mac-danger); outline-offset: 2px; }
+.cancel-dialog-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cancel-dialog-chip { border: 0; border-radius: 999px; padding: 5px 10px; background: var(--color-mac-fill); color: var(--color-mac-ink); font-size: 12px; cursor: pointer; transition: background-color 150ms ease; }
+.cancel-dialog-chip:hover { background: rgb(118 118 128 / 22%); }
+.cancel-dialog-chip:focus-visible { outline: 2px solid var(--color-mac-danger); outline-offset: 2px; }
+
 .cli-alias-suggest { display: flex; width: 100%; align-items: center; gap: 8px; padding: 8px 16px; border: 0; border-top: 1px solid rgb(60 60 67 / 12%); background: var(--color-mac-tint); color: var(--color-mac-accent-text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
 .cli-alias-suggest:hover { filter: brightness(0.97); }
 
