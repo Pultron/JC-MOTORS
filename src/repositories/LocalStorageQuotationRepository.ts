@@ -284,6 +284,8 @@ function normalizeQuotation(value: LegacyQuotation, index: number): Quotation {
       quantity,
       saleUnitPrice,
       amount: roundCurrency(quantity * saleUnitPrice),
+      // Per-service labor link: the only field added to the stored item shape; old items simply do not have it.
+      ...(typeof item.parentId === 'string' && item.parentId ? { parentId: item.parentId } : {}),
     } satisfies QuotationItem;
   });
   const createdAt = typeof value.createdAt === 'string' ? value.createdAt : new Date().toISOString();

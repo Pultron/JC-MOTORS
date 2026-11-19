@@ -41,6 +41,8 @@ export interface QuotationItem {
   quantity: number;
   saleUnitPrice: number;
   amount: number;
+  /** Labor lines only: id of the service item this labor belongs to. Absent on parts and on legacy loose labor. */
+  parentId?: string;
 }
 
 export interface Quotation {
@@ -110,7 +112,7 @@ export interface PublicQuotation {
   createdAt: string;
   customer: Customer;
   vehicle: Vehicle;
-  items: Array<Pick<QuotationItem, 'id' | 'type' | 'description' | 'quantity' | 'saleUnitPrice' | 'amount'>>;
+  items: Array<Pick<QuotationItem, 'id' | 'type' | 'description' | 'quantity' | 'saleUnitPrice' | 'amount' | 'parentId'>>;
   laborDiscount: number;
   /** Percentage that produced `laborDiscount`; absent when the discount is a fixed amount. */
   laborDiscountPercent?: number;

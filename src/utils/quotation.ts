@@ -114,13 +114,14 @@ export function toPublicQuotation(quotation: Quotation): PublicQuotation {
     createdAt: quotation.createdAt,
     customer: { ...quotation.customer },
     vehicle: { ...quotation.vehicle },
-    items: quotation.items.map(({ id, type, description, quantity, saleUnitPrice, amount }) => ({
+    items: quotation.items.map(({ id, type, description, quantity, saleUnitPrice, amount, parentId }) => ({
       id,
       type,
       description,
       quantity,
       saleUnitPrice,
       amount,
+      ...(parentId ? { parentId } : {}),
     })),
     laborDiscount: totals.laborDiscount,
     ...(quotation.laborDiscountType === 'percentage' ? { laborDiscountPercent: quotation.laborDiscountValue } : {}),
