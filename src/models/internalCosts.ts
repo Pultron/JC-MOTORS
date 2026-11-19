@@ -24,4 +24,6 @@ export interface InternalCostRecord {
 export interface InternalCostsRepository {
   list(): Promise<InternalCostRecord[]>;
   save(record: InternalCostRecord): Promise<InternalCostRecord>;
+  /** Removes the cost record of a quote. Idempotent: resolves even when there is none. */
+  deleteByQuoteId(quoteId: string): Promise<void>;
 }

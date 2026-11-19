@@ -89,6 +89,12 @@ export class LocalStorageInternalControlRepository implements InternalControlRep
     return cloneRecord(saved);
   }
 
+  async deleteByQuotationId(quotationId: string): Promise<void> {
+    const records = this.readAll();
+    if (!records.some((entry) => entry.quotationId === quotationId)) return;
+    this.writeAll(records.filter((entry) => entry.quotationId !== quotationId));
+  }
+
   private readAll(): InternalControlRecord[] {
     const result = readGuardedJson(STORAGE_KEY, DAMAGED, (value): value is InternalControlRecord[] => Array.isArray(value));
     return result.status === 'ok' ? result.value : [];

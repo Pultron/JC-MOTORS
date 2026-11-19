@@ -60,6 +60,13 @@ export class LocalStorageInternalCostsRepository implements InternalCostsReposit
 
   async list(): Promise<InternalCostRecord[]> { return this.read(); }
 
+  async deleteByQuoteId(quoteId: string): Promise<void> {
+    // read() also yields records migrated from the legacy key; the caller removes the legacy record first so none comes back.
+    const records = this.read();
+    if (!records.some(r => r.quoteId === quoteId)) return;
+    writeRaw(INTERNAL_COSTS_KEY, JSON.stringify(records.filter(r => r.quoteId !== quoteId)));
+  }
+
   async save(record: InternalCostRecord): Promise<InternalCostRecord> {
     if (!validRecord(record)) throw new UserMessageError('Revisa los costos y las descripciones de los gastos.');
     const records = this.read();

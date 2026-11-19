@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react';
 import type { CreateQuotationInput, Quotation, ShareMedium } from '../models/quotation';
 import { quotationService } from '../services/quotationService';
+import { isDeletableStatus } from '../models/quotation';
+import { removeInternalRecordsOf } from '../services/internalRecordsCleanup';
 import { internalControlService } from '../services/internalControlService';
 import { useToast } from '../components/ui/Toast';
 import { STORAGE_KEYS } from '../storage/storageKeys';
@@ -97,6 +99,10 @@ export function QuotationProvider({ children }: { children: ReactNode }) {
   }, [toast]);
 
   const deleteQuotationPermanently = useCallback(async (id: string) => {
+    // Internal costs go first: if they cannot be removed the quotation stays, so no cost data is left without its quotation.
+    const target = await quotationService.getById(id);
+    if (!target || !isDeletableStatus(target.status)) return false;
+    await removeInternalRecordsOf(id);
     const quotation = await quotationService.deletePermanently(id);
     if (!quotation) return false;
     setQuotations(await quotationService.list());
