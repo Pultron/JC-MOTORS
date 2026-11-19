@@ -58,7 +58,7 @@ test('valida los campos obligatorios y formatos sin exigir correo opcional', () 
   const valid = form();
   const totals = calculateQuotationTotals(valid.items.map((item) => ({ type: item.type, quantity: Number(item.quantity), saleUnitPrice: Number(item.unitPrice) })), 'percentage', 10, true);
   assert.deepEqual(validateQuoteForm(valid, totals), {});
-  const invalid = { ...valid, customerName: '', make: '', model: '', email: 'mal-correo', phone: 'ABC', items: [{ ...valid.items[0], quantity: '0', unitPrice: '-1' }] };
+  const invalid = { ...valid, customerName: '', make: '', model: '', email: 'mal-correo', phone: 'ABC', items: [{ ...valid.items[0], type: 'part', quantity: '0', unitPrice: '-1' }] };
   const errors = validateQuoteForm(invalid, totals);
   for (const key of ['customerName', 'make', 'model', 'email', 'phone', 'items', 'item-labor-1-quantity', 'item-labor-1-unitPrice']) assert.ok(errors[key], key);
 });

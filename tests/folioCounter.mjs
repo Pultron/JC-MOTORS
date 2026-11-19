@@ -52,7 +52,7 @@ test('#014 el contador nunca baja aunque no haya cotizaciones', async () => {
 test('#014 el folio de un borrador eliminado tampoco se reutiliza', async () => {
   const repo = new LocalStorageQuotationRepository();
   await repo.create(input('A'));
-  const form = { customerId: '', customerName: 'B', phone: '', email: '', make: '', model: '', year: '', plates: '', items: [], laborAmount: '', laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true, validityDays: '15', publicNotes: '', customerNotes: '' };
+  const form = { customerId: '', customerName: 'B', phone: '', email: '', make: '', model: '', year: '', plates: '', items: [], laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true, validityDays: '15', publicNotes: '', customerNotes: '' };
   const draft = await quoteDraftService.save(form);
   assert.equal(draft.folio, 'JC-0002');
   quoteDraftService.delete(draft.id);

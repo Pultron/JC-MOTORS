@@ -177,7 +177,7 @@ test('phone: 10 digits are formatted, 15 digits are left as typed and rejected b
   assert.equal(formatPhone('123456789012345'), '123456789012345');
   const form = {
     customerId: '', customerName: 'Ana', phone: '123456789012345', email: '', make: 'A', model: 'B', year: '', plates: '',
-    items: [{ id: '1', type: 'part', description: 'x', quantity: '1', unitPrice: '10' }], laborAmount: '', laborDiscountType: 'percentage',
+    items: [{ id: '1', type: 'part', description: 'x', quantity: '1', unitPrice: '10' }], laborDiscountType: 'percentage',
     laborDiscountValue: '0', ivaEnabled: true, validityDays: '15', publicNotes: '', customerNotes: '',
   };
   const totals = calculateQuotationTotals([{ type: 'part', quantity: 1, saleUnitPrice: 10 }], 'percentage', 0, true);
@@ -189,7 +189,7 @@ test('limit: more than 100 concepts is rejected with the split message', () => {
   const item = { id: '1', type: 'part', description: 'x', quantity: '1', unitPrice: '10' };
   const form = {
     customerId: '', customerName: 'Ana', phone: '', email: '', make: 'A', model: 'B', year: '', plates: '',
-    items: Array.from({ length: MAX_CONCEPTS + 1 }, (_, index) => ({ ...item, id: String(index) })), laborAmount: '',
+    items: Array.from({ length: MAX_CONCEPTS + 1 }, (_, index) => ({ ...item, id: String(index) })),
     laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true, validityDays: '15', publicNotes: '', customerNotes: '',
   };
   const totals = calculateQuotationTotals([], 'percentage', 0, true);

@@ -62,7 +62,7 @@ test('#004 tras escribir se revisa el espacio, como mucho cada 30 s', () => {
 });
 
 test('#004 autoguardado con cuota llena: falla con aviso y conserva lo ya guardado', () => {
-  const form = (name) => ({ customerId: '', customerName: name, phone: '', email: '', make: '', model: '', year: '', plates: '', items: [], laborAmount: '', laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true, validityDays: '15', publicNotes: '', customerNotes: '' });
+  const form = (name) => ({ customerId: '', customerName: name, phone: '', email: '', make: '', model: '', year: '', plates: '', items: [], laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true, validityDays: '15', publicNotes: '', customerNotes: '' });
   quoteDraftService.saveTemporary(form('Primero'), null);
   const saved = data.get(STORAGE_KEYS.quoteAutosave);
   const drafts = JSON.stringify([{ id: 'd1', folio: 'JC-0001', status: 'Borrador', savedAt: new Date().toISOString(), data: { items: [] } }]);

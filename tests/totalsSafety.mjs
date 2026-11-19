@@ -21,7 +21,7 @@ test('#016-b normal and maximum amounts still compute', () => {
 
 const form = (items, extra = {}) => ({
   customerId: '', customerName: 'Ana', phone: '', email: '', make: 'A', model: 'B', year: '', plates: '',
-  items, laborAmount: '', laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true,
+  items, laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true,
   validityDays: '15', publicNotes: '', customerNotes: '', ...extra,
 });
 const row = (unitPrice, quantity = '1') => ({ id: 'r1', type: 'part', description: 'x', quantity, unitPrice });
@@ -31,7 +31,9 @@ test('#016-b per-concept cap in the form validation', () => {
   assert.equal(validateQuoteForm(form([row('9999999.99')]), totals)['item-r1-unitPrice'], undefined);
   assert.match(validateQuoteForm(form([row('10000000')]), totals)['item-r1-unitPrice'], /\$9,999,999\.99/);
   assert.match(validateQuoteForm(form([row('5000000', '3')]), totals)['item-r1-unitPrice'], /máximo/i);
-  assert.match(validateQuoteForm(form([row('10')], { laborAmount: '10000000' }), totals).laborAmount, /\$9,999,999\.99/);
+  const withLabor = (price) => form([row('10'), { id: 'l1', type: 'labor', description: 'Mano de obra', quantity: '1', unitPrice: price, parentId: 'r1' }]);
+  assert.match(validateQuoteForm(withLabor('10000000'), totals)['item-l1-unitPrice'], /\$9,999,999\.99/);
+  assert.equal(validateQuoteForm(withLabor('9999999.99'), totals)['item-l1-unitPrice'], undefined);
 });
 
 test('#016-c zero-price concepts are allowed (not an error) and counted for the save toast', async () => {

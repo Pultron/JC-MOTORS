@@ -31,8 +31,8 @@ function form(count, { long = false } = {}) {
       id: `i${index}`, type: index % 3 === 2 ? 'labor' : 'part',
       description: long ? `${LONG} ${index + 1}` : `Concepto ${index + 1}`,
       quantity: index % 4 === 0 ? '1.5' : String(1 + (index % 3)), unitPrice: `${100 + index * 7}.${(index * 13) % 100}`.replace(/\.(\d)$/, '.0$1'),
-    })),
-    laborAmount: '350', laborDiscountType: 'percentage', laborDiscountValue: '10', ivaEnabled: true,
+    })).concat([{ id: 'loose-labor', type: 'labor', description: 'Mano de obra', quantity: '1', unitPrice: '350' }]),
+    laborDiscountType: 'percentage', laborDiscountValue: '10', ivaEnabled: true,
     validityDays: '15', publicNotes: long ? LONG : '', customerNotes: '',
   };
 }

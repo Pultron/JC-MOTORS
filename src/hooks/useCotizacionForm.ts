@@ -9,6 +9,8 @@ import { useDuplicateCustomerPrompt } from './useDuplicateCustomerPrompt';
 import { resolveCustomerSave } from '../services/customerMatching';
 import type { CustomerSaveAction } from '../services/customerMatching';
 import type { QuoteDraft, QuoteDraftItem, QuoteFormData } from '../models/quoteDraft';
+import { addLabor as addLaborRow, blankItem, formItemsFromQuotation, migrateDraftData, rebaseFixedDiscount, removeLabor, removeService } from '../services/quoteLaborRows';
+import type { LegacyQuoteFormData } from '../services/quoteLaborRows';
 import type { CreateQuotationInput, CustomerProfile, Quotation } from '../models/quotation';
 import { quoteDraftService } from '../services/quoteDraftService';
 import { MAX_CONCEPTS } from '../services/quotationLayout';
@@ -19,7 +21,7 @@ import { useCustomers } from '../store/CustomerContext';
 import { useQuotations } from '../store/QuotationContext';
 import { useShareQuotation } from '../store/ShareContext';
 import { parseDecimal } from '../utils/currency';
-import { AMOUNT_TOO_LARGE_MESSAGE, QuotationAmountError, calculateQuotationTotals, countZeroPriceItems, createId } from '../utils/quotation';
+import { AMOUNT_TOO_LARGE_MESSAGE, QuotationAmountError, calculateQuotationTotals, countZeroPriceItems } from '../utils/quotation';
 import type { QuotationTotals } from '../utils/quotation';
 import { buildQuotationInput } from '../services/quotationFromForm';
 import { DISCOUNT_CLAMP_MESSAGES, clampDiscount } from '../utils/discountClamp';
@@ -28,18 +30,10 @@ import { formatMoney } from '../utils/money';
 import { amountValue, formatPhone, normalizeEmail, normalizePlates, sanitizeSingleLine, stripLineBreaks, normalizePhone, parseDecimalStrict, phoneForStorage, PHONE_DIGITS } from '../validation/fields';
 import { titleCaseName } from '../validation/liveFormat';
 
-function blankItem(description = ''): QuoteDraftItem {
-  return { id: createId(), type: 'part', description, quantity: '1', unitPrice: '' };
-}
-
-function displayLaborAmount(value?: string): string {
-  return value && Number(value) !== 0 ? value : '';
-}
-
 function emptyForm(): QuoteFormData {
   return {
     customerId: '', customerName: '', phone: '', email: '', make: '', model: '', year: '', plates: '',
-    items: [blankItem('')], laborAmount: '', laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true,
+    items: [blankItem('')], laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true,
     validityDays: '15', publicNotes: '', customerNotes: '',
   };
 }
@@ -49,19 +43,12 @@ function normalize(value: string) {
 }
 
 function formFromQuotation(quotation: Quotation): QuoteFormData {
-  const parts = quotation.items.filter((item) => item.type === 'part').map((item) => ({
-    id: item.id,
-    type: item.type,
-    description: item.description,
-    quantity: String(item.quantity),
-    unitPrice: String(item.saleUnitPrice),
-  }));
-  const laborAmount = quotation.items.filter((item) => item.type === 'labor').reduce((sum, item) => sum + item.amount, 0);
+  const items = formItemsFromQuotation(quotation.items);
   return {
     customerId: quotation.customerId ?? '', customerName: quotation.customer.name, phone: formatPhone(quotation.customer.phone),
     email: quotation.customer.email ?? '', make: quotation.vehicle.make, model: quotation.vehicle.model,
     year: quotation.vehicle.year ? String(quotation.vehicle.year) : '', plates: quotation.vehicle.plates,
-    items: parts.length ? parts : [blankItem('')], laborAmount: displayLaborAmount(String(laborAmount)),
+    items: items.length ? items : [blankItem('')],
     laborDiscountType: quotation.laborDiscountType, laborDiscountValue: String(quotation.laborDiscountValue),
     ivaEnabled: quotation.includeVat, validityDays: String(quotation.validityDays),
     publicNotes: quotation.publicNotes, customerNotes: quotation.customerNotes ?? '',
@@ -78,15 +65,11 @@ export function focusFirstField(): void {
 const ZERO_TOTALS: QuotationTotals = { subtotalRefacciones: 0, subtotalManoObra: 0, laborDiscount: 0, subtotalNeto: 0, ivaAmount: 0, total: 0 };
 
 function calculateFormTotals(form: QuoteFormData): { totals: QuotationTotals; amountOverflow: boolean } {
-  const labor = amountValue(form.laborAmount);
   try {
     return {
       amountOverflow: false,
       totals: calculateQuotationTotals(
-        [
-          ...form.items.map((item) => ({ type: item.type, quantity: parseDecimal(item.quantity), saleUnitPrice: amountValue(item.unitPrice) })),
-          ...(labor > 0 ? [{ type: 'labor' as const, quantity: 1, saleUnitPrice: labor }] : []),
-        ],
+        form.items.map((item) => ({ type: item.type, quantity: item.type === 'labor' ? (parseDecimal(item.quantity) || 1) : parseDecimal(item.quantity), saleUnitPrice: amountValue(item.unitPrice) })),
         form.laborDiscountType, Number(form.laborDiscountValue) || 0, form.ivaEnabled,
       ),
     };
@@ -122,6 +105,8 @@ export function useCotizacionForm() {
   // Bumped after a failed submit; the effect below runs once the errors are rendered.
   const [focusRequest, setFocusRequest] = useState(0);
   const [discountFlash, setDiscountFlash] = useState(0);
+  // Labor row that just appeared: its price input takes the cursor once it is rendered.
+  const [laborFocus, setLaborFocus] = useState<string | null>(null);
   const clampNotified = useRef(false);
   const customerNameEdited = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -144,7 +129,7 @@ export function useCotizacionForm() {
     setEditReady(true);
   }, [editId, isLoading, quotationToEdit, navigate]);
 
-  const { totals, amountOverflow } = useMemo(() => calculateFormTotals(form), [form.items, form.laborAmount, form.laborDiscountType, form.laborDiscountValue, form.ivaEnabled]);
+  const { totals, amountOverflow } = useMemo(() => calculateFormTotals(form), [form.items, form.laborDiscountType, form.laborDiscountValue, form.ivaEnabled]);
 
   useEffect(() => {
     if (amountOverflow) toast.error({ title: AMOUNT_TOO_LARGE_MESSAGE, description: 'Revisa cantidades y precios; el total no se puede calcular.' });
@@ -161,6 +146,12 @@ export function useCotizacionForm() {
   useEffect(() => {
     if (focusRequest > 0) focusFirstInvalid();
   }, [focusRequest]);
+
+  useEffect(() => {
+    if (!laborFocus) return;
+    document.getElementById(`labor-price-${laborFocus}`)?.focus();
+    setLaborFocus(null);
+  }, [laborFocus]);
 
   function touch(...keys: string[]) {
     setTouched((current) => keys.every((key) => current[key]) ? current : { ...current, ...Object.fromEntries(keys.map((key) => [key, true as const])) });
@@ -232,7 +223,7 @@ export function useCotizacionForm() {
   }
 
   /** Blur: marks the field as touched (errors start showing) and applies its normalization. */
-  function blurField(key: 'phone' | 'email' | 'plates' | 'laborAmount') {
+  function blurField(key: 'phone' | 'email' | 'plates') {
     // An empty phone/email is only reported on submit ("Agrega un teléfono o un correo"), not just for tabbing through.
     if (!((key === 'phone' || key === 'email') && form[key] === '')) touch(key);
     if (key === 'email' || key === 'plates') {
@@ -240,10 +231,6 @@ export function useCotizacionForm() {
         const clean = key === 'email' ? normalizeEmail(sanitizeSingleLine(current.email)) : normalizePlates(current.plates);
         return clean === current[key] ? current : { ...current, [key]: clean };
       });
-    }
-    if (key === 'laborAmount') {
-      const parsed = parseDecimalStrict(form.laborAmount);
-      if (parsed.ok && parsed.texto !== form.laborAmount) setForm((current) => ({ ...current, laborAmount: parsed.texto }));
     }
     if (key === 'phone') {
       const digits = normalizePhone(form.phone);
@@ -282,20 +269,20 @@ export function useCotizacionForm() {
     }
   }
 
-  function updateItem(id: string, key: keyof Omit<QuoteDraftItem, 'id' | 'type'>, value: string) {
+  function updateItem(id: string, key: 'description' | 'quantity' | 'unitPrice', value: string) {
     const next = key === 'description' ? stripLineBreaks(value) : value;
     setForm((current) => {
       const items = current.items.map((item) => {
         if (item.id !== id) return item;
         const updated = { ...item, [key]: next } as QuoteDraftItem;
         // Picking (or typing) a saved concept also brings its price, unless the user already set one.
-        if (key === 'description' && item.unitPrice.trim() === '') {
+        if (key === 'description' && item.type !== 'labor' && item.unitPrice.trim() === '') {
           const saved = savedConcepts.flatMap((concept) => concept.items).find((candidate) => candidate.unitPrice.trim() !== '' && normalize(candidate.description) === normalize(next));
           if (saved) updated.unitPrice = saved.unitPrice;
         }
         return updated;
       });
-      return { ...current, items };
+      return rebaseFixedDiscount({ ...current, items });
     });
     setDirty(true);
   }
@@ -320,13 +307,26 @@ export function useCotizacionForm() {
     }
   }
 
+  /** Deleting a service also deletes its labor; deleting a loose labor row removes only that row. */
   function deleteItem(id: string) {
-    const items = form.items.filter((item) => item.id !== id);
-    updateField('items', items.length ? items : [blankItem('')]);
+    setForm((current) => rebaseFixedDiscount({ ...current, items: removeService(current.items, id) }));
+    setDirty(true);
   }
 
-  function setLaborAmount(value: string) {
-    setForm((current) => ({ ...current, laborAmount: value, ...(amountValue(value) > 0 || current.laborDiscountType === 'percentage' ? {} : { laborDiscountValue: '0' }) }));
+  /** Adds the labor line of a service right below it and moves the cursor to its price. */
+  function addLabor(serviceId: string) {
+    const result = addLaborRow(form.items, serviceId, MAX_CONCEPTS);
+    if (!result) {
+      if (form.items.length >= MAX_CONCEPTS) setLimitError(MAX_CONCEPTS_MESSAGE);
+      return;
+    }
+    updateField('items', result.items);
+    setLimitError('');
+    setLaborFocus(result.laborId);
+  }
+
+  function deleteLabor(laborId: string) {
+    setForm((current) => rebaseFixedDiscount({ ...current, items: removeLabor(current.items, laborId) }));
     setDirty(true);
   }
 
@@ -474,7 +474,8 @@ export function useCotizacionForm() {
 
   async function openDraft(draft: QuoteDraft) {
     if (dirty && !(await confirm({ title: '¿Abrir este borrador?', description: 'Se reemplazarán los datos del formulario actual.', confirmLabel: 'Abrir borrador' }))) return;
-    setForm({ ...draft.data, laborAmount: displayLaborAmount(draft.data.laborAmount), customerNotes: draft.data.customerNotes ?? '' });
+    // Old drafts carried one labor amount: it becomes a loose "Mano de obra" row at the end.
+    setForm(migrateDraftData(draft.data as LegacyQuoteFormData));
     setActiveDraft(draft); setTouched({}); setLimitError(''); setDirty(false);
     toast.info({ title: 'Borrador abierto', description: `Borrador ${draft.folio} abierto.` });
   }
@@ -526,7 +527,7 @@ export function useCotizacionForm() {
     editId, quotationToEdit, drafts, activeDraft,
     isLoadingEdit: Boolean(editId) && (!editReady || loadedEditId.current !== editId || isLoading),
     isSaved: !dirty && (Boolean(activeDraft) || Boolean(editId)),
-    updateField, blurField, commitText, blurItem, updateCustomer, selectCustomer, canSaveCustomer, saveAsCustomer, canUpdateCustomer, updateLinkedCustomer, addItem, applyTemplate, updateItem, deleteItem, setLaborAmount,
+    updateField, blurField, commitText, blurItem, updateCustomer, selectCustomer, canSaveCustomer, saveAsCustomer, canUpdateCustomer, updateLinkedCustomer, addItem, applyTemplate, updateItem, deleteItem, addLabor, deleteLabor,
     submit, saveDraft, clearForm, leaveDraft, openDraft, deleteDraft,
   };
 }

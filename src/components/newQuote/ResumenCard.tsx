@@ -2,7 +2,7 @@ import { Calculator, FileText, Info, Save, Tag, Trash2 } from 'lucide-react';
 import { useQuotationSheetCount } from '../../hooks/useQuotationSheetCount';
 import type { QuoteFormData } from '../../models/quoteDraft';
 import type { QuotationTotals } from '../../utils/quotation';
-import { sanitizeMoneyInput } from '../../validation/fields';
+import { laborRowCount } from '../../services/quoteLaborRows';
 import { formatMoney } from '../../utils/money';
 import { FieldError } from '../ui/FieldError';
 import { Select } from '../ui/Select';
@@ -16,8 +16,6 @@ interface Props {
   errors: Record<string, string>;
   busy: boolean;
   onChange: <K extends keyof QuoteFormData>(key: K, value: QuoteFormData[K]) => void;
-  onLaborChange: (value: string) => void;
-  onLaborBlur: () => void;
   /** Increments each time the discount is clamped; drives a brief highlight of the promotions block. */
   discountFlash: number;
   onSaveDraft?: () => void;
@@ -35,8 +33,9 @@ const PROMOTION_OPTIONS = [
   { value: '15', label: '15% de descuento' },
 ];
 
-export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChange, onLaborBlur, discountFlash, onSaveDraft, onClear, submitLabel = 'Guardar cotización' }: Props) {
+export function ResumenCard({ form, totals, errors, busy, onChange, discountFlash, onSaveDraft, onClear, submitLabel = 'Guardar cotización' }: Props) {
   const sheets = useQuotationSheetCount(form);
+  const laborRows = laborRowCount(form.items);
   const discountValue = Number(form.laborDiscountValue) || 0;
   const promotionValue = form.laborDiscountType === 'percentage' && PROMOTION_OPTIONS.some((option) => Number(option.value) === discountValue)
     ? String(discountValue)
@@ -52,14 +51,10 @@ export function ResumenCard({ form, totals, errors, busy, onChange, onLaborChang
       <CardHeader icon={<Calculator size={18} />} title="Resumen de cotización" />
       <div className="tnum">
         <div className={rowClass}><span className="text-mac-ink-2">Refacciones</span><strong data-testid="resumen-refacciones" className="font-semibold">{formatMoney(totals.subtotalRefacciones)}</strong></div>
-        <div className={rowClass}>
-          <label htmlFor="quote-labor" className="text-mac-ink-2">Mano de obra</label>
-          <div className="mac-money !h-9 w-40">
-            <span aria-hidden="true">$</span>
-            <input id="quote-labor" data-testid="resumen-mano-obra" inputMode="decimal" autoComplete="off" aria-invalid={Boolean(errors.laborAmount)} aria-describedby={errors.laborAmount ? 'quote-labor-error' : undefined} onBlur={onLaborBlur} className="px-3 text-right text-sm" value={form.laborAmount} onChange={(event) => onLaborChange(sanitizeMoneyInput(event.target.value))} />
-          </div>
+        <div className={`${rowClass} !items-start py-2`}>
+          <div className="flex flex-col"><span className="text-mac-ink-2">Mano de obra</span><span data-testid="resumen-mano-obra-nota" className="text-xs font-normal text-mac-ink-2">{laborRows === 0 ? 'Agrégala en cada servicio' : `Suma de ${laborRows} ${laborRows === 1 ? 'renglón' : 'renglones'}`}</span></div>
+          <strong data-testid="resumen-mano-obra" className="font-semibold text-mac-accent-text">{formatMoney(totals.subtotalManoObra)}</strong>
         </div>
-        <FieldError id="quote-labor-error" message={errors.laborAmount} className="px-4 pb-2 text-right" />
 
         <div data-testid="resumen-promociones" data-flash={discountFlash > 0 ? (discountFlash % 2 ? 'a' : 'b') : undefined} className="mac-discount-flash mx-4 mb-3.5 mt-2 rounded-xl bg-mac-tint-promo p-3.5">
           <h3 className="mb-2.5 flex items-center gap-2 text-sm font-semibold text-mac-ink"><Tag size={16} aria-hidden="true" className="text-mac-accent-text" />Promociones</h3>

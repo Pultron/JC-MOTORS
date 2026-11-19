@@ -8,7 +8,7 @@ const totals = { subtotalRefacciones: 100, subtotalManoObra: 0, laborDiscount: 0
 const baseForm = (overrides = {}) => ({
   customerId: '', customerName: 'Ana', phone: '(667) 351-8806', email: '', make: 'Nissan', model: 'Versa', year: '2020', plates: 'ABC-123-A',
   items: [{ id: 'a', type: 'part', description: 'Filtro', quantity: '1', unitPrice: '100' }],
-  laborAmount: '', laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true, validityDays: '15', publicNotes: '', customerNotes: '',
+  laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true, validityDays: '15', publicNotes: '', customerNotes: '',
   ...overrides,
 });
 
@@ -26,6 +26,7 @@ test('year is required', () => {
   assert.ok(validateQuoteForm(baseForm({ year: '  ' }), totals).year);
 });
 
+const laborRow = (id, unitPrice, parentId) => ({ id, type: 'labor', description: 'Mano de obra', quantity: '1', unitPrice, ...(parentId ? { parentId } : {}) });
 const item = (overrides) => ({ id: 'a', type: 'part', description: 'Filtro', quantity: '1', unitPrice: '100', ...overrides });
 
 test('#007 a part needs a whole quantity >= 1; labor/service accepts up to 2 decimals', () => {
@@ -33,16 +34,8 @@ test('#007 a part needs a whole quantity >= 1; labor/service accepts up to 2 dec
   assert.match(validateQuoteForm(baseForm({ items: [item({ quantity: '1.5' })] }), totals)['item-a-quantity'], /entero/);
   assert.ok(validateQuoteForm(baseForm({ items: [item({ quantity: '0' })] }), totals)['item-a-quantity']);
   assert.ok(validateQuoteForm(baseForm({ items: [item({ quantity: '' })] }), totals)['item-a-quantity']);
-  assert.equal(validateQuoteForm(baseForm({ items: [item({ type: 'labor', quantity: '1.5' })] }), totals)['item-a-quantity'], undefined);
-  assert.ok(validateQuoteForm(baseForm({ items: [item({ type: 'labor', quantity: '1.555' })] }), totals)['item-a-quantity']);
-});
-
-test('#007 switching a decimal service row to part errors on that row and keeps the data', () => {
-  const row = item({ type: 'labor', quantity: '1.5' });
-  assert.equal(validateQuoteForm(baseForm({ items: [row] }), totals)['item-a-quantity'], undefined);
-  const switched = { ...row, type: 'part' };
-  assert.ok(validateQuoteForm(baseForm({ items: [switched] }), totals)['item-a-quantity']);
-  assert.equal(switched.quantity, '1.5');
+  // Labor rows are always one unit: their quantity is not a capture field and is never validated.
+  assert.equal(validateQuoteForm(baseForm({ items: [item(), laborRow('l', '10', 'a')] }), totals)['item-l-quantity'], undefined);
 });
 
 test('#009 pasting "$1,234.56" in price validates and saves 1234.56', () => {
@@ -58,27 +51,29 @@ test('#009 pasting "$1,234.56" in price validates and saves 1234.56', () => {
 
 test('#009 invalid money is a visible field error, never NaN', () => {
   for (const bad of ['abc', '1.2.3', '12,34', '$']) {
-    const form = baseForm({ items: [item({ unitPrice: bad })], laborAmount: bad });
+    const form = baseForm({ items: [item({ unitPrice: bad }), laborRow('l', bad, 'a')] });
     const errors = validateQuoteForm(form, totals);
     assert.ok(errors['item-a-unitPrice'], bad);
-    assert.ok(errors.laborAmount, bad);
+    assert.ok(errors['item-l-unitPrice'], bad);
     assert.ok(buildQuotationInput(form).items.every((entry) => Number.isFinite(entry.saleUnitPrice)));
   }
   assert.ok(validateQuoteForm(baseForm({ items: [item({ unitPrice: '' })] }), totals)['item-a-unitPrice']);
 });
 
-test('#009 labor amount accepts the same formats', () => {
-  const form = normalizeQuoteForm(baseForm({ laborAmount: '$2,500.50' }));
-  assert.equal(form.laborAmount, '2500.50');
-  assert.equal(validateQuoteForm(form, totals).laborAmount, undefined);
+test('#009 labor price accepts the same formats', () => {
+  const form = normalizeQuoteForm(baseForm({ items: [item(), laborRow('l', '$2,500.50', 'a')] }));
+  assert.equal(form.items[1].unitPrice, '2500.50');
+  assert.equal(validateQuoteForm(form, totals)['item-l-unitPrice'], undefined);
   const labor = buildQuotationInput(form).items.find((entry) => entry.type === 'labor');
   assert.equal(labor.saleUnitPrice, 2500.5);
+  assert.equal(labor.parentId, 'a');
+  assert.equal(labor.quantity, 1);
 });
 
 test('#013-a negatives report "No se permiten montos negativos"', () => {
-  const errors = validateQuoteForm(baseForm({ items: [item({ unitPrice: '-100' })], laborAmount: '-5' }), totals);
+  const errors = validateQuoteForm(baseForm({ items: [item({ unitPrice: '-100' }), laborRow('l', '-5', 'a')] }), totals);
   assert.equal(errors['item-a-unitPrice'], 'No se permiten montos negativos.');
-  assert.equal(errors.laborAmount, 'No se permiten montos negativos.');
+  assert.equal(errors['item-l-unitPrice'], 'No se permiten montos negativos.');
 });
 
 test('#011 single-line fields lose tabs, newlines and repeated spaces; notes keep their newlines', () => {

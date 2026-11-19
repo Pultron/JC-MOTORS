@@ -6,6 +6,8 @@ export interface QuoteDraftItem {
   description: string;
   quantity: string;
   unitPrice: string;
+  /** Labor rows only: id of the service row this labor belongs to. Absent on services and on loose labor of old quotations. */
+  parentId?: string;
 }
 
 export interface QuoteFormData {
@@ -18,7 +20,6 @@ export interface QuoteFormData {
   year: string;
   plates: string;
   items: QuoteDraftItem[];
-  laborAmount: string;
   laborDiscountType: DiscountType;
   laborDiscountValue: string;
   ivaEnabled: boolean;

@@ -32,10 +32,10 @@ export function NuevaCotizacionPage() {
           <ClienteCard form={form} errors={errors} customers={state.customers} onChange={state.updateField} onCustomerChange={state.updateCustomer} onSelectCustomer={state.selectCustomer} onBlurField={state.blurField} onCommitText={state.commitText} canSaveCustomer={state.canSaveCustomer} onSaveCustomer={() => void state.saveAsCustomer()} canUpdateCustomer={state.canUpdateCustomer} onUpdateCustomer={state.updateLinkedCustomer} />
           <VehiculoCard form={form} errors={errors} onChange={state.updateField} onBlurField={state.blurField} onCommitText={state.commitText} />
         </div>
-        <RefaccionesCard form={form} errors={errors} suggestions={state.suggestions} totalParts={totals.subtotalRefacciones} onAdd={state.addItem} onUpdate={state.updateItem} onBlurItem={state.blurItem} onDelete={state.deleteItem} onApplyTemplate={state.applyTemplate} />
+        <RefaccionesCard form={form} errors={errors} suggestions={state.suggestions} totalParts={totals.subtotalRefacciones} totalLabor={totals.subtotalManoObra} onAdd={state.addItem} onUpdate={state.updateItem} onBlurItem={state.blurItem} onDelete={state.deleteItem} onAddLabor={state.addLabor} onDeleteLabor={state.deleteLabor} onApplyTemplate={state.applyTemplate} />
         <DetallesCard form={form} errors={errors} onChange={state.updateField} />
       </div>
-      <ResumenCard discountFlash={state.discountFlash} form={form} totals={totals} errors={errors} busy={state.busy} onChange={state.updateField} onLaborChange={state.setLaborAmount} onLaborBlur={() => state.blurField('laborAmount')} onSaveDraft={editId ? undefined : () => void state.saveDraft()} onClear={editId ? undefined : state.clearForm} submitLabel={editId ? 'Guardar cambios' : 'Guardar cotización'} />
+      <ResumenCard discountFlash={state.discountFlash} form={form} totals={totals} errors={errors} busy={state.busy} onChange={state.updateField} onSaveDraft={editId ? undefined : () => void state.saveDraft()} onClear={editId ? undefined : state.clearForm} submitLabel={editId ? 'Guardar cambios' : 'Guardar cotización'} />
     </form>
   </div>;
 }

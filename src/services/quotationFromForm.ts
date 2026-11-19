@@ -1,7 +1,8 @@
 import type { CreateQuotationInput, PublicQuotation, Quotation } from '../models/quotation';
 import type { QuoteFormData } from '../models/quoteDraft';
 import { amountValue, phoneForStorage } from '../validation/fields';
-import { buildQuotationItems, createId, toPublicQuotation } from '../utils/quotation';
+import { buildQuotationItems, toPublicQuotation } from '../utils/quotation';
+import { LABOR_DESCRIPTION } from './quoteLaborRows';
 
 /** Numeric field coming from a text input; unparsable text counts as 0 so the preview never breaks. */
 const num = (value: string): number => {
@@ -14,18 +15,20 @@ const num = (value: string): number => {
  * and the live sheet-count preview go through it, so they cannot drift apart.
  */
 export function buildQuotationInput(form: QuoteFormData, preferredFolio?: string): CreateQuotationInput {
-  const labor = amountValue(form.laborAmount);
   return {
     ...(preferredFolio ? { preferredFolio } : {}),
     ...(form.customerId ? { customerId: form.customerId } : {}),
     customer: { name: form.customerName.trim(), phone: phoneForStorage(form.phone), ...(form.email.trim() ? { email: form.email.trim() } : {}) },
     vehicle: { make: form.make.trim(), model: form.model.trim(), ...(form.year ? { year: Number(form.year) } : {}), plates: form.plates.trim().toUpperCase() },
-    items: [
-      ...form.items
-        .filter((item) => item.description.trim() || String(item.unitPrice).trim())
-        .map((item) => ({ id: item.id, type: item.type, description: item.description.trim(), quantity: num(item.quantity), saleUnitPrice: amountValue(item.unitPrice) })),
-      ...(labor > 0 ? [{ id: createId(), type: 'labor' as const, description: 'Mano de obra', quantity: 1, saleUnitPrice: labor }] : []),
-    ],
+    items: form.items.flatMap((item): CreateQuotationInput['items'] => {
+      if (item.type === 'labor') {
+        // A labor row exists only while it has a price; it is always one unit of "Mano de obra".
+        if (!item.unitPrice.trim()) return [];
+        return [{ id: item.id, type: 'labor', description: item.description.trim() || LABOR_DESCRIPTION, quantity: num(item.quantity) || 1, saleUnitPrice: amountValue(item.unitPrice), ...(item.parentId ? { parentId: item.parentId } : {}) }];
+      }
+      if (!item.description.trim() && !String(item.unitPrice).trim()) return [];
+      return [{ id: item.id, type: item.type, description: item.description.trim(), quantity: num(item.quantity), saleUnitPrice: amountValue(item.unitPrice) }];
+    }),
     laborDiscountType: form.laborDiscountType,
     laborDiscountValue: num(form.laborDiscountValue),
     includeVat: form.ivaEnabled,

@@ -15,7 +15,7 @@ beforeEach(() => { data.clear(); setStorageOverride(undefined); setActiveSqliteS
 const form = (n) => ({
   customerId: '', customerName: `Cliente ${n}`, phone: '(667) 351-8806', email: '', make: 'Nissan', model: 'Versa', year: '2020', plates: 'ABC-123-A',
   items: [{ id: 'a', type: 'part', description: 'Filtro', quantity: '1', unitPrice: '100' }],
-  laborAmount: '', laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true, validityDays: '15', publicNotes: '', customerNotes: '',
+  laborDiscountType: 'percentage', laborDiscountValue: '0', ivaEnabled: true, validityDays: '15', publicNotes: '', customerNotes: '',
 });
 const invoice = (folio) => ({
   folio, uuid: `u-${folio}`, total: '100.00', moneda: 'MXN', receptor: { rfc: 'AAA010101AAA', nombre: 'X', regimenFiscal: '601', codigoPostal: '80020', usoCFDI: 'G03' },
