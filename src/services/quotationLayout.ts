@@ -1,6 +1,7 @@
 import type { PublicQuotation } from '../models/quotation';
 import { addDays, formatDate, parseDate } from '../utils/dateFormat';
-import { formatMoney } from '../utils/money';
+import { formatMoney, roundCurrency } from '../utils/money';
+import { IVA_RATE } from '../utils/quotation';
 import { formatPhone } from '../validation/fields';
 
 /** Design units: px on an A4 sheet at 96 dpi. jsPDF works in mm/pt, so the PDF converts with mm()/pt(). */
@@ -112,7 +113,7 @@ export function conditionsFor(quotation: PublicQuotation): string[] {
     'Precios sujetos a revisión y disponibilidad de refacciones.',
     'Cualquier trabajo adicional requiere autorización del cliente.',
     'Garantía aplicable según el servicio o refacción.',
-    ...(quotation.includeVat ? [] : ['Precios sin IVA; se agregará al solicitar factura.']),
+    ...(quotation.includeVat ? [] : [`Precios sin IVA. Si requiere factura, se agrega el 16 % (total con IVA: ${formatMoney(roundCurrency(quotation.subtotalNeto + roundCurrency(quotation.subtotalNeto * IVA_RATE)), 'pdf')}).`]),
   ];
 }
 
@@ -142,7 +143,8 @@ export function totalRowsFor(quotation: PublicQuotation): TotalRow[] {
   rows.push({ label: 'Subtotal', value: formatMoney(quotation.subtotalNeto, 'pdf') });
   rows.push({
     label: quotation.includeVat ? 'IVA (16%)' : 'IVA no incluido',
-    value: formatMoney(quotation.ivaAmount, 'pdf'),
+    // Without VAT the amount is not zero, it is simply not charged: print the label alone.
+    value: quotation.includeVat ? formatMoney(quotation.ivaAmount, 'pdf') : '',
   });
   return rows;
 }
